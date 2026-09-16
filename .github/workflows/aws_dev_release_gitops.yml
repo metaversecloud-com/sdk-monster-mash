@@ -1,0 +1,130 @@
+name: AWS-Build-Push-Dev (GitOps)
+on:
+  push:
+    branches:
+      - dev
+    # Image Updater's write-back lands on this same branch. paths-ignore is
+    # what stops build -> push -> digest write-back -> build looping: the
+    # write-back only ever touches argo/ (its writeBackTarget is pinned to
+    # kustomization:/argo/overlays/dev), so it can never match this trigger.
+    # A push touching both argo/ and app code still builds, which is correct.
+    #
+    # This replaces the old [skip ci] guard. [skip ci] worked, but GitHub
+    # applies it to pull_request events too, keyed on the HEAD commit of the
+    # PR - so once a write-back commit was the tip of dev, every dev -> main
+    # release PR was silently skipped and Auto Release never fired. Guarding
+    # on paths instead of on a magic string keeps that blast radius out of PRs.
+    paths-ignore:
+      - 'argo/**'
+  workflow_dispatch:
+
+# GitOps deploy, git as the source of truth. This workflow only BUILDS: it
+# pushes to the shared dev ECR repo under the mutable tag sdk-example:<repo>
+# (kept mutable so the ECR lifecycle policy manages it; the commit sha is baked
+# into the image via COMMIT_HASH, not the tag). Nothing here deploys.
+#
+# Argo CD Image Updater owns the deploy half. It watches that tag, and when the
+# digest behind it changes it commits images[].digest into this repo's
+# argo/overlays/<env>/kustomization.yaml on the deploy branch. That manifest
+# change is what rolls the workload - the sdk-apps ApplicationSet's Applications
+# are automated + selfHeal, so no explicit `argocd app sync` is needed. Config
+# lives in metaversecloud-com/sdk-gitops (bootstrap/imageupdater-sdk-apps.yaml).
+#
+# The sdk-apps ApplicationSet creates one Application per env from this repo's
+# argo/envs/<env>/config.json, named "<app>-<env>". Adding an env = committing
+# argo/envs/<env>/config.json on the inventory ref. No kubectl, no EKS/AWS auth,
+# no config/secret seeding (kustomize ConfigMap + SealedSecret are Argo-managed).
+env:
+  REPOSITORY: 'sdk-example'
+  ENV: 'dev'
+  AWS_REGION: 'us-east-1'
+
+concurrency:
+  group: ${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write   # Build: OIDC -> AWS role for ECR push
+  contents: read    # checkout only; the deploy-branch commit is Image Updater's
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.node_version }}
+          cache: 'npm'
+      - run: npm i
+      - name: Build
+        env:
+          VITE_S3_BUCKET_URL: ${{ vars.VITE_S3_BUCKET_URL }}
+        run: |
+          set +e
+          CI=false npm run build 2>&1 | tee /tmp/build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ $BUILD_EXIT -ne 0 ] || grep -q "npm ERR!" /tmp/build.log; then
+            echo "::error::Build failed"
+            exit 1
+          fi
+      # Emulation for the arm64 target. The images differ only by their
+      # node/alpine base (npm/node binaries); node_modules is ADDed from
+      # the runner and is arch-neutral (these apps have no native runtime
+      # deps), so a single buildx multi-arch push is correct. NOTE: if any
+      # app adds a native RUNTIME dependency, this pattern would ship the
+      # runner's arch into both variants - switch that app to a per-arch
+      # native build or a Dockerfile `RUN npm ci`.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,amd64
+      - name: Get role ARN
+        id: get_role
+        env:
+          ARN_JSON: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          arn=$(echo "$ARN_JSON" | jq -r ".$ENV")
+          echo "::add-mask::$arn"
+          echo "arn=$arn" >> $GITHUB_OUTPUT
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.get_role.outputs.arn }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
+          driver-opts: image=moby/buildkit:latest
+      - name: Image Metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}
+          tags: |
+            type=raw,value=${{ github.event.repository.name }}
+      - name: Compute image build timestamp
+        id: buildtime
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+      - name: Build and push multi-platform images to ECR
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          build-args: |
+            REF=${{ github.ref }}
+            COMMIT_HASH=${{ github.sha }}
+            BUILD_TIME=${{ steps.buildtime.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
