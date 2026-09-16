@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../services/monstermash0
+  - monstermash0-config.yaml
+  - monstermash0-sealedsecret.yaml
+  - monstermash0-httpscaledobject.yaml
+  - monstermash0-interceptor-ingress.yaml
+patches:
+  # Drop the direct ALB Ingress: dev is fronted through the KEDA interceptor.
+  - target:
+      kind: Ingress
+      name: monstermash0
+    patch: |
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: monstermash0
+images:
+  - name: monstermash0
+    newName: 368076259134.dkr.ecr.us-east-1.amazonaws.com/sdk-example
+    newTag: sdk-monster-mash
