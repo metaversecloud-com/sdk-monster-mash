@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monstermash0-config
+  labels:
+    app.kubernetes.io/name: monstermash0
+data:
+  INSTANCE_DOMAIN: "api.topia.io"
+  INSTANCE_PROTOCOL: "https"
+  INTERACTIVE_KEY: "cAdkV1OQ1aistqC62yEo"
+  NODE_ENV: "production"
+  PORT: "3000"

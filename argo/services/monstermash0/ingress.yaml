@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monstermash0
+  labels:
+    app.kubernetes.io/name: monstermash0
+  annotations:
+    alb.ingress.kubernetes.io/group.name: topia-dev
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /api/system/health
+spec:
+  ingressClassName: alb
+  rules:
+    - host: monstermash0-dev-topia.topia-rtsdk.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: monstermash0
+                port:
+                  number: 80
