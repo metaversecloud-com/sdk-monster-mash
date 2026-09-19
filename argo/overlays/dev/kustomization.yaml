@@ -3,10 +3,20 @@ kind: Kustomization
 resources:
   - ../../services/monstermash0
   - monstermash0-config.yaml
+  - monstermash0-serviceaccount.yaml
   - monstermash0-sealedsecret.yaml
   - monstermash0-httpscaledobject.yaml
   - monstermash0-interceptor-ingress.yaml
 patches:
+  # Run as the IRSA ServiceAccount rather than the default one, so the pod gets
+  # its own AWS identity instead of the node role.
+  - target:
+      kind: Deployment
+      name: monstermash0
+    patch: |
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: monstermash0-sa
   # Drop the direct ALB Ingress: dev is fronted through the KEDA interceptor.
   - target:
       kind: Ingress
