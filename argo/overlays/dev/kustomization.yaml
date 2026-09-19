@@ -6,7 +6,6 @@ resources:
   - monstermash0-serviceaccount.yaml
   - monstermash0-sealedsecret.yaml
   - monstermash0-httpscaledobject.yaml
-  - monstermash0-interceptor-ingress.yaml
 patches:
   # Run as the IRSA ServiceAccount rather than the default one, so the pod gets
   # its own AWS identity instead of the node role.
