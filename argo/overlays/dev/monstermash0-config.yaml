@@ -10,3 +10,4 @@ data:
   INTERACTIVE_KEY: "cAdkV1OQ1aistqC62yEo"
   NODE_ENV: "production"
   PORT: "3000"
+  S3_BUCKET: "sdk-monster-mash"
