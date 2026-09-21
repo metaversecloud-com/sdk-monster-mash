@@ -2,200 +2,196 @@
 <img src="https://global-uploads.webflow.com/62e7004a0f9b3a63b980ac3c/62e70c84dd3aac06fb2ac2b6_topia-logo-blue-2x.png" style="width: 120px; margin-bottom: 20px" alt="Topia logo">
 </div>
 
-# SDK App README Template
-
-> This README is a template. When you fork the boilerplate into a new app, **replace this file** with one that describes your app — keep the same section structure so world builders and other developers can find what they need in a predictable place.
+# Monster Mash
 
 ## Introduction / Summary
 
-One- or two-sentence description of what this app does and who it's for.
+Monster Mash is a collaborative **exquisite-corpse** creature builder for Topia. Three players each build one section of a monster — head, torso, legs — from a shared catalog of parts. When the third section is submitted, the app composites the layers into a PNG, drops the finished monster into the world as its own asset, adds it to the class Gallery, and enters it into next week's vote.
 
-This template is meant to give you a simple starting point to build new features in Topia using our JavaScript SDK. Please reference the [SDK documentation](https://metaversecloud-com.github.io/mc-sdk-js/index.html) for a more detailed breakdown of what the SDK is capable of and how to use it.
+Each Sun→Sat ET week runs one voting category (silliest, cutest, best-dressed…). Winners crowned Saturday night take a spot on the class leaderboard forever; every contributor on a winning monster earns an ecosystem badge.
 
 ## Key Features
 
 ### Canvas elements & interactions
 
-- **Key Asset:** When clicked, this asset opens the drawer and allows visitors and admins to start interacting with the app.
+- **Monster Mash key asset** (`clickType: link` → this app iframe as a wide modal): opens the main app modal with three tabs — Create, Gallery, Vote.
+- **Info sign** (`clickType: link` → drawer): opens a static how-to image explaining the game to new visitors.
+- **Trophy** (`clickType: link` → drawer): opens the two-tab Leaderboard + Badges surface.
+- **Finished-monster assets** (dropped by the app at completion, `clickType: link` → drawer): opens the Single Monster View for that monster, with Download PNG and (for admins) a Delete confirm.
 
-### Drawer content
+### Main modal — Create tab
 
-- How to play instructions
-- Leaderboard
-- Admin features (see below)
+- **Create New Monster** tile (top-left) — server picks the caller's section at random.
+- **Resume** tile — surfaces when the caller has an unfinished section (soft lock, 30-min TTL).
+- **In-progress card grid** — one card per unfinished monster with three horizontal section slots. Each slot renders one of `Available` (Join), `Locked-by-you` (Resume), `Locked-by-others` (contributor pill), `Done` (peer art visible after you submit — spec §Reveal rule).
+- **Admin trash** per card with the "Delete this monster in progress?" confirm modal.
+- Ordering: Create-New → Resume → your draft → cards you've contributed to → cards with available sections → the rest, each bucket newest-first.
+
+### Main modal — Gallery tab
+
+- Card grid of finished monsters with an award ribbon (`{PLACE} · {CATEGORY} · {DATE}`), composited art, contributors dot-separated, `Born {date}`, per-card Download PNG.
+- Green outline on cards you contributed to.
+- Filters: Sort (Newest / Oldest), "Show only my monsters" (reads from visitor.contributedMonsters — includes monsters that have rotated out of the 200-cap roster), "Show only award winners".
+
+### Main modal — Vote tab (three states)
+
+- **Running**: amber countdown pill formatted `Xd : Yh : Zm`, "LAST WEEK'S WINNERS · {CATEGORY}" row (hidden if none), category question ("Which one is the …?"), two side-by-side matchup cards + VS chip. Vote cap = `2 × pool.size` per cycle per visitor.
+- **Scheduled**: "No vote is running right now" with the next scheduled Sunday date.
+- **Not-enough-monsters**: `X of the 10 monsters needed are in the pool`.
+- **Voting-off** (admin toggled): "Check in with your teacher about the next vote!"
+
+### Monster Builder drawer
+
+- Three-section layout with a pinned live preview (dashed peer placeholders + your section rendering live per `LAYER_ORDER`).
+- Category accordions with `X of Y chosen` progress, `chosen ✓` / `Required` chips, and a dashed-red `NONE` tile where "nothing" is a valid look.
+- 30-name dropdown per section (head → first name, torso → last name, legs → title). The three tokens compose the monster's storable name at completion.
+- **Legs sub-rule**: picking a `legs.legs` part with `supportsFeet: false` while feet is chosen fires the icon-buttoned incompatibility modal.
+- **Submit** confirm modal ("Submit this Monster Head?") + Cancel & release my claim.
+
+### Single Monster View drawer
+
+- Composited PNG, name, contributor attribution, Born date, Award ribbon when awarded, Download PNG (opens in new tab), Back to Monster Mash.
+- Admin variant adds a trash icon + delete confirm (spec: "It will be removed from the gallery and the world. If it's in this week's vote, it will be disqualified. Deletion is permanent: cleared from the key asset AND from all three user records.")
+
+### Trophy drawer
+
+- **Leaderboard tab**: single sorted list (awards desc → monsters-built desc), top 25, caller's row highlighted yellow and rendered outside the top-25 when needed. Admin footer: `Reset Leaderboard` (badges are NOT affected).
+- **Badges tab**: `Your Badges · X of 38`, grouped `For building` / `For voting` / `For visiting` / `For winning`. Earned = gold circle; locked = padlock.
+
+### Banners (spec priority order)
+
+1. **Green winner banner** — "Your monster placed {1st|2nd|3rd} in {Category}…"
+2. **Blue completion banner** — "Your section finished the monster!"
+3. **Amber countdown banner** — "{X days and Y hours} left to VOTE on last week's monsters!"
+4. **Blue advisory** — "Next week's voting category: {Category} — FINISH your monsters by Sat 11:59 PM ET…"
+
+Both green + blue banners POST `/banners/acknowledge` on first view to clear the queue (spec: "shown until first viewed, then cleared").
 
 ### Admin features
 
-_Does your app have special admin functionality? If so your key features may look something like this:_
-
-- **Access:** Click on the key asset to open the drawer and then select the Admin tab. Any changes made here only affect this instance of the application and do not impact other instances dropped in this or other worlds.
-- **Theme selection:** Use the dropdown to select a theme.
-- **Reset:** Click the Reset button to clear the active game state and rebuild the game board in its default state.
-
-### Themes description
-
-- **Winter (default):** A snowy theme that drops snowflakes throughout the scene.
-- **Spring:** A garden theme that drops flowers throughout the scene.
+- Delete in-progress monster from the Create tab.
+- Delete completed monster from the Single Monster View (also removes the world drop + strips it from the current vote cycle pool + tallies).
+- Reset Leaderboard from the Trophy drawer.
+- Weekly voting on/off toggle (Admin Settings — Epic 8's minor placeholder for now).
 
 ## Required Assets with Unique Names
 
-_If your app uses dropped assets on the canvas that are found by unique name, document them here. This helps world builders set up the correct assets for the app to function._
+| Purpose | Unique name pattern | How it's placed |
+| --- | --- | --- |
+| **Monster Mash key asset** | `MonsterMash-keyAsset` (or the click target the developer configures) | World builder places manually with `clickType: link` pointing at the app URL |
+| **Info sign** | `MonsterMash-infoSign` | World builder places manually with `?screen=how-to` (drawer clickType) |
+| **Trophy asset** | `MonsterMash-trophy` | World builder places manually with `?screen=trophy` (drawer clickType) |
+| **Finished-monster asset** | `MonsterMash-monster-{monsterId}` | **App drops automatically at completion** via `DroppedAsset.drop`. Do not place manually. |
 
-| Unique Name Pattern | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| `AppName_keyAsset`  | Key asset that opens the app drawer                     |
-| `AppName_item_{id}` | Dynamically created assets (created/deleted by the app) |
+All app-owned dropped assets share the key asset's `sceneDropId` — scene-wide fetches work.
 
-> **Note:** Assets with fixed unique names (e.g., `AppName_keyAsset`) must be placed in the world manually by an admin. Assets with dynamic patterns (e.g., `AppName_item_{timestamp}`) are created and managed by the app at runtime.
+## Technical Architecture (Data Objects)
 
-## Technical Architecture
+Per-instance state lives on three dataObject surfaces plus the ecosystem inventory. All caps are per instance.
 
-### Data Objects
+### Key asset dataObject (`KeyAssetDataObject`)
 
-_Data objects store information about each implementation of the app per world._
+The "hub". Roster of every monster (in-progress + complete, index-only for finished), current submission window, current vote cycle, stored winners (rolling last 30), admin settings, category rotation schedule, and the trophy leaderboard cache.
 
-#### Visitor / User
+- `weeklyVotingEnabled: boolean` — admin toggle.
+- `howToImageUrl?: string | null` — override for the Info-sign image.
+- `monsters: { [monsterId]: MonsterIndexEntry }` — capped at 100 in-progress + 200 finished; eldest by `lastEditedAt` evicted first.
+- `currentSubmissionWindow: SubmissionWindow` — Sun→Sat ET containing "now", `eligibleMonsterIds` appended by completions.
+- `currentVoteCycle: VoteCycle | null` — pool + tallies + total matchups served; opened on Sunday if previous week's `eligibleMonsterIds` ≥ 10.
+- `storedWinners: StoredWinner[]` — rolling 30 (10 weeks × 3 places). Deleted monsters keep their spot with a snapshot.
+- `trophyLeaderboard: { [profileId]: { displayName, awardsWon, monstersContributedTo, lastActivityAt } }` — cache; rebuilt when winners are crowned.
+- `categorySchedule: { orderIds: string[], nextIndex: number }` — rotation across the 10 voting categories.
 
-The data object attached to the visitor stores information related specifically to the visitor (e.g., progress). For tracking across multiple world instances, use `${urlSlug}_${sceneDropId}` as a unique key. Example data:
+### Per-monster dropped asset dataObject (`MonsterAssetDataObject`)
 
-```ts
-{
-  [`${urlSlug}_${sceneDropId}`]: {
-    currentStreak: number,
-    lastCollectedDate: string,
-    longestStreak: number,
-    totalCollected: number,
-  }
-}
-```
+One per finished monster (dropped in the world at completion, mirrors Build-an-Asset). Full record — name, birthdate, image URL, three contributor profiles + display names, per-section records (parts + name tokens + per-section image URLs), optional `latestAward`.
 
-#### Key Asset
+### Visitor / User dataObject (`MonsterMashVisitorData`)
 
-The data object attached to the dropped key asset stores information related to this specific instance of the app and is deleted if the key asset is removed from the world. Example data:
+Per profile per instance, scoped under `${urlSlug}-${sceneDropId}`. Includes:
 
-```ts
-{
-  isResetInProgress: boolean;
-  lastInteractionDate: string;
-  lastPlayerTurn: string;
-  playerCount: number;
-  resetCount: number;
-  turnCount: number;
-}
-```
-
-#### World
-
-The data object attached to the world stores information for every instance of the app in a given world, keyed by `keyAssetId` or `sceneDropId`. It persists even if a specific instance is removed. Keep World data minimal to avoid hitting size limits. Example data:
-
-```ts
-{
-  [sceneDropId]: {
-    keyAssetId: string;
-    themeId: string;
-  }
-}
-```
+- `contributedMonsters` — monsterId → { section, submittedAt, completedAt, awards, and post-finalize enrichment (monsterAssetId, name, imageUrl, birthdate, contributor names). Persists across roster eviction so "Show only my monsters" surfaces evicted own-monsters.
+- `activeDraft` — the caller's live section lock (max one at a time).
+- `pendingWinBanners` / `pendingCompletionBanners` — queues drained on first view via `POST /banners/acknowledge`.
+- `votesCastThisWeek`, `totalVotesCast`, `weeksVotedIn`, `weeksSubmittedIn`, `weeksCreatedMonsterIn`, `daysAppOpened` — analytics + badge counters.
 
 ## API Endpoints
 
-_Document every server route the client (or external systems) can call. Group by feature so it's easy to scan._
+### Main app + banners
 
-| Method | Route             | Description                                                            |
-| ------ | ----------------- | ---------------------------------------------------------------------- |
-| `GET`  | `/visitor`        | Initialize / fetch visitor data (calls `getVisitor` utility)           |
-| `GET`  | `/game-state`     | Return the current per-asset game state from the key asset data object |
-| `POST` | `/game-state`     | Update game state (admin or gameplay actions)                          |
-| `GET`  | `/leaderboard`    | Return the world-scoped leaderboard for this app                       |
-| `POST` | `/leaderboard`    | Submit a score to the leaderboard                                      |
-| `GET`  | `/admin/settings` | Return admin-configurable settings for this asset                      |
-| `POST` | `/admin/settings` | Update admin settings (admin-only)                                     |
-| `POST` | `/admin/reset`    | Reset the game state for this asset (admin-only)                       |
-| `GET`  | `/sse/:assetId`   | Open an SSE stream for real-time updates (if the app uses SSE)         |
-| `POST` | `/webhook`        | Receive webhook callbacks from the Topia platform                      |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/main-app` | Modal payload (roster, window, cycle, banners, activeDraft). Runs opportunistic weekly rollover + stale-lock expiry. |
+| POST | `/api/banners/acknowledge` | Clears pending win + completion queues for caller. |
 
-> Real-time updates pattern: see `.ai/rules.md` → **REAL-TIME UPDATES (SSE)** and the canonical reference implementation in `topia-sdk-apps/sdk-ring-toss/server/utils/sseManager.ts`.
+### Monsters lifecycle
 
-## Analytics
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/monsters/start` | Allocates monsterId, picks a random section, locks it for caller. Enforces IN_PROGRESS_CAP + refuses when caller already has an activeDraft. |
+| POST | `/api/monsters/:id/claim` | Join an available section. 409 on race. |
+| POST | `/api/monsters/:id/section` | Submit a section. Composes + uploads per-section PNG; on third-section landing, runs `finalizeMonster` (full-monster compose + world drop + roster migration + banner + leaderboard fanout). |
+| POST | `/api/monsters/:id/abandon` | Release the caller's claim (idempotent). |
+| DELETE | `/api/monsters/:id` | Admin-only. Removes from roster, cleans window/cycle references; for complete monsters, deletes the world drop and clears each contributor's `contributedMonsters` entry. |
 
-_Document every analytics event this app fires so ops and product can find it. Include what triggers each event and where in the code it lives. If the app also writes to a side channel (Google Sheets, external analytics), note that here too._
+### Gallery + single monster
 
-| Event             | Fired when                                     | Where                |
-| ----------------- | ---------------------------------------------- | -------------------- |
-| `starts`          | A visitor opens the drawer for the first time. | `GET /visitor`.      |
-| `gameCompletions` | A game round finishes successfully.            | `POST /game-state`.  |
-| `resets`          | Admin resets the game.                         | `POST /admin/reset`. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/gallery` | `?mine=true` includes evicted own-monsters; `?winners=true` filters to awarded; `?sort=newest|oldest`. |
+| GET | `/api/monsters/:id` | Single Monster View payload; falls back to visitor.contributedMonsters when the monster is evicted. |
 
-If the app writes to Google Sheets (via `GOOGLESHEETS_*` env vars), note which events are appended and to which Sheet range.
+### Vote
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/vote` | Vote-tab payload (state / countdown / matchup / last winners / caller vote-cap). |
+| POST | `/api/vote/cast` | Body: `{ winnerMonsterId, loserMonsterId }`. Increments tallies, bumps caller's `votesCastThisWeek`, returns the next matchup. |
+
+### Trophy
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/trophy` | Leaderboard (top 25 + caller's row) + badges grid (four groups × 38). |
+| POST | `/api/leaderboard/reset` | Admin-only. Wipes the trophy leaderboard cache (badges unaffected). |
 
 ## Environment Variables
 
-Create a `.env` file in the root directory. See `.env-example` for a template.
+Copy `.env-example` → `.env` at the repo root:
 
-| Variable               | Description                                                                        | Required |
-| ---------------------- | ---------------------------------------------------------------------------------- | -------- |
-| `INTERACTIVE_KEY`      | Topia interactive app key                                                          | Yes      |
-| `INTERACTIVE_SECRET`   | Topia interactive app secret                                                       | Yes      |
-| `INSTANCE_DOMAIN`      | Topia API domain (`api.topia.io` for production, `api-stage.topia.io` for staging) | Yes      |
-| `INSTANCE_PROTOCOL`    | `https` for production/staging, `http` only for local                              | Yes      |
-| `NODE_ENV`             | Node environment                                                                   | No       |
-| `PORT`                 | Server port (defaults to `3001`)                                                   | No       |
-| `LEADERBOARD_BASE_URL` | Base URL for the leaderboard service (if applicable)                               | No       |
-| `SKIP_PREFLIGHT_CHECK` | Skip CRA preflight check                                                           | No       |
-
-### Where to find `INTERACTIVE_KEY` and `INTERACTIVE_SECRET`
-
-- [Topia Production Account Dashboard](https://topia.io/t/dashboard/integrations)
+```
+INSTANCE_DOMAIN=api.topia.io
+INTERACTIVE_KEY=your_interactive_key
+INTERACTIVE_SECRET=your_interactive_secret
+NODE_ENV=development
+# Where the client + server fetch part PNGs from. Empty in dev → served from `client/public/parts/`.
+PARTS_BASE_URL=
+# Bucket for composed monster PNGs. Local dev: `topia-dev-test`.
+S3_BUCKET=topia-dev-test
+```
 
 ## Getting Started
 
 ```bash
-# from the app root
 npm install
-cd client && npm install && cd ..
-
-# create a .env at the app root (see Environment Variables above)
-cp .env-example .env
-
-# run the dev server (serves the client and the Express server together)
 npm run dev
 ```
 
+- Server runs on `:3000` (Express) and serves the compiled client in production.
+- Client runs on `:5173` (Vite) in dev.
+- Point the Monster Mash key asset in your world at `http://localhost:3001` (dev) — the app reads interactive params from the query string.
+
+Once opened in a world with valid interactive params, the app initializes both the key asset dataObject and the caller's per-instance visitor dataObject on the first `/api/main-app` call.
+
 ## For Developers
 
-### Built With
+- **Content** (`shared/content/monsterMash.ts`) — categories, parts (with `supportsFeet` on legs), name tokens (30 per section), `LAYER_ORDER` (locked back → front), and the voting-category rotation. When Bekama delivers art, either drop PNGs into `client/public/parts/{section}/{category}/{imageName}` or set `PARTS_BASE_URL` to point at an S3 bucket with the same layout.
+- **Badges** (`shared/content/badges.ts`) — 38 badges tagged with their group + threshold. `evaluateBadges` (server/utils/badges/) returns badges to grant given the target's counters + owned set.
+- **Timezone** — hardcoded `America/New_York`. Every window and cycle rolls at Sun 00:00 ET → Sat 23:59:59 ET via `server/utils/vote/computeWindows.ts` (DST-safe two-pass convergence).
+- **Testing** — `npm test --workspace=server` runs the Jest suite (`server/tests/routes.test.ts`) covering every route. Add coverage under `server/tests/` for new routes. Ecosystem writes are mocked in `server/mocks/@rtsdk/topia.ts`.
+- **Compositor** — Jimp; per-section PNG at `monster-mash/sections/{monsterId}-{section}.png`, full monster at `monster-mash/monsters/{monsterId}.png`. Uploads via `@aws-sdk/client-s3` to bucket in `S3_BUCKET`.
 
-#### Client
+## Plan + Spec
 
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
-![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
-
-#### Server
-
-![Node.js](https://img.shields.io/badge/node.js-%2343853D.svg?style=for-the-badge&logo=node.js&logoColor=white)
-![Express](https://img.shields.io/badge/express-%23000000.svg?style=for-the-badge&logo=express&logoColor=white)
-
-### Styling
-
-This project uses the Topia SDK's CSS classes for consistent styling, layered with Tailwind via CSS cascade layers (`@layer tailwind, sdk;` — SDK wins over Tailwind, unlayered project CSS wins over both). Tailwind preflight is disabled to avoid clobbering SDK defaults.
-
-- Read [`.ai/style-guide.md`](.ai/style-guide.md) for the full SDK class catalog, the cascade-layer setup (`client/src/index.css`, `client/index.html`, `client/tailwind.config.js`), custom CSS conventions, and the component structure pattern.
-- The canonical reference implementation lives in [`topia-sdk-apps/sdk-escape-room/client/src/index.css`](../sdk-escape-room/client/src/index.css).
-
-### Accessibility
-
-Every UI change must meet **WCAG 2.1 AA**.
-
-- Read [`.ai/accessibility.md`](.ai/accessibility.md) for the required patterns: semantic elements, icon-button labeling, form labels, the modal dialog contract, focus management, contrast, motion, and the testing flow.
-
-### SDK fundamentals
-
-If anything about how the SDK _works_ is unclear (Interactive Keys, JWT signing, iframes vs webhooks, session credentials, dropped-asset operations, backend validation), read [`.ai/sdk-fundamentals.md`](.ai/sdk-fundamentals.md).
-
-### Helpful links
-
-- [SDK Developer docs](https://metaversecloud-com.github.io/mc-sdk-js/index.html)
-- View it in action: [Dev](https://topia.io/appname-dev), [Prod](https://topia.io/appname-prod)
-- [Notion One Pager]()
+- Design spec: `~/Downloads/Monster Mash Design Spec 1.2.md`
+- Implementation plan (per-epic): [`plan.md`](./plan.md)

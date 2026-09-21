@@ -5,11 +5,17 @@ export const ConfirmationModal = ({
   message,
   handleOnConfirm,
   handleToggleShowConfirmationModal,
+  confirmLabel = "Yes",
+  cancelLabel = "No",
 }: {
   title: string;
   message: string;
   handleOnConfirm: () => void;
   handleToggleShowConfirmationModal: () => void;
+  /** Primary action label. Defaults to "Yes". */
+  confirmLabel?: string;
+  /** Cancel action label. Defaults to "No". */
+  cancelLabel?: string;
 }) => {
   const [areButtonsDisabled, setAreButtonsDisabled] = useState(false);
 
@@ -31,10 +37,10 @@ export const ConfirmationModal = ({
             onClick={handleToggleShowConfirmationModal}
             disabled={areButtonsDisabled}
           >
-            No
+            {cancelLabel}
           </button>
           <button className="btn btn-danger-outline" onClick={onConfirm} disabled={areButtonsDisabled}>
-            Yes
+            {confirmLabel}
           </button>
         </div>
       </div>

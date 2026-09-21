@@ -1,46 +1,63 @@
 import { useContext, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
-// components
-import { PageContainer } from "@/components";
+// pages
+import { MainApp } from "./MainApp";
+import { MonsterBuilder } from "./MonsterBuilder";
+import { SingleMonsterView } from "./SingleMonsterView";
+import { Trophy } from "./Trophy";
 
 // context
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 
 // utils
-import { backendAPI, setErrorMessage, setGameState } from "@/utils";
+import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
+/**
+ * Router-level "Home" — dispatched into by App.tsx. Reads `?screen=` to pick
+ * a surface. Epic 1 shipped MainApp only; Epic 2 adds the `builder` branch.
+ * Later epics add `single-monster`, `trophy`, `how-to`.
+ */
 export const Home = () => {
   const dispatch = useContext(GlobalDispatchContext);
-  const { droppedAsset, hasInteractiveParams } = useContext(GlobalStateContext);
-  const imgSrc = droppedAsset?.topLayerURL || droppedAsset?.bottomLayerURL;
-
+  const { hasInteractiveParams } = useContext(GlobalStateContext);
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (hasInteractiveParams) {
-      backendAPI
-        .get("/game-state")
-        .then((response) => {
-          setGameState(dispatch, response.data);
-        })
-        .catch((error) => setErrorMessage(dispatch, error as ErrorType))
-        .finally(() => setIsLoading(false));
-    }
-  }, [hasInteractiveParams]);
+  const screen = searchParams.get("screen") ?? "main";
 
-  return (
-    <PageContainer isLoading={isLoading} headerText="Server side example using interactive parameters">
-      {droppedAsset?.id && (
-        <div className="flex flex-col w-full items-start">
-          <p className="mt-4 mb-2">
-            You have successfully retrieved the dropped asset details for {droppedAsset.assetName}!
-          </p>
-          {imgSrc && <img className="w-96 h-96 object-cover rounded-2xl my-4" alt="preview" src={imgSrc} />}
-        </div>
-      )}
-    </PageContainer>
-  );
+  useEffect(() => {
+    if (!hasInteractiveParams) return;
+    // Pass forceRefreshInventory through — Topia sets this when badges are updated.
+    const forceRefreshInventory = searchParams.get("forceRefreshInventory") === "true";
+    backendAPI
+      .get("/main-app", { params: { forceRefreshInventory } })
+      .then((response) => {
+        if (response?.data?.success && response.data.data) {
+          setMainAppState(dispatch, response.data.data);
+        }
+      })
+      .catch((error) => setErrorMessage(dispatch, error as ErrorType))
+      .finally(() => setIsLoading(false));
+  }, [hasInteractiveParams, dispatch, searchParams]);
+
+  if (screen === "builder") {
+    const monsterId = searchParams.get("monsterId") ?? "";
+    const section = (searchParams.get("section") as "head" | "torso" | "legs") ?? "head";
+    return <MonsterBuilder isLoading={isLoading} monsterId={monsterId} section={section} />;
+  }
+
+  if (screen === "single-monster") {
+    const monsterId = searchParams.get("monsterId") ?? "";
+    return <SingleMonsterView monsterId={monsterId} />;
+  }
+
+  if (screen === "trophy") {
+    return <Trophy />;
+  }
+
+  return <MainApp isLoading={isLoading} />;
 };
 
 export default Home;
