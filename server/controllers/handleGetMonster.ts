@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import {
   GalleryMonster,
   KeyAssetDataObject,
-  SectionRecordSummary,
   SingleMonsterResponseData,
 } from "@shared/types/index.js";
 import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
@@ -58,20 +57,8 @@ export const handleGetMonster = async (req: Request, res: Response) => {
           fromCallerHistory: true,
         };
 
-    // Section-level records are only available on the roster.
-    let sections: SingleMonsterResponseData["sections"] | undefined;
-    if (entry?.inProgressSections) {
-      // In-progress (edge case: should be `undefined` on complete after finalize's migration).
-      sections = {
-        head: sectionSummary(entry.inProgressSections.head),
-        torso: sectionSummary(entry.inProgressSections.torso),
-        legs: sectionSummary(entry.inProgressSections.legs),
-      };
-    }
-
     const payload: SingleMonsterResponseData = {
       monster,
-      sections,
       canDelete: !!isAdmin,
     };
 
@@ -95,14 +82,3 @@ const computeDisplayNames = (entry: { sections?: any }): string[] => {
   }
   return names;
 };
-
-const sectionSummary = (r: any): SectionRecordSummary =>
-  r
-    ? {
-        contributorProfileId: r.contributorProfileId,
-        contributorDisplayName: r.contributorDisplayName,
-        submittedAt: r.submittedAt,
-        nameToken: r.nameToken,
-        sectionImageUrl: r.sectionImageUrl,
-      }
-    : ({} as SectionRecordSummary);

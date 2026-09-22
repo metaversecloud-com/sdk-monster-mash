@@ -19,7 +19,7 @@ interface SubmitConfirmProps {
  * (iframe chrome), so we render a role="dialog" overlay.
  */
 export const SubmitConfirm = ({ section, onConfirm, onCancel, isSubmitting }: SubmitConfirmProps) => {
-  const title = `Submit this Monster ${SECTION_TITLES[section]}?`;
+  const title = `Submit this Monster's ${SECTION_TITLES[section]}?`;
   return (
     <div
       role="dialog"
@@ -32,7 +32,13 @@ export const SubmitConfirm = ({ section, onConfirm, onCancel, isSubmitting }: Su
           {title}
         </h3>
         <p className="p2 text-center text-gray-600">
-          Once you submit, this section is locked forever. The peer reveal happens on submit — no going back.
+          You cannot change it afterward - the monster keeps{" "}
+          {SECTION_TITLES[section] === "head"
+            ? "this head"
+            : SECTION_TITLES[section] === "torso"
+              ? "this torso"
+              : "these legs"}{" "}
+          forever!
         </p>
         <div className="flex flex-col gap-2">
           <button className="btn" disabled={isSubmitting} onClick={onConfirm}>

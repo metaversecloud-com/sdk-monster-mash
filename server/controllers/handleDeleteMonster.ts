@@ -109,7 +109,9 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Clear per-contributor `contributedMonsters[id]` on every contributor.
+    // 3. Clear per-contributor `contributedMonsters[id]` AND any leftover
+    // `contributedDrafts[id]` on every contributor (in-progress deletes may
+    // still have picks on visitor data). One combined write per contributor.
     // We only have their profileIds → reach for User (not Visitor), per the
     // Visitor/User memory: "User class for foreign-profile fanout writes".
     for (const profileId of contributorProfileIds) {
@@ -121,13 +123,19 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
         if (!scoped) continue;
         const nextContrib = { ...scoped.contributedMonsters };
         delete nextContrib[monsterId];
-        const patched: MonsterMashVisitorData = { ...scoped, contributedMonsters: nextContrib };
+        const nextDrafts = { ...(scoped.contributedDrafts ?? {}) };
+        delete nextDrafts[monsterId];
+        const patched: MonsterMashVisitorData = {
+          ...scoped,
+          contributedMonsters: nextContrib,
+          contributedDrafts: nextDrafts,
+        };
         await user.updateDataObject({ [scopedKey]: patched }, {});
       } catch (error) {
         errorHandler({
           error,
           functionName: "handleDeleteMonster",
-          message: `Non-fatal: could not clear contributedMonsters for ${profileId}`,
+          message: `Non-fatal: could not clear visitor data for ${profileId}`,
         });
       }
     }

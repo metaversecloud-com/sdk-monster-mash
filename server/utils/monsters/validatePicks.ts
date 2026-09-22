@@ -1,10 +1,6 @@
-import {
-  CATEGORIES_BY_SECTION,
-  NAME_TOKENS,
-  PART_BY_ID,
-  PARTS_BY_CATEGORY,
-} from "@shared/content/monsterMash.js";
+import { CATEGORIES_BY_SECTION, NAME_TOKENS, PartDef } from "@shared/content/monsterMash.js";
 import { Section } from "@shared/types/index.js";
+import { getContent } from "../content/getContent.js";
 
 const NONE_ID = "NONE";
 
@@ -36,7 +32,11 @@ export interface ValidatePicksResult {
  *  - No `parts.categoryId` outside the section's category list (rejects
  *    smuggling head picks under a torso submit).
  */
-export const validatePicks = ({ section, picks, nameToken }: ValidatePicksInput): ValidatePicksResult => {
+export const validatePicks = async ({
+  section,
+  picks,
+  nameToken,
+}: ValidatePicksInput): Promise<ValidatePicksResult> => {
   if (!picks || typeof picks !== "object") return { ok: false, error: "picks payload required" };
 
   const cats = CATEGORIES_BY_SECTION[section];
@@ -47,6 +47,8 @@ export const validatePicks = ({ section, picks, nameToken }: ValidatePicksInput)
     if (!catIds.has(key)) return { ok: false, error: `unexpected category "${key}" for section "${section}"` };
   }
 
+  const { partById, partsByCategory } = getContent();
+
   const normalized: { [key: string]: string } = {};
   for (const cat of cats) {
     const pick = picks[cat.id];
@@ -56,12 +58,11 @@ export const validatePicks = ({ section, picks, nameToken }: ValidatePicksInput)
       normalized[cat.id] = NONE_ID;
       continue;
     }
-    const part = PART_BY_ID[pick];
+    const part: PartDef | undefined = partById[pick];
     if (!part) return { ok: false, error: `unknown part "${pick}"` };
     if (part.section !== section) return { ok: false, error: `part "${pick}" belongs to section "${part.section}"` };
     if (part.categoryId !== cat.id) return { ok: false, error: `part "${pick}" belongs to category "${part.categoryId}"` };
-    // Sanity: PARTS_BY_CATEGORY should always contain this part; check to catch drift.
-    const partsInCat = PARTS_BY_CATEGORY[cat.id] ?? [];
+    const partsInCat = partsByCategory[cat.id] ?? [];
     if (!partsInCat.some((p) => p.id === pick)) return { ok: false, error: `part "${pick}" not registered under "${cat.id}"` };
     normalized[cat.id] = pick;
   }
@@ -69,7 +70,7 @@ export const validatePicks = ({ section, picks, nameToken }: ValidatePicksInput)
   // Legs-specific: if `legs` doesn't support feet, `feet` must be NONE.
   if (section === "legs") {
     const legsPick = normalized["legs"];
-    const legsPart = legsPick !== NONE_ID ? PART_BY_ID[legsPick] : null;
+    const legsPart = legsPick !== NONE_ID ? partById[legsPick] : null;
     if (legsPart && legsPart.supportsFeet === false && normalized["feet"] !== NONE_ID) {
       return { ok: false, error: `legs "${legsPick}" cannot have feet — pick NONE for feet` };
     }

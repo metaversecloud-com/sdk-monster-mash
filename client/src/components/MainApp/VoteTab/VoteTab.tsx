@@ -6,6 +6,7 @@ import { LastWeeksWinners } from "./LastWeeksWinners.js";
 import { MatchupCard } from "./MatchupCard.js";
 
 // context
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 
@@ -26,9 +27,9 @@ export const VoteTab = () => {
   const dispatch = useContext(GlobalDispatchContext);
   const { hasInteractiveParams } = useContext(GlobalStateContext);
 
+  const { isBusy, run } = useBusy();
   const [vote, setVote] = useState<VoteResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVoting, setIsVoting] = useState(false);
 
   useEffect(() => {
     if (!hasInteractiveParams) return;
@@ -47,31 +48,30 @@ export const VoteTab = () => {
       .finally(() => setIsLoading(false));
   };
 
-  const castVote = async (winnerId: string, loserId: string) => {
-    if (isVoting) return;
-    setIsVoting(true);
-    try {
-      const response = await backendAPI.post("/vote/cast", {
-        winnerMonsterId: winnerId,
-        loserMonsterId: loserId,
-      });
-      if (response?.data?.success) {
-        const { next, callerVoteState } = response.data.data;
-        setVote((prev) =>
-          prev
-            ? {
-                ...prev,
-                matchup: next ?? null,
-                callerVoteState,
-              }
-            : prev,
-        );
+  const castVote = (winnerId: string, loserId: string) => {
+    if (isBusy) return;
+    return run(async () => {
+      try {
+        const response = await backendAPI.post("/vote/cast", {
+          winnerMonsterId: winnerId,
+          loserMonsterId: loserId,
+        });
+        if (response?.data?.success) {
+          const { next, callerVoteState } = response.data.data;
+          setVote((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  matchup: next ?? null,
+                  callerVoteState,
+                }
+              : prev,
+          );
+        }
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
       }
-    } catch (error) {
-      setErrorMessage(dispatch, error as ErrorType);
-    } finally {
-      setIsVoting(false);
-    }
+    });
   };
 
   return (
@@ -109,14 +109,14 @@ export const VoteTab = () => {
                 <MatchupCard
                   monster={vote.matchup.pair[0]}
                   onVote={() => castVote(vote.matchup!.pair[0].monsterId, vote.matchup!.pair[1].monsterId)}
-                  isVoting={isVoting}
+                  isVoting={isBusy}
                   disabled={vote.callerVoteState.hitCap}
                 />
                 <span className="rounded-full bg-gray-900 text-white text-lg font-bold px-4 py-2">VS</span>
                 <MatchupCard
                   monster={vote.matchup.pair[1]}
                   onVote={() => castVote(vote.matchup!.pair[1].monsterId, vote.matchup!.pair[0].monsterId)}
-                  isVoting={isVoting}
+                  isVoting={isBusy}
                   disabled={vote.callerVoteState.hitCap}
                 />
               </div>

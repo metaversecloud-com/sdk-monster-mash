@@ -1,14 +1,16 @@
 import { Request, Response } from "express";
+import { SECTION_LOCK_TTL_MS } from "@shared/content/monsterMash.js";
 import { KeyAssetDataObject, MainAppResponseData, MonsterMashVisitorData } from "@shared/types/index.js";
 import {
   advanceWeeklyCycle,
-  enqueueWinBannersForProfiles,
+  buildClientPayload,
+  computeLeaderboardForWinners,
+  enqueueWinBannersByProfile,
   errorHandler,
   expireStaleLocks,
   getCredentials,
   getKeyAsset,
   getVisitor,
-  updateLeaderboardForWinners,
 } from "@utils/index.js";
 
 /**
@@ -32,115 +34,187 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
     const forceRefreshInventory = req.query.forceRefreshInventory === "true";
 
     const keyAsset = await getKeyAsset(credentials);
-    let dataObject = keyAsset.dataObject as KeyAssetDataObject;
+    const dataObject = keyAsset.dataObject as KeyAssetDataObject;
 
-    // Opportunistic weekly rollover — if we've crossed into a new ET Sun→Sat
-    // window since the last write, we close the prior cycle (crown winners),
-    // roll the submission window, and open a fresh cycle when the pool is big
-    // enough. Runs BEFORE the stale-lock expiry so both mutations share a
-    // single persistence pass.
-    const advance = advanceWeeklyCycle(dataObject, Date.now());
-    if (advance.changed) {
-      await keyAsset
-        .updateDataObject(
-          {
-            currentSubmissionWindow: advance.next.currentSubmissionWindow,
-            currentVoteCycle: advance.next.currentVoteCycle,
-            storedWinners: advance.next.storedWinners,
-            categorySchedule: advance.next.categorySchedule,
-          },
-          {},
-        )
-        .catch((error) =>
-          errorHandler({
-            error,
-            functionName: "handleGetMainApp",
-            message: "Non-fatal: could not persist weekly rollover",
-          }),
-        );
-      await keyAsset.fetchDataObject();
-      dataObject = keyAsset.dataObject as KeyAssetDataObject;
+    // Compute every opportunistic mutation up front (advance weekly cycle,
+    // stale-lock expiry, trophy leaderboard) and write them together in a
+    // SINGLE `updateDataObject` call — per the "one write per controller per
+    // dataObject" memory. Two separate writes would trigger lock contention
+    // ("This data object is busy") on the SDK side.
+    const now = Date.now();
+    const advance = advanceWeeklyCycle(dataObject, now);
 
-      // Fan out win banners to every contributor of each freshly crowned monster.
-      for (const w of advance.freshlyCrownedWinners) {
-        await enqueueWinBannersForProfiles(
-          credentials,
-          w.contributorProfileIds ?? [],
-          { monsterId: w.monsterId, category: w.category, place: w.place, awardedAt: w.awardedAt },
-          null, // no caller Visitor available yet; each profile handled via User class
-        ).catch((error) =>
-          errorHandler({
-            error,
-            functionName: "handleGetMainApp",
-            message: "Non-fatal: win-banner enqueue failed",
-          }),
-        );
-      }
-
-      // Update the trophy leaderboard cache from the fresh winner batch.
-      if (advance.freshlyCrownedWinners.length > 0) {
-        await updateLeaderboardForWinners(keyAsset, {
-          monsters: dataObject.monsters,
-          freshlyCrowned: advance.freshlyCrownedWinners,
-        }).catch((error) =>
-          errorHandler({
-            error,
-            functionName: "handleGetMainApp",
-            message: "Non-fatal: trophy leaderboard update failed",
-          }),
-        );
-      }
-    }
-
-    const { currentSubmissionWindow, currentVoteCycle, storedWinners, weeklyVotingEnabled } = dataObject;
-
-    // Opportunistic 30-min stale-lock expiry — if any slots flip back to
-    // `available`, persist before surfacing state to the caller. Best-effort:
-    // a lock collision here just means the next reader retries.
-    const expiry = expireStaleLocks(dataObject.monsters, Date.now());
+    // After the rollover, the monsters map is the same shape as before (advance
+    // doesn't touch it). Run stale-lock expiry on that.
+    const expiry = expireStaleLocks(dataObject.monsters, now);
     const monsters = expiry.monsters;
-    if (expiry.changed) {
-      await keyAsset
-        .updateDataObject({ monsters }, {})
-        .catch((error) =>
-          errorHandler({
-            error,
-            functionName: "handleGetMainApp",
-            message: "Non-fatal: could not persist stale-lock expiry",
-          }),
-        );
+
+    const nextPatch: Record<string, unknown> = {};
+    if (advance.changed) {
+      nextPatch.currentSubmissionWindow = advance.next.currentSubmissionWindow;
+      nextPatch.currentVoteCycle = advance.next.currentVoteCycle;
+      nextPatch.storedWinners = advance.next.storedWinners;
+      nextPatch.categorySchedule = advance.next.categorySchedule;
     }
+    if (expiry.changed) {
+      nextPatch.monsters = monsters;
+    }
+    if (advance.changed && advance.freshlyCrownedWinners.length > 0) {
+      nextPatch.trophyLeaderboard = computeLeaderboardForWinners({
+        currentLeaderboard: dataObject.trophyLeaderboard,
+        monsters,
+        freshlyCrowned: advance.freshlyCrownedWinners,
+      });
+    }
+
+    if (Object.keys(nextPatch).length > 0) {
+      await keyAsset.updateDataObject(nextPatch, {}).catch((error) =>
+        errorHandler({
+          error,
+          functionName: "handleGetMainApp",
+          message: "Non-fatal: could not persist opportunistic mutations",
+        }),
+      );
+    }
+
+    // Win-banner fanout — bucket banners by profileId first so each peer
+    // visitor receives a SINGLE write even when they contributed to multiple
+    // freshly-crowned winners. The caller's banners get merged into their
+    // combined visitor write further down.
+    const bannersByPeer = new Map<
+      string,
+      Array<{ monsterId: string; category: string; place: 1 | 2 | 3; awardedAt: number }>
+    >();
+    const callerWinBanners: Array<{ monsterId: string; category: string; place: 1 | 2 | 3; awardedAt: number }> = [];
+    for (const w of advance.freshlyCrownedWinners) {
+      const bannerEntry = {
+        monsterId: w.monsterId,
+        category: w.category,
+        place: w.place,
+        awardedAt: w.awardedAt,
+      };
+      for (const profileId of w.contributorProfileIds ?? []) {
+        if (profileId === credentials.profileId) {
+          callerWinBanners.push(bannerEntry);
+        } else {
+          const bucket = bannersByPeer.get(profileId) ?? [];
+          bucket.push(bannerEntry);
+          bannersByPeer.set(profileId, bucket);
+        }
+      }
+    }
+    if (bannersByPeer.size > 0) {
+      await enqueueWinBannersByProfile(credentials, bannersByPeer, null).catch((error) =>
+        errorHandler({
+          error,
+          functionName: "handleGetMainApp",
+          message: "Non-fatal: win-banner fanout failed",
+        }),
+      );
+    }
+
+    // For the response, project the local `dataObject` with the same
+    // opportunistic mutations so the caller sees consistent state without a
+    // re-fetch.
+    const effectiveDataObject: KeyAssetDataObject = advance.changed
+      ? {
+          ...dataObject,
+          currentSubmissionWindow: advance.next.currentSubmissionWindow,
+          currentVoteCycle: advance.next.currentVoteCycle,
+          storedWinners: advance.next.storedWinners,
+          categorySchedule: advance.next.categorySchedule,
+          monsters,
+        }
+      : { ...dataObject, monsters };
+
+    const { currentSubmissionWindow, currentVoteCycle, storedWinners, weeklyVotingEnabled } = effectiveDataObject;
 
     const { visitor, isAdmin, visitorData } = await getVisitor(credentials, {
       shouldGetVisitorDetails: true,
       forceRefreshInventory,
     });
 
-    // Track daysAppOpened for the Masher visit-badge tiers.
+    // Single caller-visitor write: `daysAppOpened` bump + any win-banner
+    // entries where the caller is a contributor + stale-activeDraft cleanup.
+    // Skipped when nothing changed, so a plain re-open doesn't write.
     const today = new Date().toISOString().slice(0, 10);
     const days = visitorData.daysAppOpened ?? [];
-    if (!days.includes(today)) {
-      const nextDays = [...days, today].slice(-365);
-      const nextScoped: MonsterMashVisitorData = { ...visitorData, daysAppOpened: nextDays };
+    const daysChanged = !days.includes(today);
+
+    // Stale-activeDraft detection.
+    //
+    // Clear the pointer when:
+    //   - monster was evicted, completed, or the section is `done`
+    //   - the section is locked to someone else
+    //   - the section is `available` AND the draft is older than the
+    //     lock TTL (30 min). The recent `expireStaleLocks` above flips a
+    //     lapsed lock back to `available`; if the visitor's own draft has
+    //     also aged out, treat it as gone. When the draft is still fresh
+    //     but the roster reads `available` we DO NOT clear — that pattern
+    //     shows up during the eventual-consistency window right after a
+    //     claim, and the Join re-claim path heals it.
+    let activeDraftShouldClear = false;
+    if (visitorData.activeDraft) {
+      const draft = visitorData.activeDraft;
+      const draftMonster = monsters?.[draft.monsterId];
+      const slot = draftMonster?.sections?.[draft.section];
+      const monsterGone = !draftMonster;
+      const monsterCompleted = draftMonster?.state === "complete";
+      const sectionDone = slot?.status === "done";
+      const sectionLockedByOther =
+        slot?.status === "locked" &&
+        !!slot.contributorProfileId &&
+        slot.contributorProfileId !== credentials.profileId;
+      const draftAgeMs = now - (draft.lockedAt ?? 0);
+      const sectionAvailableAndDraftAged =
+        slot?.status === "available" && draftAgeMs >= SECTION_LOCK_TTL_MS;
+      if (
+        monsterGone ||
+        monsterCompleted ||
+        sectionDone ||
+        sectionLockedByOther ||
+        sectionAvailableAndDraftAged
+      ) {
+        activeDraftShouldClear = true;
+      }
+    }
+
+    if (daysChanged || callerWinBanners.length > 0 || activeDraftShouldClear) {
+      const nextDays = daysChanged ? [...days, today].slice(-365) : days;
+      const nextPendingWin =
+        callerWinBanners.length > 0
+          ? [...(visitorData.pendingWinBanners ?? []), ...callerWinBanners]
+          : visitorData.pendingWinBanners;
+      const nextScoped: MonsterMashVisitorData = {
+        ...visitorData,
+        daysAppOpened: nextDays,
+        pendingWinBanners: nextPendingWin ?? [],
+      };
+      if (activeDraftShouldClear) delete nextScoped.activeDraft;
+
       const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
       await visitor
         .updateDataObject(
           { [scopedKey]: nextScoped },
-          {
-            analytics: [
-              {
-                analyticName: "app_opened",
-                profileId: credentials.profileId,
-                urlSlug: credentials.urlSlug,
-                uniqueKey: `${credentials.profileId}-${today}`,
-              },
-            ],
-          },
+          daysChanged
+            ? {
+                analytics: [
+                  {
+                    analyticName: "app_opened",
+                    profileId: credentials.profileId,
+                    urlSlug: credentials.urlSlug,
+                    uniqueKey: `${credentials.profileId}-${today}`,
+                  },
+                ],
+              }
+            : {},
         )
         .catch((error) =>
-          errorHandler({ error, functionName: "handleGetMainApp", message: "Non-fatal: daysAppOpened bump failed" }),
+          errorHandler({ error, functionName: "handleGetMainApp", message: "Non-fatal: caller-visitor bump failed" }),
         );
       visitorData.daysAppOpened = nextDays;
+      if (callerWinBanners.length > 0) visitorData.pendingWinBanners = nextPendingWin ?? [];
+      if (activeDraftShouldClear) delete visitorData.activeDraft;
     }
 
     const rosterEntries = Object.values(monsters ?? {});
@@ -186,6 +260,16 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       })),
       pendingCompletionBanners,
       activeDraft: visitorData.activeDraft,
+      contributedDrafts: visitorData.contributedDrafts,
+      content: (() => {
+        const c = buildClientPayload();
+        return {
+          categories: c.categories,
+          layerOrder: c.layerOrder,
+          parts: c.parts,
+          loadedAt: c.loadedAt,
+        };
+      })(),
     };
 
     // Silence unused-var lint until controllers actually mutate on this call.

@@ -1,5 +1,6 @@
 import { NAME_TOKENS } from "@shared/content/monsterMash";
 import { Section } from "@shared/types/index";
+import { useBusy } from "@/context/BusyContext";
 
 const CAPTIONS: Record<Section, string> = {
   head: "Your pick becomes the monster's FIRST name (torso picks the last name, legs picks the title).",
@@ -28,11 +29,16 @@ export const NameTokenPicker = ({
 }) => {
   const options = NAME_TOKENS[section];
   const id = `name-token-${section}`;
+  const { isBusy } = useBusy();
   return (
-    <div className={`card p-3 ${value ? "ring-2 ring-blue-500" : ""}`}>
-      <label htmlFor={id} className="label flex items-center justify-between">
-        <span className="font-semibold">{LABELS[section]}</span>
-        <span className={value ? "text-green-700 text-sm" : "text-red-600 text-sm font-semibold"}>
+    <div className={`card p-3 ${value ? "ring-1 ring-blue-500" : ""}`}>
+      <label htmlFor={id} className="label flex items-center justify-between gap-3">
+        <span className="font-semibold flex-1 min-w-0 text-xs text-gray-700">{LABELS[section]}</span>
+        <span
+          className={`whitespace-nowrap ${
+            value ? "text-green-700 text-[10px]" : "text-red-600 text-[10px] font-semibold"
+          }`}
+        >
           {value ? "chosen" : "Required"}
         </span>
       </label>
@@ -40,6 +46,7 @@ export const NameTokenPicker = ({
         id={id}
         className="input mt-2 w-full"
         value={value}
+        disabled={isBusy}
         onChange={(e) => onChange(e.target.value)}
       >
         <option value="">— pick one —</option>
@@ -49,7 +56,7 @@ export const NameTokenPicker = ({
           </option>
         ))}
       </select>
-      <p className="p2 mt-2 text-gray-600">{CAPTIONS[section]}</p>
+      <p className="p3 mt-2 text-gray-500">{CAPTIONS[section]}</p>
     </div>
   );
 };

@@ -1,5 +1,15 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+/**
+ * Signed S3 client. `PutObject` is restricted to the IAM roles listed in
+ * the bucket policy; in deployment the pod's task role (IRSA/ECS task
+ * role) supplies credentials automatically via the SDK's default provider
+ * chain — same pattern used in `sdk-build-an-asset`.
+ *
+ * This code path only runs on the finalize-monster action, which is
+ * exercised in dev/prod; local runs won't upload unless the developer
+ * happens to have creds for one of the allowed roles.
+ */
 const client = new S3Client({ region: "us-east-1" });
 
 /**

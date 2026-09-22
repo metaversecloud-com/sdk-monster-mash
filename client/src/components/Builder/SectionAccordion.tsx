@@ -16,32 +16,27 @@ interface SectionAccordionProps {
  */
 export const SectionAccordion = ({ category, chosen, isOpen, onToggle, children }: SectionAccordionProps) => {
   return (
-    <div className={`card p-3 ${isOpen ? "ring-2 ring-blue-500" : ""}`}>
-      <button
-        type="button"
-        className="w-full flex items-center justify-between text-left"
+    <div className={`card p-2 ${isOpen ? "ring-1 ring-blue-500" : ""}`}>
+      <a
+        className="w-full flex items-center justify-between gap-1 text-left"
         aria-expanded={isOpen}
         aria-controls={`accordion-panel-${category.id}`}
         onClick={onToggle}
       >
-        <span className="font-semibold">{category.label}</span>
-        <span className="flex items-center gap-2 text-sm">
+        <span className="font-semibold flex-1 min-w-0 text-xs text-gray-700">{category.label}</span>
+        <span className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap flex-shrink-0">
           {chosen ? (
             <span className="inline-flex items-center gap-1 text-green-700" aria-label="Chosen">
-              chosen
+              Chosen
               <span aria-hidden="true">✓</span>
             </span>
           ) : (
-            <span className="text-red-600 font-semibold">Required</span>
+            <span className="text-[10px] text-red-600 font-semibold">Required</span>
           )}
-          <span aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
+          <span aria-hidden="true">{isOpen ? "˄" : "˅"}</span>
         </span>
-      </button>
-      {isOpen && (
-        <div id={`accordion-panel-${category.id}`} className="mt-3">
-          {children}
-        </div>
-      )}
+      </a>
+      {isOpen && <div id={`accordion-panel-${category.id}`}>{children}</div>}
     </div>
   );
 };

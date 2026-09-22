@@ -8,19 +8,6 @@ export interface SectionRosterEntry {
   submittedAt?: number;
 }
 
-/**
- * In-progress-only draft that lives on the key asset until the third section
- * lands. On completion these move onto the per-monster dropped asset.
- */
-export interface InProgressSectionRecord {
-  contributorProfileId: string;
-  contributorDisplayName: string;
-  submittedAt: number;
-  parts: { [categoryId: string]: string };
-  nameToken: string;
-  sectionImageUrl?: string;
-}
-
 export interface MonsterIndexEntry {
   monsterId: string;
   monsterAssetId?: string;
@@ -33,7 +20,10 @@ export interface MonsterIndexEntry {
   sections: Record<Section, SectionRosterEntry>;
   contributorProfileIds: string[];
   latestAward?: AwardRibbon;
-  inProgressSections?: Partial<Record<Section, InProgressSectionRecord>>;
+  // NOTE: picks/nameToken per section live on each contributor's visitor
+  // dataObject (`contributedDrafts[monsterId][section]`) — the roster
+  // intentionally holds only status + contributor identity, so this
+  // per-instance key asset stays small at scale.
 }
 
 export interface SubmissionWindow {

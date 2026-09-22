@@ -1,26 +1,26 @@
-import { DroppedAssetInterface } from "@rtsdk/topia";
 import { KeyAssetDataObject, StoredWinner } from "@shared/types/index.js";
 
 interface UpdateInput {
+  currentLeaderboard: KeyAssetDataObject["trophyLeaderboard"];
   monsters: KeyAssetDataObject["monsters"];
   freshlyCrowned: StoredWinner[];
 }
 
 /**
- * Apply a batch of freshly-crowned winners to `keyAsset.dataObject.trophyLeaderboard`.
+ * PURE. Given the current trophyLeaderboard + a batch of freshly-crowned
+ * winners, returns the next leaderboard state. The caller is responsible
+ * for persisting it — this util does not write.
+ *
  *   - Each contributor of a winning monster gets +1 award.
  *   - `monstersContributedTo` = distinct monsters this profile has any
  *     section on (recomputed from the current roster snapshot).
  */
-export const updateLeaderboardForWinners = async (
-  keyAsset: DroppedAssetInterface,
-  { monsters, freshlyCrowned }: UpdateInput,
-) => {
-  const dataObject = keyAsset.dataObject as KeyAssetDataObject;
-  const current = dataObject.trophyLeaderboard ?? {};
-
-  // Award counters: bump 1 per contributor of each freshly-crowned monster.
-  const nextBoard: NonNullable<KeyAssetDataObject["trophyLeaderboard"]> = { ...current };
+export const computeLeaderboardForWinners = ({
+  currentLeaderboard,
+  monsters,
+  freshlyCrowned,
+}: UpdateInput): NonNullable<KeyAssetDataObject["trophyLeaderboard"]> => {
+  const nextBoard: NonNullable<KeyAssetDataObject["trophyLeaderboard"]> = { ...(currentLeaderboard ?? {}) };
   const now = Date.now();
   for (const winner of freshlyCrowned) {
     for (const profileId of winner.contributorProfileIds ?? []) {
@@ -63,6 +63,5 @@ export const updateLeaderboardForWinners = async (
     if (displayName) row.displayName = displayName;
     nextBoard[profileId] = row;
   }
-
-  await keyAsset.updateDataObject({ trophyLeaderboard: nextBoard }, {});
+  return nextBoard;
 };

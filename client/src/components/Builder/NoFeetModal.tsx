@@ -1,4 +1,5 @@
-import { partUrl } from "@/utils";
+import { makePartUrl, useContent } from "@/utils";
+import { useBusy } from "@/context/BusyContext";
 
 interface NoFeetModalProps {
   keepFeetId: string; // the current feet pick — cancelling reverts the legs pick
@@ -13,6 +14,9 @@ interface NoFeetModalProps {
  * part. Buttons carry ACTUAL ICONS not names — big and unambiguous.
  */
 export const NoFeetModal = ({ keepFeetId, newLegsId, onKeep, onUseNewLegs }: NoFeetModalProps) => {
+  const { partById } = useContent();
+  const { isBusy } = useBusy();
+  const partUrl = makePartUrl(partById);
   const feetIcon = partUrl(keepFeetId);
   const legsIcon = partUrl(newLegsId);
   return (
@@ -30,11 +34,19 @@ export const NoFeetModal = ({ keepFeetId, newLegsId, onKeep, onUseNewLegs }: NoF
           Keep your current feet, or swap for the new legs and clear the feet pick?
         </p>
         <div className="flex gap-2 justify-center">
-          <button className="btn btn-outline flex flex-col items-center gap-1 p-3" onClick={onKeep}>
+          <button
+            className="btn btn-outline flex flex-col items-center gap-1 p-3"
+            onClick={onKeep}
+            disabled={isBusy}
+          >
             {feetIcon && <img src={feetIcon} alt="" aria-hidden="true" className="w-12 h-12 object-contain" />}
             <span className="text-sm">Keep feet</span>
           </button>
-          <button className="btn flex flex-col items-center gap-1 p-3" onClick={onUseNewLegs}>
+          <button
+            className="btn flex flex-col items-center gap-1 p-3"
+            onClick={onUseNewLegs}
+            disabled={isBusy}
+          >
             {legsIcon && <img src={legsIcon} alt="" aria-hidden="true" className="w-12 h-12 object-contain" />}
             <span className="text-sm">Use new legs</span>
           </button>

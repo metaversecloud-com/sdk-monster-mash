@@ -1,11 +1,11 @@
 import { useContext, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 // components
 import { ConfirmationModal } from "@/components";
 import { MonsterCard } from "./MonsterCard.js";
 
 // context
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 
@@ -31,11 +31,10 @@ import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
  */
 export const CreateTab = () => {
   const dispatch = useContext(GlobalDispatchContext);
-  const navigate = useNavigate();
   const { mainApp, visitor, isAdmin } = useContext(GlobalStateContext);
   const activeDraft = mainApp?.activeDraft;
 
-  const [isBusy, setIsBusy] = useState(false);
+  const { isBusy, run } = useBusy();
   const [deleteTarget, setDeleteTarget] = useState<MonsterIndexEntry | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
@@ -46,6 +45,10 @@ export const CreateTab = () => {
     const draftId = activeDraft?.monsterId;
     const withScore = roster
       .filter((m) => m.state === "in-progress")
+      // Hide monsters with zero completed sections. There's no collaborative
+      // signal yet (nothing to reveal, no peer contributor names), and for
+      // the caller's own draft the Resume tile above already covers it.
+      .filter((m) => Object.values(m.sections ?? {}).some((s) => s?.status === "done"))
       .map((m) => {
         const isDraft = m.monsterId === draftId;
         const contributed = (m.contributorProfileIds ?? []).includes(callerProfileId);
@@ -66,51 +69,60 @@ export const CreateTab = () => {
       })
       .catch(() => {});
 
-  const startNew = async () => {
+  // Every builder transition (Create / Join / Resume) is initiated by a
+  // POST that closes THIS iframe (main-app modal) and opens a fresh
+  // Builder iframe as a drawer with all credentials preserved. Client
+  // doesn't need to `navigate()` — Topia's iframe swap replaces the DOM.
+  const startNew = () => {
     if (isBusy || activeDraft) return;
-    setIsBusy(true);
-    try {
-      const response = await backendAPI.post(`/monsters/start`);
-      if (response?.data?.success) {
-        const { monsterId, section } = response.data.data;
-        navigate(`/?screen=builder&monsterId=${monsterId}&section=${section}`, { replace: true });
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/start`);
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
       }
-    } catch (error) {
-      setErrorMessage(dispatch, error as ErrorType);
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const resumeDraft = () => {
-    if (!activeDraft) return;
-    navigate(`/?screen=builder&monsterId=${activeDraft.monsterId}&section=${activeDraft.section}`, {
-      replace: true,
     });
   };
 
-  const joinSection = async (entry: MonsterIndexEntry, section: Section) => {
+  const resumeDraft = () => {
+    if (!activeDraft || isBusy) return;
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/${activeDraft.monsterId}/resume`, {
+          section: activeDraft.section,
+        });
+      } catch (error) {
+        const httpStatus = (error as { response?: { status?: number } })?.response?.status;
+        if (httpStatus === 409) {
+          setClaimError("Your draft is out of date — reloading Monster Mash.");
+          refreshMainApp();
+        } else {
+          setErrorMessage(dispatch, error as ErrorType);
+        }
+      }
+    });
+  };
+
+  const joinSection = (entry: MonsterIndexEntry, section: Section) => {
     if (isBusy) return;
     if (activeDraft) {
       setClaimError("You already have a section in progress. Finish or abandon it first.");
       return;
     }
-    setIsBusy(true);
     setClaimError(null);
-    try {
-      await backendAPI.post(`/monsters/${entry.monsterId}/claim`, { section });
-      navigate(`/?screen=builder&monsterId=${entry.monsterId}&section=${section}`, { replace: true });
-    } catch (error) {
-      const httpStatus = (error as { response?: { status?: number } })?.response?.status;
-      if (httpStatus === 409) {
-        setClaimError("Oops, that one was just claimed! Try another.");
-        refreshMainApp();
-      } else {
-        setErrorMessage(dispatch, error as ErrorType);
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/${entry.monsterId}/claim`, { section });
+      } catch (error) {
+        const httpStatus = (error as { response?: { status?: number } })?.response?.status;
+        if (httpStatus === 409) {
+          setClaimError("Oops, that one was just claimed! Try another.");
+          refreshMainApp();
+        } else {
+          setErrorMessage(dispatch, error as ErrorType);
+        }
       }
-    } finally {
-      setIsBusy(false);
-    }
+    });
   };
 
   const resumeSection = (entry: MonsterIndexEntry, section: Section) => {
@@ -120,18 +132,17 @@ export const CreateTab = () => {
     }
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (!deleteTarget) return;
-    setIsBusy(true);
-    try {
-      await backendAPI.delete(`/monsters/${deleteTarget.monsterId}`);
-      setDeleteTarget(null);
-      await refreshMainApp();
-    } catch (error) {
-      setErrorMessage(dispatch, error as ErrorType);
-    } finally {
-      setIsBusy(false);
-    }
+    return run(async () => {
+      try {
+        await backendAPI.delete(`/monsters/${deleteTarget.monsterId}`);
+        setDeleteTarget(null);
+        await refreshMainApp();
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
   };
 
   return (
@@ -166,12 +177,17 @@ export const CreateTab = () => {
           </span>
         </button>
 
-        {/* Resume tile (only when the caller holds a draft). */}
-        {activeDraft && (
+        {/* Resume tile — only when the caller's draft monster is NOT already
+            visible as a MonsterCard on the grid (i.e., it's their first
+            section on that monster and the roster filter hides it). Once
+            another section is done the MonsterCard renders and its own
+            "Resume" slot covers this affordance. */}
+        {activeDraft && !sortedRoster.some((m) => m.monsterId === activeDraft.monsterId) && (
           <button
             type="button"
             className="card p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-2 border-amber-400"
             onClick={resumeDraft}
+            disabled={isBusy}
           >
             <span aria-hidden="true" className="text-5xl">
               🎨
@@ -190,17 +206,17 @@ export const CreateTab = () => {
             callerProfileId={callerProfileId}
             callerIsAdmin={!!isAdmin}
             callerHasActiveDraft={!!activeDraft}
+            callerDrafts={mainApp?.contributedDrafts?.[entry.monsterId]}
             onJoin={(section) => joinSection(entry, section)}
             onResume={(section) => resumeSection(entry, section)}
             onAdminDelete={() => setDeleteTarget(entry)}
-            isBusy={isBusy}
           />
         ))}
       </div>
 
       {sortedRoster.length === 0 && !activeDraft && (
         <p className="p2 text-center text-gray-600">
-          No monsters in progress yet — smash "Create New Monster" to start one.
+          No monsters in progress yet — click "Create New Monster" to start one.
         </p>
       )}
 

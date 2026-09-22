@@ -1,5 +1,6 @@
-import { CategoryDef, PARTS_BY_CATEGORY } from "@shared/content/monsterMash";
-import { partUrl } from "@/utils";
+import { CategoryDef } from "@shared/content/monsterMash";
+import { useBusy } from "@/context/BusyContext";
+import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
 
 interface PartGridProps {
   category: CategoryDef;
@@ -16,42 +17,61 @@ interface PartGridProps {
 /**
  * Card-grid part picker for one category. NONE-allowing categories render a
  * dashed-red NONE tile with a no-entry glyph (mockup image29).
+ *
+ * Each tile crops the part image to just the section's art region (see
+ * `SECTION_CROP`) so heads, torsos, and legs each fill their tile without
+ * the empty top/bottom whitespace that ships with the full-body canvas.
  */
 export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridProps) => {
-  const parts = PARTS_BY_CATEGORY[category.id] ?? [];
+  const { partsByCategory, partById } = useContent();
+  const { isBusy } = useBusy();
+  const parts = partsByCategory[category.id] ?? [];
+  const partUrl = makePartUrl(partById);
+  const crop = SECTION_CROP[category.section];
 
   const renderTile = (tileId: string, label: string, imageSrc: string | null, isNone = false) => {
     const isPicked = value === tileId;
-    const isDisabled = disabledIds?.has(tileId) ?? false;
+    const hasNoFeet = disabledIds?.has(tileId) ?? false;
+    const isDisabled = hasNoFeet || isBusy;
     return (
       <button
         key={tileId}
         type="button"
-        className={`card flex flex-col items-center justify-center gap-1 p-2 min-h-[96px] transition ${
-          isPicked ? "ring-2 ring-blue-500" : ""
+        className={`card flex flex-col items-center justify-center gap-1 p-1 transition ${
+          isPicked ? "ring-1 ring-blue-500" : ""
         } ${isNone ? "border-dashed border-red-300 text-red-500" : ""} ${isDisabled ? "opacity-40" : ""}`}
+        style={{ height: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.height || crop.height }}
         aria-pressed={isPicked}
         aria-label={label}
         disabled={isDisabled}
         onClick={() => onChange(tileId)}
       >
-        {imageSrc ? (
-          <img src={imageSrc} alt="" aria-hidden="true" className="w-14 h-14 object-contain" />
-        ) : (
-          <span aria-hidden="true" className="text-3xl">
-            {isNone ? "🚫" : "?"}
-          </span>
-        )}
-        <span className="text-xs">{label}</span>
-        {isDisabled && (
-          <span className="rounded-full bg-red-100 text-red-700 text-[10px] px-1 py-0.5">no feet</span>
-        )}
+        <div className="w-full rounded overflow-hidden">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt=""
+              aria-hidden="true"
+              className="block w-full"
+              style={{
+                objectFit: "cover",
+                objectPosition: crop.objectPosition,
+                marginTop: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.marginTop || 0,
+              }}
+            />
+          ) : (
+            <span aria-hidden="true" className="text-2xl">
+              {isNone ? "🚫" : "?"}
+            </span>
+          )}
+        </div>
+        {hasNoFeet && <span className="rounded-full bg-red-100 text-red-700 text-[10px] px-1 py-0.5">no feet</span>}
       </button>
     );
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={`${category.label} options`}>
+    <div className="grid grid-cols-2 gap-1" role="radiogroup" aria-label={`${category.label} options`}>
       {parts.map((p) => renderTile(p.id, p.id, partUrl(p.id), false))}
       {category.allowsNone && renderTile("NONE", "NONE", null, true)}
     </div>

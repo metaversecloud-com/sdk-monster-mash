@@ -12,6 +12,7 @@ import {
   getKeyAsset,
   getVisitor,
   lockDataObject,
+  transitionToDrawer,
 } from "@utils/index.js";
 
 /**
@@ -19,10 +20,21 @@ import {
  * Body: { section: "head" | "torso" | "legs" }
  *
  * Player joins an in-progress monster by claiming its still-`available`
- * section. Refuses with 409 if:
+ * section.
+ *
+ * Idempotent for the caller: if their `activeDraft` already points at this
+ * exact (monster, section), we re-lock the roster slot (in case it drifted
+ * back to `available` on a stale read) and just re-open the drawer. That
+ * covers "closed the drawer without submitting, clicked Join again".
+ *
+ * Refuses with 409 if:
  *   - the monster doesn't exist / is already complete
- *   - the claimed section is not currently `available`
- *   - the caller already has an unexpired activeDraft
+ *   - the claimed section is not currently `available` and belongs to
+ *     someone else
+ *   - the caller already has an unexpired activeDraft on a DIFFERENT monster
+ *   - the caller has ALREADY contributed a section to this same monster
+ *     (spec §Create: one section per caller per monster — collaborative
+ *     mode is the point of the game)
  * The 409 is what fires the "Oops, that one was just claimed" race dialog
  * on the client (mockup image12).
  */
@@ -46,6 +58,69 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
 
     const currentDraft = visitorData.activeDraft;
+
+    // Idempotent re-claim: caller's activeDraft already points at this exact
+    // (monster, section). Two ways to land here:
+    //   1. They closed the drawer without submitting and clicked Join again.
+    //   2. A stale-consistency read on a prior /main-app flipped the section
+    //      back to `available` on the wire even though they still hold it.
+    // Either way: re-establish the lock (if drifted), refresh the visitor
+    // lastActivityAt, and transition them into the drawer — no need to
+    // gate on "you already have a draft" (that's them).
+    if (currentDraft && currentDraft.monsterId === monsterId && currentDraft.section === section) {
+      const entry = dataObject.monsters?.[monsterId];
+      if (!entry) return res.status(404).json({ success: false, message: "Monster not found." });
+      if (entry.state === "complete") {
+        return res.status(409).json({ success: false, message: "Monster is already complete." });
+      }
+      const currentSlot = entry.sections?.[section];
+      const heldBySomeoneElse =
+        currentSlot?.status === "locked" && currentSlot.contributorProfileId && currentSlot.contributorProfileId !== profileId;
+      if (heldBySomeoneElse) {
+        return res.status(409).json({ success: false, message: "Section was taken by someone else." });
+      }
+
+      // Rewrite the slot as locked-to-us (idempotent if already correct).
+      const updatedSections = {
+        ...entry.sections,
+        [section]: {
+          status: "locked" as const,
+          contributorProfileId: profileId,
+          contributorDisplayName: displayName,
+          lockedAt: currentSlot?.status === "locked" ? currentSlot.lockedAt ?? now : now,
+        },
+      };
+      await keyAsset.updateDataObject(
+        {
+          [`monsters.${monsterId}.sections`]: updatedSections,
+          [`monsters.${monsterId}.lastEditedAt`]: now,
+        },
+        {},
+      );
+
+      // Refresh caller lastActivityAt in the same visitor write.
+      const visitorKey = `${urlSlug}-${sceneDropId}`;
+      await visitor.updateDataObject(
+        {
+          [visitorKey]: {
+            ...visitorData,
+            activeDraft: { ...currentDraft, lastActivityAt: now },
+          },
+        },
+        {},
+      );
+
+      await transitionToDrawer({
+        visitor,
+        credentials,
+        host: req.hostname,
+        screen: "builder",
+        params: { monsterId, section },
+      });
+      return res.json({ success: true, data: { monsterId, section, resumed: true } });
+    }
+
+    // Caller has a DIFFERENT active draft — refuse.
     if (currentDraft && dataObject.monsters?.[currentDraft.monsterId]) {
       return res.status(409).json({
         success: false,
@@ -65,6 +140,12 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     if (entry.sections?.[section]?.status !== "available") {
       return res.status(409).json({ success: false, message: "Section is not available." });
     }
+    if ((entry.contributorProfileIds ?? []).includes(profileId)) {
+      return res.status(409).json({
+        success: false,
+        message: "You've already contributed a section to this monster.",
+      });
+    }
 
     const lockId = `${keyAsset.id}-claim-${monsterId}-${section}`;
     try {
@@ -77,8 +158,9 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     await keyAsset.fetchDataObject();
     const freshEntry = (keyAsset.dataObject as KeyAssetDataObject).monsters?.[monsterId];
     if (!freshEntry || freshEntry.sections?.[section]?.status !== "available") {
-      // Release the lock we just took, no-op write.
-      await keyAsset.updateDataObject({}, { lock: { lockId, releaseLock: true } }).catch(() => {});
+      // We already hold `lockId` — don't try to release with the same id
+      // (the SDK treats that as a re-acquire → "data object busy"). Let it
+      // TTL-expire.
       return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
     }
 
@@ -96,7 +178,9 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       [`monsters.${monsterId}.lastEditedAt`]: now,
     };
 
-    await keyAsset.updateDataObject(patch, { lock: { lockId, releaseLock: true } });
+    // Plain update — we already hold `lockId`. Passing lock again would
+    // re-acquire → busy. Matches sdk-tictactoe's pattern.
+    await keyAsset.updateDataObject(patch, {});
 
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
@@ -117,6 +201,15 @@ export const handleClaimSection = async (req: Request, res: Response) => {
         ],
       },
     );
+
+    // Modal → drawer transition: same pattern as Create.
+    await transitionToDrawer({
+      visitor,
+      credentials,
+      host: req.hostname,
+      screen: "builder",
+      params: { monsterId, section },
+    });
 
     return res.json({ success: true, data: { monsterId, section } });
   } catch (error) {

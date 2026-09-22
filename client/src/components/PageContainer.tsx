@@ -21,7 +21,7 @@ export const PageContainer = ({
   if (isLoading) return <Loading />;
 
   return (
-    <div className="p-4 mb-28">
+    <div className="p-3">
       {isAdmin && (
         <AdminIconButton setShowSettings={() => setShowSettings(!showSettings)} showSettings={showSettings} />
       )}

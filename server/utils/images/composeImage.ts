@@ -1,27 +1,16 @@
 import Jimp from "jimp";
-import { CATEGORIES, LAYER_ORDER, PART_BY_ID } from "@shared/content/monsterMash.js";
+import { CATEGORIES, LAYER_ORDER, PartDef } from "@shared/content/monsterMash.js";
 import { Section } from "@shared/types/index.js";
+import { getContent } from "../content/getContent.js";
+import { partFilePath } from "../content/loadPartsFromDisk.js";
 
 const NONE_ID = "NONE";
 
-/**
- * Where the parts live. Defaults to the ecosystem dev bucket in the shape
- * `${PARTS_BASE_URL}/{section}/{categoryId}/{imageName}` — matches the
- * placeholder folder in `client/public/parts/`. Set via env for prod.
- */
-const partsBaseUrl = (): string => {
-  const raw = process.env.PARTS_BASE_URL;
-  if (raw && raw.length > 0) return raw.replace(/\/$/, "");
-  // Fall back to the dev bucket path the client also assumes.
-  const bucket = process.env.S3_BUCKET || "topia-dev-test";
-  return `https://${bucket}.s3.amazonaws.com/monster-mash/parts`;
-};
-
-const partUrl = (partId: string): string | null => {
+const resolvePartPath = (partById: Record<string, PartDef>, partId: string): string | null => {
   if (!partId || partId === NONE_ID) return null;
-  const part = PART_BY_ID[partId];
+  const part = partById[partId];
   if (!part) return null;
-  return `${partsBaseUrl()}/${part.section}/${part.categoryId}/${part.imageName}`;
+  return partFilePath(part);
 };
 
 interface SectionSourcePicks {
@@ -36,26 +25,31 @@ interface SectionSourcePicks {
  * for a per-section image we scope to that section's categories; for a full
  * monster we pass everything). Layers whose pick is NONE / missing are
  * skipped — the compositor doesn't care whether it's a partial monster.
+ *
+ * Parts are read directly from disk (`client/public/parts/` in dev,
+ * `client/build/parts/` in prod) via `partFilePath`. No HTTP fetch and no
+ * S3 credentials are involved.
  */
 const composeLayers = async (
   layerKeysInScope: readonly string[],
   layerToPart: Map<string, string>,
 ): Promise<Buffer> => {
+  const { partById } = getContent();
   const layerImages: Jimp[] = [];
   for (const layerKey of LAYER_ORDER) {
     if (!layerKeysInScope.includes(layerKey)) continue;
     const partId = layerToPart.get(layerKey);
     if (!partId) continue;
-    const url = partUrl(partId);
-    if (!url) continue;
+    const filePath = resolvePartPath(partById, partId);
+    if (!filePath) continue;
     try {
-      const image = await Jimp.read(url);
+      const image = await Jimp.read(filePath);
       layerImages.push(image);
     } catch (error) {
-      // Missing / unreachable art shouldn't crash the entire compose —
+      // Missing / unreadable art shouldn't crash the entire compose —
       // skip and continue so an incomplete art delivery still ships a
       // usable image.
-      console.warn(`composeImage: could not read ${url}`, error);
+      console.warn(`composeImage: could not read ${filePath}`, error);
     }
   }
 

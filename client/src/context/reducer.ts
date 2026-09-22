@@ -18,6 +18,7 @@ const globalReducer = (state: InitialState, action: ActionType): InitialState =>
         mainApp: payload?.mainApp,
         visitor: payload?.mainApp?.visitor,
         isAdmin: payload?.mainApp?.visitor?.isAdmin,
+        content: payload?.mainApp?.content ?? state.content,
         error: "",
       };
     case SET_ACTIVE_TAB:

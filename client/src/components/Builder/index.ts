@@ -5,5 +5,6 @@ export * from "./NoFeetModal.js";
 export * from "./PartGrid.js";
 export * from "./RaceDialog.js";
 export * from "./SectionAccordion.js";
+export * from "./SectionLayeredImage.js";
 export * from "./SectionSubmitted.js";
 export * from "./SubmitConfirm.js";

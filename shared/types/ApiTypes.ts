@@ -1,5 +1,18 @@
+import { CategoryDef, PartDef } from "../content/monsterMash.js";
 import { AwardRibbon, Place, Section } from "./SharedTypes.js";
 import { MonsterIndexEntry, StoredWinner, SubmissionWindow, VoteCycle } from "./KeyAssetData.js";
+
+/**
+ * Runtime content the server builds from the S3 parts catalog and ships to
+ * the client on every /api/main-app response. Static bits (`categories`,
+ * `layerOrder`) mirror shared/content/monsterMash.ts.
+ */
+export interface ContentPayload {
+  categories: readonly CategoryDef[];
+  layerOrder: readonly string[];
+  parts: readonly PartDef[];
+  loadedAt: number;
+}
 
 export interface VisitorSummary {
   visitorId: number;
@@ -73,8 +86,6 @@ export interface GalleryResponseData {
 
 export interface SingleMonsterResponseData {
   monster: GalleryMonster;
-  /** Full section records (only present when the monster is on the roster OR the caller contributed and has metadata). */
-  sections?: { head: SectionRecordSummary; torso: SectionRecordSummary; legs: SectionRecordSummary };
   canDelete: boolean;
 }
 
@@ -156,7 +167,6 @@ export interface SectionRecordSummary {
   contributorDisplayName: string;
   submittedAt: number;
   nameToken: string;
-  sectionImageUrl?: string;
 }
 
 /** Return shape of `GET /api/main-app`. Client passes this to state. */
@@ -173,5 +183,16 @@ export interface MainAppResponseData {
   pendingCompletionBanners: Array<CompletionBannerPayload>;
   /** Caller's live section-lock, if any. Drives Builder resume + Create-tab CTA. */
   activeDraft?: ActiveDraftSummary;
+  /**
+   * Picks the caller submitted for monsters that are still in-progress —
+   * enables client-side layered preview of MY finished section slots on the
+   * Create tab and the Section Submitted screen. Cleaned up on the server
+   * side when the monster finalizes or is admin-deleted.
+   */
+  contributedDrafts?: {
+    [monsterId: string]: Partial<Record<Section, { picks: { [categoryId: string]: string }; nameToken: string }>>;
+  };
   latestAward?: AwardRibbon;
+  /** Runtime parts catalog (loaded from disk). Client stores this in context. */
+  content: ContentPayload;
 }

@@ -10,9 +10,14 @@ import {
   handleGetMonster,
   handleGetTrophy,
   handleGetVote,
+  handleOpenMonsterDrawer,
+  handleRefreshContent,
   handleResetLeaderboard,
+  handleResumeSection,
+  handleReturnToMainApp,
   handleStartMonster,
   handleSubmitSection,
+  handleUpdateDraft,
 } from "./controllers/index.js";
 import { getVersion } from "@utils/getVersion.js";
 
@@ -32,24 +37,27 @@ router.get("/system/health", (_req, res) => {
       NODE_ENV: process.env.NODE_ENV,
       INSTANCE_DOMAIN: process.env.INSTANCE_DOMAIN,
       INTERACTIVE_KEY: process.env.INTERACTIVE_KEY,
-      PARTS_BASE_URL: process.env.PARTS_BASE_URL,
       S3_BUCKET: process.env.S3_BUCKET,
     },
   });
 });
 
 router.get("/main-app", handleGetMainApp);
+router.post("/main-app/return", handleReturnToMainApp);
 
 // Monster lifecycle
 router.post("/monsters/start", handleStartMonster);
 router.post("/monsters/:id/claim", handleClaimSection);
 router.post("/monsters/:id/section", handleSubmitSection);
+router.post("/monsters/:id/draft", handleUpdateDraft);
 router.post("/monsters/:id/abandon", handleAbandonSection);
+router.post("/monsters/:id/resume", handleResumeSection);
 router.delete("/monsters/:id", handleDeleteMonster);
 
 // Gallery + single monster
 router.get("/gallery", handleGetGallery);
 router.get("/monsters/:id", handleGetMonster);
+router.post("/monsters/:id/open", handleOpenMonsterDrawer);
 
 // Vote
 router.get("/vote", handleGetVote);
@@ -61,5 +69,8 @@ router.post("/banners/acknowledge", handleAcknowledgeBanners);
 // Trophy
 router.get("/trophy", handleGetTrophy);
 router.post("/leaderboard/reset", handleResetLeaderboard);
+
+// Content
+router.post("/content/refresh", handleRefreshContent);
 
 export default router;

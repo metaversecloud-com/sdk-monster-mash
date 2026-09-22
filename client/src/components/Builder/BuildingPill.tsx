@@ -13,8 +13,7 @@ const SECTION_LABELS: Record<Section, string> = {
  */
 export const BuildingPill = ({ section, stepIndex }: { section: Section; stepIndex: number }) => {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-900 px-3 py-1 text-sm font-semibold">
-      <span aria-hidden="true">🧩</span>
+    <div className="flex-grow text-center gap-2 rounded-full bg-blue-50 text-blue-900 px-3 py-1 text-xs font-semibold mr-1">
       Building: {SECTION_LABELS[section]} · {stepIndex} of 3
     </div>
   );

@@ -98,7 +98,7 @@ LAYER_ORDER = [
   "legs.legs",           // legs base
   "torso.arms",          // arms incl. hands
   "torso.shirt",         // torso
-  "torso.sleeves",       // over arms
+  "torso.arms",       // over arms
   "legs.feet",           // on top of legs
   "legs.waist",          // over legs
   "head.head",           // head shape (incl. ears)

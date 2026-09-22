@@ -1,3 +1,5 @@
+import { useBusy } from "@/context/BusyContext";
+
 interface RaceDialogProps {
   onBackToList: () => void;
   onStartNew: () => void;
@@ -8,6 +10,7 @@ interface RaceDialogProps {
  * server response says 409 on claim or on submit-lock verification.
  */
 export const RaceDialog = ({ onBackToList, onStartNew }: RaceDialogProps) => {
+  const { isBusy } = useBusy();
   return (
     <div
       role="dialog"
@@ -23,10 +26,10 @@ export const RaceDialog = ({ onBackToList, onStartNew }: RaceDialogProps) => {
           Someone else grabbed that section a second before you did. Pick another or start a fresh monster.
         </p>
         <div className="flex flex-col gap-2">
-          <button className="btn btn-outline" onClick={onBackToList}>
+          <button className="btn btn-outline" onClick={onBackToList} disabled={isBusy}>
             Back to the list
           </button>
-          <button className="btn" onClick={onStartNew}>
+          <button className="btn" onClick={onStartNew} disabled={isBusy}>
             Start a new monster
           </button>
         </div>

@@ -66,7 +66,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
     await keyAsset.fetchDataObject();
     const freshCycle = (keyAsset.dataObject as KeyAssetDataObject).currentVoteCycle;
     if (!freshCycle || freshCycle.cycleId !== cycle.cycleId) {
-      await keyAsset.updateDataObject({}, { lock: { lockId, releaseLock: true } }).catch(() => {});
+      // We already hold `lockId`; don't re-acquire to release. TTL clears it.
       return res.status(409).json({ success: false, message: "The cycle just closed." });
     }
 
@@ -85,10 +85,10 @@ export const handleCastVote = async (req: Request, res: Response) => {
       totalMatchupsServed: (freshCycle.totalMatchupsServed ?? 0) + 1,
     };
 
+    // We already hold `lockId`. Plain update matches tic-tac-toe's pattern.
     await keyAsset.updateDataObject(
       { currentVoteCycle: nextCycle },
       {
-        lock: { lockId, releaseLock: true },
         analytics: [
           {
             analyticName: "vote_cast",

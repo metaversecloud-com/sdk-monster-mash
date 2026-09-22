@@ -61,13 +61,19 @@ const patchQueues = async (
   await target.updateDataObject({ [key]: next }, {});
 };
 
-export const enqueueWinBannersForProfiles = async (
+/**
+ * Enqueue N win-banners onto each profile's visitor dataObject in a SINGLE
+ * write per profile. Callers pass a `profileId → banners[]` map so we don't
+ * write the same visitor twice when they're a contributor to multiple
+ * freshly-crowned winners in the same batch.
+ */
+export const enqueueWinBannersByProfile = async (
   credentials: Credentials,
-  profileIds: string[],
-  entry: WinBannerEntry,
+  bannersByProfileId: Map<string, WinBannerEntry[]>,
   callerVisitor: VisitorInterface | null,
 ) => {
-  for (const profileId of profileIds) {
+  for (const [profileId, banners] of bannersByProfileId) {
+    if (banners.length === 0) continue;
     try {
       const isCaller = profileId === credentials.profileId && !!callerVisitor;
       const target = isCaller
@@ -75,10 +81,10 @@ export const enqueueWinBannersForProfiles = async (
         : await User.create({ credentials: { ...credentials, profileId } });
       await patchQueues(target, credentials, (scoped) => ({
         ...scoped,
-        pendingWinBanners: [...(scoped.pendingWinBanners ?? []), entry],
+        pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
       }));
     } catch (error) {
-      console.warn(`enqueueWinBannersForProfiles: could not enqueue for ${profileId}`, error);
+      console.warn(`enqueueWinBannersByProfile: could not enqueue for ${profileId}`, error);
     }
   }
 };

@@ -1,4 +1,4 @@
-import { MonsterIndexEntry } from "@shared/types/index.js";
+import { Section } from "@shared/types/index.js";
 
 /**
  * Compose a monster's storable name from the three name tokens. Called when
@@ -11,10 +11,10 @@ import { MonsterIndexEntry } from "@shared/types/index.js";
  * Returns an empty string when a token is missing (should never happen once
  * all three sections are done, but we defend).
  */
-export const composeMonsterName = (entry: MonsterIndexEntry): string => {
-  const head = entry.inProgressSections?.head?.nameToken?.trim() ?? "";
-  const torso = entry.inProgressSections?.torso?.nameToken?.trim() ?? "";
-  const legs = entry.inProgressSections?.legs?.nameToken?.trim() ?? "";
+export const composeMonsterName = (nameTokens: Partial<Record<Section, string>>): string => {
+  const head = nameTokens.head?.trim() ?? "";
+  const torso = nameTokens.torso?.trim() ?? "";
+  const legs = nameTokens.legs?.trim() ?? "";
   if (!head || !torso || !legs) return "";
   return `${head} ${torso} ${legs}`;
 };

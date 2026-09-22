@@ -15,8 +15,8 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
-  lockDataObject,
   pickRandomSection,
+  transitionToDrawer,
 } from "@utils/index.js";
 
 /**
@@ -59,13 +59,6 @@ export const handleStartMonster = async (req: Request, res: Response) => {
     const eviction = evictInProgressIfCapped(expiry.monsters, true);
     let workingMonsters = eviction.monsters;
 
-    const lockId = `${keyAsset.id}-start-${profileId}-${now}`;
-    try {
-      await lockDataObject(lockId, keyAsset);
-    } catch (error) {
-      return res.status(409).json({ success: false, message: "Try again in a moment — someone else was mid-start." });
-    }
-
     const monsterId = randomUUID();
     const section = pickRandomSection(SECTIONS);
     if (!section) throw new Error("No sections available");
@@ -89,15 +82,29 @@ export const handleStartMonster = async (req: Request, res: Response) => {
       lastEditedAt: now,
       sections: sectionsMap,
       contributorProfileIds: [],
-      inProgressSections: {},
     };
 
     workingMonsters = { ...workingMonsters, [monsterId]: entry };
 
-    await keyAsset.updateDataObject(
-      { monsters: workingMonsters },
-      { lock: { lockId, releaseLock: true } },
-    );
+    // Single atomic write. The SDK's lock model is per-lockId: same lockId
+    // serializes, different lockIds don't. We pick a lockId per-start-call
+    // (unique per profile per `now`) — different callers race and one wins
+    // per SDK convention. On failure we return 409 so the client can retry.
+    const lockId = `${keyAsset.id}-start-${profileId}-${now}`;
+    try {
+      await keyAsset.updateDataObject(
+        { monsters: workingMonsters },
+        {
+          lock: { lockId, releaseLock: true },
+          analytics: [{ analyticName: "monster_started", profileId, urlSlug, uniqueKey: profileId }],
+        },
+      );
+    } catch (error) {
+      return res.status(409).json({
+        success: false,
+        message: "Try again in a moment — the roster was mid-update.",
+      });
+    }
 
     // Write the caller's activeDraft.
     const nextVisitorData: MonsterMashVisitorData = {
@@ -111,14 +118,18 @@ export const handleStartMonster = async (req: Request, res: Response) => {
       },
     };
     const visitorKey = `${urlSlug}-${sceneDropId}`;
-    await visitor.updateDataObject(
-      { [visitorKey]: nextVisitorData },
-      {
-        analytics: [
-          { analyticName: "monster_started", profileId, urlSlug, uniqueKey: profileId },
-        ],
-      },
-    );
+    await visitor.updateDataObject({ [visitorKey]: nextVisitorData }, {});
+
+    // Modal → drawer transition: close the current (main-app modal) iframe
+    // and open the Monster Builder in a fixed-width drawer. All credentials
+    // are preserved via `buildAppUrl`.
+    await transitionToDrawer({
+      visitor,
+      credentials,
+      host: req.hostname,
+      screen: "builder",
+      params: { monsterId, section },
+    });
 
     return res.json({ success: true, data: { monsterId, section, monster: entry } });
   } catch (error) {

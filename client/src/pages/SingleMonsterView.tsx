@@ -1,10 +1,10 @@
 import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 // components
 import { AwardRibbon, ConfirmationModal, DownloadArrow, PageContainer } from "@/components";
 
 // context
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 
@@ -29,13 +29,12 @@ interface SingleMonsterViewProps {
  */
 export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
   const dispatch = useContext(GlobalDispatchContext);
-  const navigate = useNavigate();
   const { hasInteractiveParams } = useContext(GlobalStateContext);
 
+  const { isBusy, run } = useBusy();
   const [payload, setPayload] = useState<SingleMonsterResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!hasInteractiveParams || !monsterId) return;
@@ -58,24 +57,31 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
       })
     : "";
 
-  const handleDelete = async () => {
+  // Drawer → wide modal transition. Server closes this iframe and
+  // reopens the main-app modal with credentials preserved.
+  const returnToMainApp = () => {
+    if (isBusy) return;
+    run(() => backendAPI.post("/main-app/return").catch(() => {}));
+  };
+
+  const handleDelete = () => {
     if (!monsterId) return;
-    setIsDeleting(true);
-    try {
-      await backendAPI.delete(`/monsters/${monsterId}`);
-      navigate("/", { replace: true });
-    } catch (error) {
-      setErrorMessage(dispatch, error as ErrorType);
-    } finally {
-      setIsDeleting(false);
-      setShowDelete(false);
-    }
+    return run(async () => {
+      try {
+        await backendAPI.delete(`/monsters/${monsterId}`);
+        await backendAPI.post("/main-app/return").catch(() => {});
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      } finally {
+        setShowDelete(false);
+      }
+    });
   };
 
   return (
     <PageContainer isLoading={isLoading}>
       <div className="w-full max-w-md mx-auto flex flex-col gap-4 items-center text-center py-4">
-        <p className="p2 uppercase tracking-wider text-gray-500">Monster Mash</p>
+        <p className="uppercase tracking-wider">Monster Mash</p>
 
         {payload?.canDelete && (
           <button
@@ -83,9 +89,9 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
             className="btn btn-icon self-end text-red-700"
             aria-label="Delete this monster (admin only)"
             onClick={() => setShowDelete(true)}
-            disabled={isDeleting || !monster}
+            disabled={isBusy || !monster}
           >
-            🗑
+            <img src="https://sdk-style.s3.amazonaws.com/icons/delete.svg" />
           </button>
         )}
 
@@ -111,7 +117,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
 
             <DownloadArrow imageUrl={monster.imageUrl} />
 
-            <button className="btn btn-outline w-full" onClick={() => navigate("/", { replace: true })}>
+            <button className="btn btn-outline w-full" onClick={returnToMainApp} disabled={isBusy}>
               Back to Monster Mash
             </button>
           </>

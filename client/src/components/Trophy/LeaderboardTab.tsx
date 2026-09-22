@@ -1,5 +1,6 @@
 import { useContext, useState } from "react";
 import { ConfirmationModal } from "@/components";
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 import { TrophyLeaderboardRow } from "@shared/types/index";
@@ -20,16 +21,18 @@ interface LeaderboardTabProps {
  */
 export const LeaderboardTab = ({ rows, callerRow, cap, isAdmin, onAfterReset }: LeaderboardTabProps) => {
   const dispatch = useContext(GlobalDispatchContext);
+  const { isBusy, run } = useBusy();
   const [showReset, setShowReset] = useState(false);
 
-  const handleReset = async () => {
-    try {
-      await backendAPI.post("/leaderboard/reset");
-      onAfterReset();
-    } catch (error) {
-      setErrorMessage(dispatch, error as ErrorType);
-    }
-  };
+  const handleReset = () =>
+    run(async () => {
+      try {
+        await backendAPI.post("/leaderboard/reset");
+        onAfterReset();
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
 
   return (
     <div className="flex flex-col gap-2">
@@ -77,6 +80,7 @@ export const LeaderboardTab = ({ rows, callerRow, cap, isAdmin, onAfterReset }: 
           type="button"
           className="btn btn-danger-outline mt-4"
           onClick={() => setShowReset(true)}
+          disabled={isBusy}
         >
           Reset Leaderboard (admin only)
         </button>

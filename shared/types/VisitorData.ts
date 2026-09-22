@@ -42,6 +42,21 @@ export interface MonsterMashVisitorData {
     nameToken?: string;
   };
 
+  /**
+   * Submitted-but-not-finalized picks per monster/section. Stored per-visitor
+   * so the client can render a layered preview of the CALLER's own
+   * contribution on the Create tab + Section Submitted screen without any
+   * server-side per-section image compose. Peers never see these picks —
+   * peer sections stay masked until the whole monster finalizes.
+   *
+   * Cleaned up on monster finalize (all three contributors are patched in
+   * one write inside `finalizeMonster`) and on admin delete. Keeps the key
+   * asset dataObject free of per-section pick data.
+   */
+  contributedDrafts?: {
+    [monsterId: string]: Partial<Record<Section, { picks: { [categoryId: string]: string }; nameToken: string }>>;
+  };
+
   /** Green-banner queue: monsters this profile contributed to that just won awards. */
   pendingWinBanners: Array<AwardRibbon & { monsterId: string }>;
 

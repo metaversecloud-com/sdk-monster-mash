@@ -48,29 +48,42 @@ const emptyVisitorData = {
 };
 
 const HEAD_PICKS = {
-  headShape: "round",
-  eyes: "googly",
+  headShape: "pig-head",
+  eyes: "cyclops-eye",
   nose: "NONE",
-  mouth: "smile",
+  mouth: "grin",
   hair: "NONE",
 };
 const TORSO_PICKS = {
-  shirt: "stripes",
-  arms: "human",
-  sleeves: "NONE",
+  shirt: "hoodie",
+  arms: "hoodie-arms",
   collar: "NONE",
   torsoBack: "NONE",
 };
 const LEGS_PICKS = {
-  legs: "human-legs",
-  feet: "boots",
-  waist: "NONE",
+  legs: "jeans",
+  feet: "sneakers",
   belt: "NONE",
+  waist: "NONE",
   legsBack: "NONE",
 };
 
 // Mock the app utils at the boundary so routes can be exercised without hitting @rtsdk/topia.
 // Only mock what routes actually import — everything else can pass through.
+// Mock the parts loader at its source so `validatePicks` (imported deeply)
+// sees a stable catalog instead of walking the empty filesystem.
+jest.mock("@utils/content/getContent.js", () => ({
+  __esModule: true,
+  getContent: jest.fn().mockImplementation(() => fakeContent()),
+  refreshContent: jest.fn().mockImplementation(() => fakeContent()),
+  buildClientPayload: jest.fn().mockImplementation(() => ({
+    ...fakeContent(),
+    categories: [],
+    categoriesBySection: { head: [], torso: [], legs: [] },
+    layerOrder: [],
+  })),
+}));
+
 jest.mock("@utils/index.js", () => {
   const actual = jest.requireActual("@utils/index.js");
   return {
@@ -83,27 +96,84 @@ jest.mock("@utils/index.js", () => {
     getKeyAsset: jest.fn(),
     getVisitor: jest.fn(),
     lockDataObject: jest.fn().mockResolvedValue(undefined),
-    // Epic-3 compositor + finalize surfaces: mocked so tests don't reach S3
-    // or spin up Jimp. Individual tests can override return values.
-    composeAndUploadSection: jest.fn().mockResolvedValue("https://example.com/section.png"),
+    // Compositor + finalize surfaces: mocked so tests don't reach S3 or spin
+    // up Jimp. Individual tests can override return values. Section image
+    // upload was removed — only the full monster composes on finalize.
     composeAndUploadMonster: jest.fn().mockResolvedValue("https://example.com/monster.png"),
-    finalizeMonster: jest.fn().mockResolvedValue({
+    // Real finalize builds a roster patch; the mock returns a patch that lets
+    // handleSubmitSection merge state/name/monsterAssetId onto monster mon-triple
+    // (the id used by the third-section test).
+    finalizeMonster: jest.fn().mockImplementation(async ({ monsterId, entry }: any) => ({
       imageUrl: "https://example.com/monster.png",
       monsterAssetId: "dropped-monster-42",
       monsterAssetData: {},
-    }),
+      composedName: "Test Monster",
+      keyAssetPatch: {
+        monsters: {
+          [monsterId]: {
+            ...entry,
+            state: "complete",
+            birthdate: 12345,
+            name: "Test Monster",
+            monsterAssetId: "dropped-monster-42",
+            imageUrl: "https://example.com/monster.png",
+          },
+        },
+      },
+      callerContribution: {
+        monsterAssetId: "dropped-monster-42",
+        imageUrl: "https://example.com/monster.png",
+        completedAt: 12345,
+      },
+    })),
     // Epic-7 banner fanouts — no-ops in tests.
     enqueueWinBannersForProfiles: jest.fn().mockResolvedValue(undefined),
     enqueueCompletionBannersForProfiles: jest.fn().mockResolvedValue(undefined),
-    updateLeaderboardForWinners: jest.fn().mockResolvedValue(undefined),
+    computeLeaderboardForWinners: jest.fn().mockReturnValue({}),
     // Epic-6 pool builder — deterministic pair.
     pickMatchup: jest.fn().mockImplementation((cycle: any) => {
       const [a, b] = cycle.poolMonsterIds ?? [];
       if (!a || !b) return null;
       return { matchupId: `${cycle.cycleId}-${a}-${b}`, pair: [a, b] };
     }),
+    // Content loader — return the parts the test picks reference so
+    // validatePicks succeeds. Real prod loader walks client/public/parts.
+    getContent: jest.fn().mockReturnValue(fakeContent()),
+    refreshContent: jest.fn().mockReturnValue(fakeContent()),
+    buildClientPayload: jest.fn().mockReturnValue({
+      ...fakeContent(),
+      categories: [],
+      categoriesBySection: { head: [], torso: [], legs: [] },
+      layerOrder: [],
+    }),
   };
 });
+
+function fakeContent() {
+  const rawParts = [
+    { id: "pig-head", section: "head", categoryId: "headShape", imageName: "pig-head.png" },
+    { id: "cyclops-eye", section: "head", categoryId: "eyes", imageName: "cyclops-eye.png" },
+    { id: "grin", section: "head", categoryId: "mouth", imageName: "grin.png" },
+    { id: "hoodie", section: "torso", categoryId: "shirt", imageName: "hoodie.png" },
+    { id: "hoodie-arms", section: "torso", categoryId: "arms", imageName: "hoodie-arms.png" },
+    { id: "jeans", section: "legs", categoryId: "legs", imageName: "jeans.png", supportsFeet: true },
+    { id: "spring", section: "legs", categoryId: "legs", imageName: "spring.png", supportsFeet: false },
+    { id: "sneakers", section: "legs", categoryId: "feet", imageName: "sneakers.png" },
+  ];
+  const partById: Record<string, any> = {};
+  const partsByCategory: Record<string, any[]> = {};
+  for (const p of rawParts) {
+    partById[p.id] = p;
+    partsByCategory[p.categoryId] = partsByCategory[p.categoryId] ?? [];
+    partsByCategory[p.categoryId].push(p);
+  }
+  return {
+    parts: rawParts,
+    partById,
+    partsByCategory,
+    loadedAt: 0,
+  };
+}
 
 const mockUtils = jest.mocked(require("@utils/index.js"));
 
@@ -148,6 +218,8 @@ function mergeDataObject(current: any, patch: any) {
 function makeVisitor() {
   const record: any = {
     updateDataObject: jest.fn().mockResolvedValue({}),
+    closeIframe: jest.fn().mockResolvedValue({}),
+    openIframe: jest.fn().mockResolvedValue({}),
   };
   return record;
 }
@@ -264,7 +336,6 @@ describe("routes", () => {
           legs: { status: "available" },
         },
         contributorProfileIds: [],
-        inProgressSections: {},
       },
     };
     mockUtils.getCredentials.mockReturnValue(baseCreds);
@@ -309,7 +380,6 @@ describe("routes", () => {
             legs: { status: "available" },
           },
           contributorProfileIds: ["profile-9"],
-          inProgressSections: {},
         },
       },
     });
@@ -384,22 +454,6 @@ describe("routes", () => {
           },
         },
         contributorProfileIds: ["profile-9", "profile-8"],
-        inProgressSections: {
-          head: {
-            contributorProfileId: "profile-9",
-            contributorDisplayName: "Zed",
-            submittedAt: 3,
-            parts: HEAD_PICKS,
-            nameToken: "Harold",
-          },
-          torso: {
-            contributorProfileId: "profile-8",
-            contributorDisplayName: "Yara",
-            submittedAt: 4,
-            parts: TORSO_PICKS,
-            nameToken: "McFishy",
-          },
-        },
       },
     };
 
@@ -440,22 +494,26 @@ describe("routes", () => {
       monsterId,
       section: "legs",
       isComplete: true,
-      composedName: "Harold McFishy the Magnificent",
-      sectionImageUrl: "https://example.com/section.png",
+      composedName: "Test Monster",
       imageUrl: "https://example.com/monster.png",
       monsterAssetId: "dropped-monster-42",
     });
 
-    // KeyAsset now has state=complete + composed name.
+    // KeyAsset now has state=complete + composed name (from finalize's patch).
     expect(keyAsset.dataObject.monsters[monsterId].state).toBe("complete");
-    expect(keyAsset.dataObject.monsters[monsterId].name).toBe("Harold McFishy the Magnificent");
+    expect(keyAsset.dataObject.monsters[monsterId].name).toBe("Test Monster");
     expect(keyAsset.dataObject.monsters[monsterId].sections.legs.status).toBe("done");
 
-    // Epic 3: compositor + finalize were both invoked exactly once.
-    expect(mockUtils.composeAndUploadSection).toHaveBeenCalledWith(monsterId, "legs", expect.any(Object));
+    // Finalize is called once with the caller's picks + nameToken and receives
+    // the section that triggered completion. No per-section image compose.
     expect(mockUtils.finalizeMonster).toHaveBeenCalledTimes(1);
     expect(mockUtils.finalizeMonster).toHaveBeenCalledWith(
-      expect.objectContaining({ monsterId, clickableLinkBase: expect.any(String) }),
+      expect.objectContaining({
+        monsterId,
+        callerSection: "legs",
+        callerNameToken: "the Magnificent",
+        clickableLinkBase: expect.any(String),
+      }),
     );
 
     // Visitor: activeDraft cleared, contributedMonsters updated.
@@ -468,7 +526,7 @@ describe("routes", () => {
     });
   });
 
-  test("POST /monsters/:id/section on non-final submit writes sectionImageUrl but skips finalize", async () => {
+  test("POST /monsters/:id/section on non-final submit stores picks on visitor data + skips finalize", async () => {
     const monsterId = "mon-partial";
     const keyAssetData = defaultKeyAssetDataObject();
     keyAssetData.monsters = {
@@ -488,14 +546,14 @@ describe("routes", () => {
           legs: { status: "available" },
         },
         contributorProfileIds: [],
-        inProgressSections: {},
       },
     };
 
     mockUtils.getCredentials.mockReturnValue(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    const visitor = makeVisitor();
     mockUtils.getVisitor.mockResolvedValue({
-      visitor: makeVisitor(),
+      visitor,
       isAdmin: false,
       visitorData: emptyVisitorData,
       visitorInventory: {},
@@ -510,12 +568,19 @@ describe("routes", () => {
     expect(res.body.data).toMatchObject({
       isComplete: false,
       composedName: null,
-      sectionImageUrl: "https://example.com/section.png",
       imageUrl: null,
       monsterAssetId: null,
     });
-    expect(mockUtils.composeAndUploadSection).toHaveBeenCalledWith(monsterId, "head", expect.any(Object));
     expect(mockUtils.finalizeMonster).not.toHaveBeenCalled();
+
+    // Picks + nameToken should have been saved to visitor contributedDrafts
+    // so the client can render the layered preview on the Create tab.
+    const visitorPatch = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = visitorPatch[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.contributedDrafts?.[monsterId]?.head).toMatchObject({
+      picks: HEAD_PICKS,
+      nameToken: "Harold",
+    });
   });
 
   test("POST /monsters/:id/section rejects picks that don't match server-side content", async () => {
@@ -538,7 +603,6 @@ describe("routes", () => {
           legs: { status: "available" },
         },
         contributorProfileIds: [],
-        inProgressSections: {},
       },
     };
 
@@ -577,7 +641,6 @@ describe("routes", () => {
         lastEditedAt: 2,
         sections: { head: { status: "available" }, torso: { status: "available" }, legs: { status: "available" } },
         contributorProfileIds: [],
-        inProgressSections: {},
       },
     };
     mockUtils.getCredentials.mockReturnValue(baseCreds);
@@ -616,7 +679,6 @@ describe("routes", () => {
           legs: { status: "available" },
         },
         contributorProfileIds: ["profile-9"],
-        inProgressSections: {},
       },
     };
 
@@ -1195,7 +1257,6 @@ describe("routes", () => {
           legs: { status: "available" },
         },
         contributorProfileIds: [],
-        inProgressSections: {},
       },
     };
 

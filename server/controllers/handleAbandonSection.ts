@@ -53,13 +53,18 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
         ...entry!.sections,
         [releasedSection]: { status: "available" as const },
       };
+      // We already hold `lockId`. Plain update matches tic-tac-toe's pattern —
+      // re-passing lock would re-acquire → "data object busy".
       await keyAsset.updateDataObject(
         {
           [`monsters.${monsterId}.sections`]: updatedSections,
           [`monsters.${monsterId}.lastEditedAt`]: Date.now(),
         },
-        { lock: { lockId, releaseLock: true } },
+        {},
       );
+      // `lockId` is unused after this point; keep the reference alive for
+      // future readers who might wonder why we don't release it explicitly.
+      void lockId;
     }
 
     // Always clear the visitor's activeDraft if it points here.

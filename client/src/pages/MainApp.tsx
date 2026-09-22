@@ -23,24 +23,26 @@ export const MainApp = ({ isLoading }: MainAppProps) => {
   const { activeTab } = useContext(GlobalStateContext);
 
   return (
-    <PageContainer isLoading={isLoading}>
-      <div className="w-full max-w-6xl mx-auto flex flex-col gap-4">
-        <header className="flex flex-col gap-1">
-          <h1 className="h1">Monster Mash</h1>
-          <p className="p2">Create and vote with your friends!</p>
-        </header>
+    <div className="p-3 bg-white rounded-lg shadow-md">
+      <PageContainer isLoading={isLoading}>
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4">
+          <header className="flex flex-col gap-1">
+            <h2 className="h2">Monster Mash</h2>
+            <p className="p2">Create and vote with your friends!</p>
+          </header>
 
-        <BannerStack />
+          <BannerStack />
 
-        <TabBar />
+          <TabBar />
 
-        <div className="mt-2">
-          {activeTab === "create" && <CreateTab />}
-          {activeTab === "gallery" && <GalleryTab />}
-          {activeTab === "vote" && <VoteTab />}
+          <div className="mt-2">
+            {activeTab === "create" && <CreateTab />}
+            {activeTab === "gallery" && <GalleryTab />}
+            {activeTab === "vote" && <VoteTab />}
+          </div>
         </div>
-      </div>
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 };
 

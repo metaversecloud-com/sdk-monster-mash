@@ -1,4 +1,4 @@
-import { MainAppResponseData, VisitorSummary } from "@shared/types/index";
+import { ContentPayload, MainAppResponseData, VisitorSummary } from "@shared/types/index";
 
 export const SET_HAS_INTERACTIVE_PARAMS = "SET_HAS_INTERACTIVE_PARAMS";
 export const SET_MAIN_APP_STATE = "SET_MAIN_APP_STATE";
@@ -28,6 +28,9 @@ export interface InitialState {
   visitor?: VisitorSummary;
   /** Duplicated top-level of `visitor.isAdmin` because `PageContainer` (protected) reads it here. */
   isAdmin?: boolean;
+  /** Runtime parts catalog served from `/api/main-app`. Everything that used to
+   *  read PARTS/CATEGORIES from `@shared/content/monsterMash` reads it here. */
+  content?: ContentPayload;
   error?: string;
 }
 

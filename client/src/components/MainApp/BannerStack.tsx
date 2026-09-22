@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 // context
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { SET_ACTIVE_TAB } from "@/context/types";
 
@@ -39,6 +40,7 @@ export const BannerStack = () => {
   const dispatch = useContext(GlobalDispatchContext);
   const navigate = useNavigate();
   const { mainApp } = useContext(GlobalStateContext);
+  const { isBusy } = useBusy();
 
   const shownWin = mainApp?.banners?.win ?? null;
   const shownCompletion = mainApp?.banners?.completion ?? null;
@@ -75,6 +77,7 @@ export const BannerStack = () => {
           <button
             type="button"
             className="btn-text text-green-800 underline"
+            disabled={isBusy}
             onClick={() => {
               dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "gallery" } });
               navigate(`/?screen=single-monster&monsterId=${shownWin.monsterId}`);
@@ -102,6 +105,7 @@ export const BannerStack = () => {
           <button
             type="button"
             className="btn"
+            disabled={isBusy}
             onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
           >
             VOTE

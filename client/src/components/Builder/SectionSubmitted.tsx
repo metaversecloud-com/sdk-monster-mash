@@ -1,4 +1,6 @@
 import { Section } from "@shared/types/index";
+import { useBusy } from "@/context/BusyContext";
+import { SectionLayeredImage } from "./SectionLayeredImage";
 
 interface SectionSubmittedProps {
   section: Section;
@@ -9,14 +11,12 @@ interface SectionSubmittedProps {
   contributorNames?: string[];
   /** Composited monster PNG URL. Complete variant only; null while finalize is retrying. */
   imageUrl?: string | null;
+  /** Just-submitted picks — used for a layered preview on the "not complete" screen. */
+  picks?: { [categoryId: string]: string };
+  /** How many sections still need a contributor to finish this monster. Used in the "not complete" copy. */
+  sectionsRemaining?: number;
   onBackToMonsterMash: () => void;
 }
-
-const SECTION_LABELS: Record<Section, string> = {
-  head: "Head",
-  torso: "Torso",
-  legs: "Legs",
-};
 
 /**
  * Post-submit screen. Two variants (from mockups image15/image19 + image26):
@@ -32,22 +32,18 @@ export const SectionSubmitted = ({
   nameToken,
   contributorNames,
   imageUrl,
+  picks,
+  sectionsRemaining,
   onBackToMonsterMash,
 }: SectionSubmittedProps) => {
+  const { isBusy } = useBusy();
   if (isComplete) {
     const attribution = (contributorNames ?? []).filter(Boolean).join(" · ");
     return (
-      <div className="flex flex-col items-center gap-4 py-8 text-center max-w-md mx-auto">
-        <div className="relative w-full flex justify-center">
-          <div aria-hidden="true" className="absolute inset-0 pointer-events-none flex justify-around">
-            <span className="text-2xl">🎉</span>
-            <span className="text-2xl">🎊</span>
-            <span className="text-2xl">✨</span>
-            <span className="text-2xl">🎉</span>
-          </div>
-          <h2 className="h2 text-green-700 relative">IT'S ALIVE!</h2>
-        </div>
-        <p className="p1">Your section finished the monster!</p>
+      <div className="flex flex-col items-center gap-2  text-center">
+        <h5 className="text-gray-700 uppercase">Monster Mash</h5>
+        <h2 className="h2 text-green-700 text-semibold relative">IT'S ALIVE!</h2>
+        <p className="p2">Your section finished the monster!</p>
 
         {imageUrl ? (
           <img
@@ -61,10 +57,10 @@ export const SectionSubmitted = ({
           </div>
         )}
 
-        {composedName && <p className="h3">{composedName}</p>}
+        {composedName && <h3 className="pt-2">{composedName}</h3>}
         {attribution && <p className="p2 text-gray-600">by {attribution}</p>}
 
-        <ul className="w-full text-left flex flex-col gap-2 pl-4">
+        <ul className="text-sm text-gray-600 w-full text-left flex flex-col gap-2 p-2">
           <li className="flex items-center gap-2">
             <span className="text-green-700" aria-hidden="true">
               ✓
@@ -84,28 +80,28 @@ export const SectionSubmitted = ({
               </span>
               Entered in the next vote
             </span>
-            <span className="text-xs text-amber-700 pl-6">
-              if enough are finished — otherwise the one after
-            </span>
+            <span className="text-xs text-amber-700 ">if enough are finished — otherwise the one after</span>
           </li>
         </ul>
 
         {imageUrl && (
-          <a
-            className="btn"
-            href={imageUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={`Open ${composedName ?? "monster"} PNG in a new tab`}
-          >
-            Download PNG
-          </a>
+          <>
+            <a
+              className="btn"
+              href={imageUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={`Open ${composedName ?? "monster"} PNG in a new tab`}
+            >
+              Download PNG
+            </a>
+            <p className="text-xs text-red-600">
+              opens the image in a new browser tab to save — not an in-app download
+            </p>
+          </>
         )}
-        <p className="text-xs text-red-600">
-          opens the image in a new browser tab to save — not an in-app download
-        </p>
 
-        <button className="btn btn-outline w-full" onClick={onBackToMonsterMash}>
+        <button className="btn btn-outline w-full" onClick={onBackToMonsterMash} disabled={isBusy}>
           Back to Monster Mash
         </button>
       </div>
@@ -113,11 +109,27 @@ export const SectionSubmitted = ({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 py-10 text-center">
-      <h2 className="h2 text-green-700">Section submitted!</h2>
+    <div className="flex flex-col items-center gap-4 text-center">
+      <h5 className="text-gray-700 uppercase">Monster Mash</h5>
+      <h2 className="h2 text-green-700 capitalize">{section} submitted!</h2>
       <p className="p1">
-        Your <span className="font-semibold">{SECTION_LABELS[section]}</span> is in.
+        Nice work
+        {typeof sectionsRemaining === "number" && sectionsRemaining > 0 && (
+          <>
+            {" "}
+            — {sectionsRemaining} {sectionsRemaining === 1 ? "section" : "sections"} to go
+          </>
+        )}
       </p>
+      {picks && (
+        <SectionLayeredImage
+          section={section}
+          picks={picks}
+          containerClassName="rounded-2xl border-2 border-taupe-500 bg-white mx-auto"
+          containerStyle={{ width: "140px", height: "140px" }}
+          ariaLabel={`your submitted ${section}`}
+        />
+      )}
       <div className="card p-4 flex flex-col gap-2 max-w-sm">
         <p className="p2 text-gray-600">Name so far:</p>
         <p className="h4">
@@ -125,7 +137,7 @@ export const SectionSubmitted = ({
           {section === "legs" ? nameToken : "___"}
         </p>
       </div>
-      <button className="btn" onClick={onBackToMonsterMash}>
+      <button className="btn" onClick={onBackToMonsterMash} disabled={isBusy}>
         Back to Monster Mash
       </button>
     </div>

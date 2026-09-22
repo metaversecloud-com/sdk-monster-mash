@@ -1,6 +1,10 @@
-import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
 import { AwardRibbon, DownloadArrow } from "@/components/shared";
+import { useBusy } from "@/context/BusyContext";
+import { GlobalDispatchContext } from "@/context/GlobalContext";
+import { ErrorType } from "@/context/types";
 import { GalleryMonster } from "@shared/types/index";
+import { backendAPI, setErrorMessage } from "@/utils";
 
 interface GalleryCardProps {
   monster: GalleryMonster;
@@ -13,9 +17,15 @@ interface GalleryCardProps {
  *   - Contributor names dot-separated.
  *   - "Born {date}" caption.
  *   - Per-card Download button (opens PNG in a new tab).
+ *
+ * Card click triggers a modal → drawer iframe transition (server closes the
+ * main-app modal and reopens as the Single Monster View drawer) so the
+ * detail surface matches the fixed-width look reached from clicking the
+ * finished-monster asset in the world.
  */
 export const GalleryCard = ({ monster }: GalleryCardProps) => {
-  const navigate = useNavigate();
+  const dispatch = useContext(GlobalDispatchContext);
+  const { isBusy, run } = useBusy();
   const born = monster.birthdate
     ? new Date(monster.birthdate).toLocaleDateString(undefined, {
         year: "numeric",
@@ -25,7 +35,14 @@ export const GalleryCard = ({ monster }: GalleryCardProps) => {
     : "";
 
   const openDetail = () => {
-    navigate(`/?screen=single-monster&monsterId=${monster.monsterId}`);
+    if (isBusy) return;
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/${monster.monsterId}/open`);
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
   };
 
   return (
@@ -43,6 +60,7 @@ export const GalleryCard = ({ monster }: GalleryCardProps) => {
       <button
         type="button"
         onClick={openDetail}
+        disabled={isBusy}
         className="flex-1 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         aria-label={`Open ${monster.name || "monster"} details`}
       >

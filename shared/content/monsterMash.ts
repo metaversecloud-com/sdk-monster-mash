@@ -1,12 +1,17 @@
 /**
- * Monster Mash static content — parts, categories, name tokens, voting categories,
+ * Monster Mash static content — categories, name tokens, voting categories,
  * layer order. Shared between the client (Builder UI, previews) and the server
  * (validation, composition).
  *
- * When Bekama delivers final art, drop PNGs into `client/public/parts/{section}/{category}/{partId}.png`
- * (or point PARTS_BASE_URL at the production bucket). Every part must be the
- * SAME dimensions with a transparent background — the compositor stacks them
- * in `LAYER_ORDER` and does no per-part offset/scale.
+ * The list of PARTS is NOT here — the server walks `client/public/parts/` at
+ * boot (see `server/utils/content/getContent.ts`) and pushes the catalog to
+ * the client via the `/api/main-app` response. `LAYER_ORDER`, `CATEGORIES`,
+ * and per-part `supportsFeet` overrides live here as policy — they don't
+ * change when the artist drops in new part files.
+ *
+ * On-disk layout the loader expects:
+ *   `client/public/parts/{section}/{categoryId}/{partId}.png`
+ * where `{partId}` is the filename stem (also used as the display key).
  */
 
 import { Section } from "../types/SharedTypes.js";
@@ -38,9 +43,8 @@ export const CATEGORIES: readonly CategoryDef[] = [
   { id: "hair", section: "head", label: "Hair / hat", layerKey: "head.hair", allowsNone: true },
 
   // Torso
-  { id: "shirt", section: "torso", label: "Body / shirt", layerKey: "torso.shirt", allowsNone: false },
+  { id: "shirt", section: "torso", label: "Shirt", layerKey: "torso.shirt", allowsNone: false },
   { id: "arms", section: "torso", label: "Arms", layerKey: "torso.arms", allowsNone: false },
-  { id: "sleeves", section: "torso", label: "Sleeves", layerKey: "torso.sleeves", allowsNone: true },
   { id: "collar", section: "torso", label: "Collar", layerKey: "torso.collar", allowsNone: true },
   { id: "torsoBack", section: "torso", label: "Back item", layerKey: "torso.back", allowsNone: true },
 
@@ -59,7 +63,7 @@ export const CATEGORIES_BY_SECTION: Record<Section, readonly CategoryDef[]> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// Parts (individual pickable pieces)
+// Part shape (identity — the catalog itself comes from the server)
 // ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -76,90 +80,38 @@ export interface PartDef {
 }
 
 /**
- * Placeholder catalog. Real parts will be dropped in by the artist; each entry
- * needs a matching PNG at `{PARTS_BASE_URL}/{section}/{categoryId}/{imageName}`.
- *
- * Kept intentionally small until final art lands — enough to exercise every
- * code path (a category with allowsNone, a legs.legs with supportsFeet=false, etc.).
+ * Small policy override: which `legs.legs` part IDs cannot host feet. Keyed
+ * by partId (which is also the filename stem — see the S3 layout comment at
+ * the top of this file). The list is short and stable enough to hand-maintain
+ * even though the parts list itself is dynamic.
  */
-export const PARTS: readonly PartDef[] = [
-  
-  // head.headShape — required, no NONE
-  { id: "round", section: "head", categoryId: "headShape", imageName: "round.png" },
-  { id: "square", section: "head", categoryId: "headShape", imageName: "square.png" },
-  { id: "jack-o-lantern", section: "head", categoryId: "headShape", imageName: "jack-o-lantern.png" },
+export const NO_FEET_LEG_PARTS: readonly string[] = ["mermaid-tail", "tentacles", "spring"] as const;
 
-  // head.eyes
-  { id: "googly", section: "head", categoryId: "eyes", imageName: "googly.png" },
-  { id: "cyclops", section: "head", categoryId: "eyes", imageName: "cyclops.png" },
+/** Attach `supportsFeet` metadata to a raw part discovered on S3 / disk. */
+export const applyPartOverrides = (raw: Omit<PartDef, "supportsFeet">): PartDef => {
+  if (raw.categoryId === "legs" && NO_FEET_LEG_PARTS.includes(raw.id)) {
+    return { ...raw, supportsFeet: false };
+  }
+  if (raw.categoryId === "legs") return { ...raw, supportsFeet: true };
+  return raw;
+};
 
-  // head.nose (allowsNone)
-  { id: "button", section: "head", categoryId: "nose", imageName: "button.png" },
-  { id: "snout", section: "head", categoryId: "nose", imageName: "snout.png" },
+/** Group + index helpers (pure functions) — used to be static exports. */
+export const buildPartsByCategory = (parts: readonly PartDef[]): Record<string, readonly PartDef[]> => {
+  const out: Record<string, PartDef[]> = {};
+  for (const cat of CATEGORIES) out[cat.id] = [];
+  for (const p of parts) {
+    if (!out[p.categoryId]) out[p.categoryId] = [];
+    out[p.categoryId].push(p);
+  }
+  return out;
+};
 
-  // head.mouth (allowsNone)
-  { id: "smile", section: "head", categoryId: "mouth", imageName: "smile.png" },
-  { id: "fangs", section: "head", categoryId: "mouth", imageName: "fangs.png" },
-
-  // head.hair (allowsNone)
-  { id: "top-hat", section: "head", categoryId: "hair", imageName: "top-hat.png" },
-  { id: "crown", section: "head", categoryId: "hair", imageName: "crown.png" },
-
-  // torso.shirt — required
-  { id: "stripes", section: "torso", categoryId: "shirt", imageName: "stripes.png" },
-  { id: "cape", section: "torso", categoryId: "shirt", imageName: "cape.png" },
-
-  // torso.arms — required
-  { id: "human", section: "torso", categoryId: "arms", imageName: "human.png" },
-  { id: "tentacles", section: "torso", categoryId: "arms", imageName: "tentacles.png" },
-
-  // torso.sleeves (allowsNone)
-  { id: "puffy", section: "torso", categoryId: "sleeves", imageName: "puffy.png" },
-
-  // torso.collar (allowsNone)
-  { id: "bow-tie", section: "torso", categoryId: "collar", imageName: "bow-tie.png" },
-  { id: "necklace", section: "torso", categoryId: "collar", imageName: "necklace.png" },
-
-  // torso.back (allowsNone)
-  { id: "bat-wings", section: "torso", categoryId: "torsoBack", imageName: "bat-wings.png" },
-  { id: "jetpack", section: "torso", categoryId: "torsoBack", imageName: "jetpack.png" },
-
-  // legs.legs — required
-  { id: "human-legs", section: "legs", categoryId: "legs", imageName: "human-legs.png", supportsFeet: true },
-  { id: "goat-legs", section: "legs", categoryId: "legs", imageName: "goat-legs.png", supportsFeet: true },
-  { id: "wheelchair", section: "legs", categoryId: "legs", imageName: "wheelchair.png", supportsFeet: false },
-  { id: "tentacle-legs", section: "legs", categoryId: "legs", imageName: "tentacle-legs.png", supportsFeet: false },
-
-  // legs.feet (allowsNone)
-  { id: "boots", section: "legs", categoryId: "feet", imageName: "boots.png" },
-  { id: "sneakers", section: "legs", categoryId: "feet", imageName: "sneakers.png" },
-
-  // legs.waist (allowsNone) — the waistband layer (skirt / shorts base).
-  { id: "sash", section: "legs", categoryId: "waist", imageName: "sash.png" },
-
-  // legs.belt (allowsNone) — belt accessory rendered on top of the waistband.
-  { id: "chain-belt", section: "legs", categoryId: "belt", imageName: "chain-belt.png" },
-  { id: "utility-belt", section: "legs", categoryId: "belt", imageName: "utility-belt.png" },
-
-  // legs.back (allowsNone)
-  { id: "tail", section: "legs", categoryId: "legsBack", imageName: "tail.png" },
-] as const;
-
-export const PARTS_BY_CATEGORY: Record<string, readonly PartDef[]> = CATEGORIES.reduce(
-  (acc, cat) => {
-    acc[cat.id] = PARTS.filter((p) => p.categoryId === cat.id);
-    return acc;
-  },
-  {} as Record<string, PartDef[]>,
-);
-
-export const PART_BY_ID: Record<string, PartDef> = PARTS.reduce(
-  (acc, p) => {
-    acc[p.id] = p;
-    return acc;
-  },
-  {} as Record<string, PartDef>,
-);
+export const buildPartById = (parts: readonly PartDef[]): Record<string, PartDef> => {
+  const out: Record<string, PartDef> = {};
+  for (const p of parts) out[p.id] = p;
+  return out;
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // Layer order (locked, back → front)
@@ -176,7 +128,6 @@ export const LAYER_ORDER: readonly string[] = [
   "legs.legs",
   "torso.shirt",
   "torso.arms",
-  "torso.sleeves",
   "torso.collar",
   "legs.feet",
   "legs.waist",

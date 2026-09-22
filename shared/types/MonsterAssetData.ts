@@ -8,16 +8,14 @@ export interface SectionRecord {
   parts: { [categoryId: string]: string };
   /** first-name (head) | last-name (torso) | title (legs). */
   nameToken: string;
-  /** Per-section composed PNG, uploaded at submit time so the Create-tab + Builder preview
-   *  can render real art for peer contributors before the monster is finished. */
-  sectionImageUrl?: string;
 }
 
 /**
  * Root shape for a per-monster dropped-asset dataObject. One of these exists
  * per finished monster (dropped in the world at completion). In-progress
- * monsters have their section records under `keyAsset.monsters[id].inProgressSections`
- * instead — they only migrate onto a dropped asset when the third section lands.
+ * monsters have no dropped asset — their picks live on each contributor's
+ * visitor dataObject (`contributedDrafts`) and migrate here only when the
+ * third section lands.
  */
 export interface MonsterAssetDataObject {
   schemaVersion: 1;
