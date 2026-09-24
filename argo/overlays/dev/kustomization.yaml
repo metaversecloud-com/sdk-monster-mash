@@ -30,4 +30,4 @@ images:
   - name: monstermash0
     newName: 368076259134.dkr.ecr.us-east-1.amazonaws.com/sdk-example
     newTag: sdk-monster-mash
-    digest: sha256:bcecc91106263fc1fd06186b1134877acf043837725a6c2668729f4b2919b727
+    digest: sha256:937bdf0365ea31dab72f1b198681baf032294614a5756068ba0e489477aa4f67
