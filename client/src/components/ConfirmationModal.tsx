@@ -1,5 +1,12 @@
 import { useState } from "react";
 
+export type ConfirmVariant = "primary" | "danger";
+
+const CONFIRM_CLASS: Record<ConfirmVariant, string> = {
+  primary: "btn",
+  danger: "btn btn-danger",
+};
+
 export const ConfirmationModal = ({
   title,
   message,
@@ -7,6 +14,7 @@ export const ConfirmationModal = ({
   handleToggleShowConfirmationModal,
   confirmLabel = "Yes",
   cancelLabel = "No",
+  confirmVariant = "danger",
 }: {
   title: string;
   message: string;
@@ -16,6 +24,14 @@ export const ConfirmationModal = ({
   confirmLabel?: string;
   /** Cancel action label. Defaults to "No". */
   cancelLabel?: string;
+  /**
+   * Style of the confirm button.
+   *   - "danger" (default) → `btn btn-danger-outline` — irreversible actions
+   *     (delete monster, reset leaderboard, end vote, discard picks, etc.)
+   *   - "primary"          → `btn` — affirmative next-step actions (Submit
+   *     Section, Continue, etc.) where the confirm isn't destructive.
+   */
+  confirmVariant?: ConfirmVariant;
 }) => {
   const [areButtonsDisabled, setAreButtonsDisabled] = useState(false);
 
@@ -39,7 +55,7 @@ export const ConfirmationModal = ({
           >
             {cancelLabel}
           </button>
-          <button className="btn btn-danger-outline" onClick={onConfirm} disabled={areButtonsDisabled}>
+          <button className={CONFIRM_CLASS[confirmVariant]} onClick={onConfirm} disabled={areButtonsDisabled}>
             {confirmLabel}
           </button>
         </div>

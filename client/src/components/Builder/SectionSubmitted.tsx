@@ -95,7 +95,7 @@ export const SectionSubmitted = ({
             >
               Download PNG
             </a>
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-red-600 mb-2">
               opens the image in a new browser tab to save — not an in-app download
             </p>
           </>
@@ -130,7 +130,7 @@ export const SectionSubmitted = ({
           ariaLabel={`your submitted ${section}`}
         />
       )}
-      <div className="card p-4 flex flex-col gap-2 max-w-sm">
+      <div className="card p-4 flex flex-col gap-2">
         <p className="p2 text-gray-600">Name so far:</p>
         <p className="h4">
           {section === "head" ? nameToken : "___"} {section === "torso" ? nameToken : "___"}{" "}

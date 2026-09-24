@@ -150,7 +150,7 @@ export const CreateTab = () => {
       role="tabpanel"
       id="monster-mash-tab-create"
       aria-labelledby="monster-mash-tab-btn-create"
-      className="flex flex-col gap-6 py-6 max-w-5xl mx-auto"
+      className="flex flex-col gap-6 py-6"
     >
       {claimError && (
         <div role="alert" className="card p-3 border-l-4 border-red-500 bg-red-50 text-red-700">

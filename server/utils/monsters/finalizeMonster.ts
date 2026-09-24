@@ -87,13 +87,21 @@ export const finalizeMonster = async ({
   try {
     // 1. Collect peer picks from each peer's visitor dataObject.
     //
-    // A missing peer contributedDrafts entry is NOT fatal — it means the
-    // peer submitted their section before the `contributedDrafts` schema
-    // landed (or their write was rolled back). We proceed with empty picks
-    // + empty name token for that section so the monster still gets a
-    // composed name from whatever tokens ARE present and the world drop
-    // still fires. Same for a missing contributor id on the slot.
+    // Preferred source is `contributedDrafts[monsterId][section]` on the
+    // peer's visitor data (current schema). If that isn't there — e.g. the
+    // peer submitted their section BEFORE the contributedDrafts schema
+    // landed — fall back to legacy `entry.inProgressSections[section]` on
+    // the key-asset roster, which older code wrote at submit time. We
+    // access that field via a type escape because the current
+    // `MonsterIndexEntry` no longer declares it, but old runtime data may
+    // still carry it. A truly missing entry logs and continues with empty
+    // picks + empty name token so the composed monster still ships.
     const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+    const legacyEntry = entry as unknown as {
+      inProgressSections?: Partial<
+        Record<Section, { parts?: { [k: string]: string }; nameToken?: string }>
+      >;
+    };
     const peers: PeerDraft[] = [];
     for (const s of SECTIONS) {
       if (s === callerSection) continue;
@@ -115,15 +123,35 @@ export const finalizeMonster = async ({
       }
       const scoped = (rawUserData[scopedKey] as MonsterMashVisitorData | undefined) ?? undefined;
       const draft = scoped?.contributedDrafts?.[monsterId]?.[s];
-      if (!draft) {
-        console.warn(
-          `finalizeMonster: peer ${slot.contributorProfileId} has no contributedDrafts entry for ${monsterId}/${s} — using empty picks`,
-        );
+
+      let picks: { [categoryId: string]: string };
+      let nameToken: string;
+      let source: "contributedDrafts" | "legacy-roster" | "none";
+      if (draft) {
+        picks = draft.picks ?? {};
+        nameToken = draft.nameToken ?? "";
+        source = "contributedDrafts";
+      } else {
+        const legacy = legacyEntry.inProgressSections?.[s];
+        if (legacy && (legacy.parts || legacy.nameToken)) {
+          picks = legacy.parts ?? {};
+          nameToken = legacy.nameToken ?? "";
+          source = "legacy-roster";
+        } else {
+          picks = {};
+          nameToken = "";
+          source = "none";
+        }
       }
+
+      console.log(
+        `finalizeMonster: peer ${slot.contributorProfileId} for ${monsterId}/${s} → source=${source} · pickKeys=${Object.keys(picks).length} · nameToken="${nameToken}"`,
+      );
+
       peers.push({
         section: s,
-        picks: draft?.picks ?? {},
-        nameToken: draft?.nameToken ?? "",
+        picks,
+        nameToken,
         contributorProfileId: slot.contributorProfileId,
         contributorDisplayName: slot.contributorDisplayName ?? "",
         submittedAt: slot.submittedAt ?? Date.now(),

@@ -58,7 +58,7 @@ export const GalleryTab = () => {
       role="tabpanel"
       id="monster-mash-tab-gallery"
       aria-labelledby="monster-mash-tab-btn-gallery"
-      className="flex flex-col gap-4 py-6 max-w-6xl mx-auto"
+      className="flex flex-col gap-4 py-6"
     >
       <div className="flex flex-wrap items-center gap-4 px-2">
         <label className="flex items-center gap-2">
@@ -111,7 +111,9 @@ export const GalleryTab = () => {
         <div className="flex flex-col items-center gap-2 py-10 text-center">
           <h3 className="h3">The gallery is empty</h3>
           <p className="p2 text-gray-600">
-            {mine ? "You haven't contributed to any monsters yet." : "No finished monsters — start one on the Create tab."}
+            {mine
+              ? "You haven't contributed to any monsters yet."
+              : "No finished monsters — start one on the Create tab."}
           </p>
         </div>
       )}

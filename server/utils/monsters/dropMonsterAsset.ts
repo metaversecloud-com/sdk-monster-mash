@@ -45,6 +45,7 @@ export const dropMonsterAsset = async ({
     };
 
     const droppedAsset = await DroppedAsset.drop(asset, {
+      assetScale: 0.8,
       clickType: DroppedAssetClickType.LINK,
       clickableLink,
       clickableLinkTitle: "Monster Mash",

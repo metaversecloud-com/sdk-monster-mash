@@ -83,18 +83,6 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
       <div className="w-full max-w-md mx-auto flex flex-col gap-4 items-center text-center py-4">
         <p className="uppercase tracking-wider">Monster Mash</p>
 
-        {payload?.canDelete && (
-          <button
-            type="button"
-            className="btn btn-icon self-end text-red-700"
-            aria-label="Delete this monster (admin only)"
-            onClick={() => setShowDelete(true)}
-            disabled={isBusy || !monster}
-          >
-            <img src="https://sdk-style.s3.amazonaws.com/icons/delete.svg" />
-          </button>
-        )}
-
         {monster ? (
           <>
             <h2 className="h2 leading-tight">{monster.name || "unnamed"}</h2>
@@ -120,6 +108,18 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
             <button className="btn btn-outline w-full" onClick={returnToMainApp} disabled={isBusy}>
               Back to Monster Mash
             </button>
+
+            {payload?.canDelete && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                aria-label="Delete this monster (admin only)"
+                onClick={() => setShowDelete(true)}
+                disabled={isBusy || !monster}
+              >
+                Delete monster
+              </button>
+            )}
           </>
         ) : (
           !isLoading && <p className="p2">Monster not found.</p>

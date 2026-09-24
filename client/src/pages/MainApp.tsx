@@ -25,7 +25,7 @@ export const MainApp = ({ isLoading }: MainAppProps) => {
   return (
     <div className="p-3 bg-white rounded-lg shadow-md">
       <PageContainer isLoading={isLoading}>
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4">
+        <div className="w-full flex flex-col gap-4">
           <header className="flex flex-col gap-1">
             <h2 className="h2">Monster Mash</h2>
             <p className="p2">Create and vote with your friends!</p>

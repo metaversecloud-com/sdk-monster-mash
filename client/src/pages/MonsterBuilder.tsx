@@ -319,20 +319,10 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
           >
             Cancel & release my claim
           </button>
-
-          <p className="p2 text-center text-gray-500">
-            EVERY category is required. Where "nothing" is a valid look the options include an explicit NONE tile —
-            there are no optional categories.
-          </p>
         </div>
 
         {phase === "confirming" && (
-          <SubmitConfirm
-            section={section}
-            isSubmitting={isBusy}
-            onConfirm={submitSection}
-            onCancel={() => setPhase("picking")}
-          />
+          <SubmitConfirm section={section} onConfirm={submitSection} onCancel={() => setPhase("picking")} />
         )}
 
         {phase === "raced" && <RaceDialog onBackToList={returnToMainApp} onStartNew={startFreshMonster} />}

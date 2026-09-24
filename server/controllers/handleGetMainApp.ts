@@ -37,7 +37,6 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
 
     const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
-    console.log("🚀 ~ handleGetMainApp.ts:38 ~ dataObject:", dataObject);
 
     // Compute every opportunistic mutation up front (advance weekly cycle,
     // stale-lock expiry, trophy leaderboard) and write them together in a

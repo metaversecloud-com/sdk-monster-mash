@@ -79,7 +79,7 @@ export const VoteTab = () => {
       role="tabpanel"
       id="monster-mash-tab-vote"
       aria-labelledby="monster-mash-tab-btn-vote"
-      className="flex flex-col gap-4 py-6 max-w-6xl mx-auto px-2"
+      className="flex flex-col gap-4 py-6 px-2"
     >
       {isLoading ? (
         <p className="p2 text-center text-gray-600 py-10">Loading vote…</p>

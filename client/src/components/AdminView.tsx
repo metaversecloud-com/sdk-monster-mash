@@ -66,7 +66,7 @@ export const AdminView = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 py-4 max-w-xl mx-auto">
+    <div className="flex flex-col gap-4 py-4">
       <div className="flex items-center gap-2">
         <h3 className="h3">Admin Settings</h3>
         <span className="text-[10px] uppercase tracking-wider rounded-full bg-red-100 text-red-700 px-2 py-0.5 font-semibold">
@@ -81,8 +81,8 @@ export const AdminView = () => {
             <p className="font-semibold">Weekly voting</p>
             <p className="p2 text-gray-600">
               Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
-              start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your
-              teacher about the next vote!").
+              start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
+              about the next vote!").
             </p>
           </div>
           <button
