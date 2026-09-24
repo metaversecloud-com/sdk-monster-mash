@@ -66,25 +66,14 @@ export const AdminView = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex items-center gap-2">
-        <h3 className="h3">Admin Settings</h3>
-        <span className="text-[10px] uppercase tracking-wider rounded-full bg-red-100 text-red-700 px-2 py-0.5 font-semibold">
-          admins only
-        </span>
-      </div>
+    <div className="flex flex-col items-center gap-2 text-center">
+      <h5 className="text-gray-700 uppercase">Monster Mash</h5>
+      <h3 className="h3">Admin Settings</h3>
 
       {/* Weekly voting toggle row */}
-      <div className="card p-4 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            <p className="font-semibold">Weekly voting</p>
-            <p className="p2 text-gray-600">
-              Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
-              start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
-              about the next vote!").
-            </p>
-          </div>
+      <div className="card p-3 flex flex-col gap-3 text-left mt-2">
+        <div className="flex gap-1">
+          <p className="font-semibold flex-grow">Weekly voting</p>
           <button
             type="button"
             role="switch"
@@ -92,23 +81,23 @@ export const AdminView = () => {
             aria-label={`Weekly voting is ${currentEnabled ? "on" : "off"}`}
             disabled={isBusy}
             onClick={handleToggleClick}
-            className={`relative flex-shrink-0 w-14 h-7 rounded-full transition ${
+            className={`relative flex-shrink-0 w-10 h-6 rounded-full transition ${
               currentEnabled ? "bg-green-500" : "bg-gray-300"
             } ${isBusy ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
           >
             <span
               aria-hidden="true"
-              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${
+              className={`absolute top-0.5 w-6 h-4 rounded-full bg-white shadow transition-all ${
                 currentEnabled ? "left-[calc(100%-1.625rem)]" : "left-0.5"
               }`}
             />
           </button>
         </div>
-      </div>
-
-      {/* Reserved space for future admin settings — placeholder per plan §10.13. */}
-      <div className="card p-4 border-dashed border-2 border-gray-300 text-center text-xs text-gray-500">
-        ( future admin settings )
+        <p className="p2 text-gray-600">
+          Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
+          start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
+          about the next vote!").
+        </p>
       </div>
 
       {pendingOff && (

@@ -67,7 +67,7 @@ export const SECTION_CROP: Record<Section, SectionCrop> = {
     },
   },
   legs: {
-    marginTop: "-85px",
+    marginTop: "-95px",
     height: "100px",
     objectPosition: "center bottom",
     parts: {

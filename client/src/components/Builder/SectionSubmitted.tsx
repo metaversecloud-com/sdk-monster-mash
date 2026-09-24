@@ -126,7 +126,10 @@ export const SectionSubmitted = ({
           section={section}
           picks={picks}
           containerClassName="overflow-hidden w-full h-[190px] rounded-2xl border-2 border-taupe-500 bg-white mx-auto"
-          imgStyle={{ height: "250px", marginTop: section === "head" ? "0px" : section === "torso" ? "-75px" : "-5px" }}
+          imgStyle={{
+            height: "250px",
+            marginTop: section === "head" ? "0px" : section === "torso" ? "-75px" : "-75px",
+          }}
           ariaLabel={`your submitted ${section}`}
         />
       )}
