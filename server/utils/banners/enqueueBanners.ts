@@ -1,9 +1,5 @@
 import { UserInterface, VisitorInterface } from "@rtsdk/topia";
-import {
-  MonsterMashVisitorData,
-  Place,
-  VisitorDataObjectType,
-} from "@shared/types/index.js";
+import { MonsterMashVisitorData, Place, VisitorDataObjectType } from "@shared/types/index.js";
 import { Credentials } from "../../types/index.js";
 import { User } from "../topiaInit.js";
 
@@ -31,8 +27,7 @@ interface CompletionBannerEntry {
   completedAt: number;
 }
 
-const scopedKey = (credentials: Credentials): string =>
-  `${credentials.urlSlug}-${credentials.sceneDropId}`;
+const scopedKey = (credentials: Credentials): string => `${credentials.urlSlug}-${credentials.sceneDropId}`;
 
 const emptyScoped = (): MonsterMashVisitorData => ({
   schemaVersion: 1,
@@ -78,7 +73,7 @@ export const enqueueWinBannersByProfile = async (
       const isCaller = profileId === credentials.profileId && !!callerVisitor;
       const target = isCaller
         ? (callerVisitor as VisitorInterface)
-        : await User.create({ credentials: { ...credentials, profileId } });
+        : await User.create({ profileId, credentials: { ...credentials, profileId } });
       await patchQueues(target, credentials, (scoped) => ({
         ...scoped,
         pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
@@ -100,7 +95,7 @@ export const enqueueCompletionBannersForProfiles = async (
       const isCaller = profileId === credentials.profileId && !!callerVisitor;
       const target = isCaller
         ? (callerVisitor as VisitorInterface)
-        : await User.create({ credentials: { ...credentials, profileId } });
+        : await User.create({ profileId, credentials: { ...credentials, profileId } });
       await patchQueues(target, credentials, (scoped) => ({
         ...scoped,
         pendingCompletionBanners: [...(scoped.pendingCompletionBanners ?? []), entry],

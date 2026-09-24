@@ -1,18 +1,7 @@
 import { Request, Response } from "express";
 import { UserInterface } from "@rtsdk/topia";
-import {
-  KeyAssetDataObject,
-  MonsterMashVisitorData,
-  VisitorDataObjectType,
-} from "@shared/types/index.js";
-import {
-  errorHandler,
-  getCredentials,
-  getKeyAsset,
-  getVisitor,
-  User,
-  World,
-} from "@utils/index.js";
+import { KeyAssetDataObject, MonsterMashVisitorData, VisitorDataObjectType } from "@shared/types/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, User, World } from "@utils/index.js";
 
 /**
  * DELETE /api/monsters/:id
@@ -94,12 +83,7 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     // 2. If completed, remove the dropped asset from the world (best-effort).
     if (isComplete && monsterAssetId) {
       try {
-        await World.deleteDroppedAssets(
-          urlSlug,
-          [monsterAssetId],
-          process.env.INTERACTIVE_SECRET || "",
-          credentials,
-        );
+        await World.deleteDroppedAssets(urlSlug, [monsterAssetId], process.env.INTERACTIVE_SECRET || "", credentials);
       } catch (error) {
         errorHandler({
           error,
@@ -116,7 +100,7 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     // Visitor/User memory: "User class for foreign-profile fanout writes".
     for (const profileId of contributorProfileIds) {
       try {
-        const user: UserInterface = await User.create({ credentials: { ...credentials, profileId } });
+        const user: UserInterface = await User.create({ profileId, credentials: { ...credentials, profileId } });
         const raw = ((await user.fetchDataObject()) || {}) as VisitorDataObjectType;
         const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
         const scoped = raw[scopedKey] as MonsterMashVisitorData | undefined;

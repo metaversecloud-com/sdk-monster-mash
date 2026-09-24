@@ -98,9 +98,7 @@ export const finalizeMonster = async ({
     // picks + empty name token so the composed monster still ships.
     const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
     const legacyEntry = entry as unknown as {
-      inProgressSections?: Partial<
-        Record<Section, { parts?: { [k: string]: string }; nameToken?: string }>
-      >;
+      inProgressSections?: Partial<Record<Section, { parts?: { [k: string]: string }; nameToken?: string }>>;
     };
     const peers: PeerDraft[] = [];
     for (const s of SECTIONS) {
@@ -113,7 +111,10 @@ export const finalizeMonster = async ({
       let rawUserData: VisitorDataObjectType = {};
       let target: UserInterface | null = null;
       try {
-        target = await User.create({ credentials: { ...credentials, profileId: slot.contributorProfileId } });
+        target = await User.create({
+          profileId: slot.contributorProfileId,
+          credentials: { ...credentials, profileId: slot.contributorProfileId },
+        });
         rawUserData = ((await target.fetchDataObject()) || {}) as VisitorDataObjectType;
       } catch (error) {
         console.warn(
@@ -181,7 +182,10 @@ export const finalizeMonster = async ({
     try {
       imageUrl = await composeAndUploadMonster(monsterId, picksBySection);
     } catch (error) {
-      console.error(`finalizeMonster: compose/upload failed for ${monsterId} — completion continues without imageUrl`, error);
+      console.error(
+        `finalizeMonster: compose/upload failed for ${monsterId} — completion continues without imageUrl`,
+        error,
+      );
     }
 
     // 4. Build the SectionRecord map + contributor arrays (used both for the
