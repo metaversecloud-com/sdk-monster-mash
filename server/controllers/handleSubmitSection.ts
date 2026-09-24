@@ -1,12 +1,6 @@
 import { Request, Response } from "express";
+import { KeyAssetDataObject, MonsterMashVisitorData, Section, SECTIONS } from "@shared/types/index.js";
 import {
-  KeyAssetDataObject,
-  MonsterMashVisitorData,
-  Section,
-  SECTIONS,
-} from "@shared/types/index.js";
-import {
-  composeMonsterName,
   errorHandler,
   finalizeMonster,
   getBaseUrl,
@@ -59,7 +53,11 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
 
     const now = Date.now();
 
-    const lockId = `${keyAsset.id}-submit-${monsterId}-${section}`;
+    // Fresh lockId per attempt (5s bucket) — `lockDataObject` never
+    // releases, so a constant key would 409 every retry after the first
+    // use. Old bucket keys TTL-expire on the SDK side.
+    const lockBucket = Math.round(now / 5000) * 5000;
+    const lockId = `${keyAsset.id}-submit-${monsterId}-${section}-${lockBucket}`;
     try {
       await lockDataObject(lockId, keyAsset);
     } catch (error) {
@@ -110,9 +108,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     // same visitor writes it already does for contributedMonsters + banners.
     let composedName: string | undefined;
     let finalizeResult: { imageUrl: string | null; monsterAssetId: string | null } | undefined;
-    let finalizeCallerContribution:
-      | Partial<MonsterMashVisitorData["contributedMonsters"][string]>
-      | undefined;
+    let finalizeCallerContribution: Partial<MonsterMashVisitorData["contributedMonsters"][string]> | undefined;
     if (nowDone) {
       try {
         const finalized = await finalizeMonster({

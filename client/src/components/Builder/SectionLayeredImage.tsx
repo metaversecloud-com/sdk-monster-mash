@@ -5,11 +5,11 @@ import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
 interface SectionLayeredImageProps {
   section: Section;
   picks: { [categoryId: string]: string };
-  /** Optional inline style override for the outer container. */
-  containerStyle?: CSSProperties;
   /** Additional class names for the outer container. */
   containerClassName?: string;
   /** Alt text for accessibility (aria-label on the container's role="img"). */
+  imgStyle?: CSSProperties;
+  /** Additional class names for the images. */
   ariaLabel?: string;
 }
 
@@ -26,8 +26,8 @@ interface SectionLayeredImageProps {
 export const SectionLayeredImage = ({
   section,
   picks,
-  containerStyle,
   containerClassName = "",
+  imgStyle,
   ariaLabel,
 }: SectionLayeredImageProps) => {
   const { categoriesBySection, layerOrder, partById } = useContent();
@@ -43,8 +43,7 @@ export const SectionLayeredImage = ({
 
   return (
     <div
-      className={`relative w-full overflow-hidden ${containerClassName}`}
-      style={{ maxHeight: crop.height, ...containerStyle }}
+      className={`relative  ${containerClassName}`}
       role="img"
       aria-label={ariaLabel ?? `${section} layered preview`}
     >
@@ -52,7 +51,16 @@ export const SectionLayeredImage = ({
         const pickId = layerToPick.get(layerKey);
         const url = partUrl(pickId);
         if (!url) return null;
-        return <img key={layerKey} src={url} alt="" aria-hidden="true" />;
+        return (
+          <img
+            key={layerKey}
+            src={url}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ objectPosition: crop.objectPosition, ...imgStyle }}
+          />
+        );
       })}
     </div>
   );

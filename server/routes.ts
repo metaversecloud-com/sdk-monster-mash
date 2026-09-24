@@ -11,12 +11,12 @@ import {
   handleGetTrophy,
   handleGetVote,
   handleOpenMonsterDrawer,
-  handleRefreshContent,
   handleResetLeaderboard,
   handleResumeSection,
   handleReturnToMainApp,
   handleStartMonster,
   handleSubmitSection,
+  handleUpdateAdminSettings,
   handleUpdateDraft,
 } from "./controllers/index.js";
 import { getVersion } from "@utils/getVersion.js";
@@ -69,8 +69,6 @@ router.post("/banners/acknowledge", handleAcknowledgeBanners);
 // Trophy
 router.get("/trophy", handleGetTrophy);
 router.post("/leaderboard/reset", handleResetLeaderboard);
-
-// Content
-router.post("/content/refresh", handleRefreshContent);
+router.put("/admin/settings", handleUpdateAdminSettings);
 
 export default router;

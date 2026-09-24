@@ -11,6 +11,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  refreshContent,
 } from "@utils/index.js";
 
 /**
@@ -32,9 +33,11 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
   try {
     const credentials = getCredentials(req.query);
     const forceRefreshInventory = req.query.forceRefreshInventory === "true";
+    const forceRefreshContent = req.query.forceRefreshContent === "true";
 
     const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
+    console.log("🚀 ~ handleGetMainApp.ts:38 ~ dataObject:", dataObject);
 
     // Compute every opportunistic mutation up front (advance weekly cycle,
     // stale-lock expiry, trophy leaderboard) and write them together in a
@@ -134,6 +137,12 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       forceRefreshInventory,
     });
 
+    // Admin-only post-deploy trigger — bust the memoized parts catalog + walk
+    // `client/public/parts/` (or `client/build/parts/` in prod) again. Non-
+    // admins get the flag silently ignored so an accidental share of the URL
+    // doesn't cost a disk scan. Same pattern as `forceRefreshInventory`.
+    if (forceRefreshContent && isAdmin) refreshContent();
+
     // Single caller-visitor write: `daysAppOpened` bump + any win-banner
     // entries where the caller is a contributor + stale-activeDraft cleanup.
     // Skipped when nothing changed, so a plain re-open doesn't write.
@@ -162,19 +171,10 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       const monsterCompleted = draftMonster?.state === "complete";
       const sectionDone = slot?.status === "done";
       const sectionLockedByOther =
-        slot?.status === "locked" &&
-        !!slot.contributorProfileId &&
-        slot.contributorProfileId !== credentials.profileId;
+        slot?.status === "locked" && !!slot.contributorProfileId && slot.contributorProfileId !== credentials.profileId;
       const draftAgeMs = now - (draft.lockedAt ?? 0);
-      const sectionAvailableAndDraftAged =
-        slot?.status === "available" && draftAgeMs >= SECTION_LOCK_TTL_MS;
-      if (
-        monsterGone ||
-        monsterCompleted ||
-        sectionDone ||
-        sectionLockedByOther ||
-        sectionAvailableAndDraftAged
-      ) {
+      const sectionAvailableAndDraftAged = slot?.status === "available" && draftAgeMs >= SECTION_LOCK_TTL_MS;
+      if (monsterGone || monsterCompleted || sectionDone || sectionLockedByOther || sectionAvailableAndDraftAged) {
         activeDraftShouldClear = true;
       }
     }

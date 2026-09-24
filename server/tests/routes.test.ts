@@ -1237,6 +1237,55 @@ describe("routes", () => {
     expect(adminKey.dataObject.trophyLeaderboard).toEqual({});
   });
 
+  test("PUT /admin/settings admin-only + toggles weeklyVotingEnabled + ends running vote", async () => {
+    const app = makeApp();
+
+    // Non-admin → 403.
+    const nonAdminKey = makeKeyAsset({ ...defaultKeyAssetDataObject(), weeklyVotingEnabled: true });
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(nonAdminKey);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    let res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: false });
+    expect(res.status).toBe(403);
+
+    // Admin turning OFF while a cycle is running → ends the vote in the same write.
+    const runningKeyAssetData: any = { ...defaultKeyAssetDataObject(), weeklyVotingEnabled: true };
+    runningKeyAssetData.currentVoteCycle = {
+      cycleId: "cycle-99",
+      category: "silliest",
+      startAt: 1,
+      endAt: 2,
+      poolMonsterIds: [],
+      tallies: {},
+      totalMatchupsServed: 0,
+    };
+    const adminKey = makeKeyAsset(runningKeyAssetData);
+    mockUtils.getKeyAsset.mockResolvedValue(adminKey);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: false });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ weeklyVotingEnabled: false, endedVote: true });
+    expect(adminKey.dataObject.weeklyVotingEnabled).toBe(false);
+    expect(adminKey.dataObject.currentVoteCycle).toBeNull();
+
+    // Turning back ON does NOT open a vote — the next Sunday rollover does.
+    res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: true });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ weeklyVotingEnabled: true, endedVote: false });
+    expect(adminKey.dataObject.weeklyVotingEnabled).toBe(true);
+    expect(adminKey.dataObject.currentVoteCycle).toBeNull();
+  });
+
   test("POST /monsters/:id/abandon releases the caller's lock + clears activeDraft", async () => {
     const monsterId = "mon-abandon";
     const keyAssetData = defaultKeyAssetDataObject();

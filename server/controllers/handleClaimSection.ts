@@ -1,10 +1,5 @@
 import { Request, Response } from "express";
-import {
-  KeyAssetDataObject,
-  MonsterMashVisitorData,
-  Section,
-  SECTIONS,
-} from "@shared/types/index.js";
+import { KeyAssetDataObject, MonsterMashVisitorData, Section, SECTIONS } from "@shared/types/index.js";
 import {
   errorHandler,
   expireStaleLocks,
@@ -18,14 +13,6 @@ import {
 /**
  * POST /api/monsters/:id/claim
  * Body: { section: "head" | "torso" | "legs" }
- *
- * Player joins an in-progress monster by claiming its still-`available`
- * section.
- *
- * Idempotent for the caller: if their `activeDraft` already points at this
- * exact (monster, section), we re-lock the roster slot (in case it drifted
- * back to `available` on a stale read) and just re-open the drawer. That
- * covers "closed the drawer without submitting, clicked Join again".
  *
  * Refuses with 409 if:
  *   - the monster doesn't exist / is already complete
@@ -75,7 +62,9 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       }
       const currentSlot = entry.sections?.[section];
       const heldBySomeoneElse =
-        currentSlot?.status === "locked" && currentSlot.contributorProfileId && currentSlot.contributorProfileId !== profileId;
+        currentSlot?.status === "locked" &&
+        currentSlot.contributorProfileId &&
+        currentSlot.contributorProfileId !== profileId;
       if (heldBySomeoneElse) {
         return res.status(409).json({ success: false, message: "Section was taken by someone else." });
       }
@@ -147,7 +136,13 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       });
     }
 
-    const lockId = `${keyAsset.id}-claim-${monsterId}-${section}`;
+    // Fold a 5-second-bucketed timestamp into the lockId so every fresh
+    // attempt gets a new key. `lockDataObject` never releases (the SDK's
+    // TTL cleans it up on its own); if we reused a constant lockId, the
+    // second-ever attempt would 409 forever until TTL. Matches the
+    // tic-tac-toe controller's turnCount+bucket pattern.
+    const lockBucket = Math.round(now / 5000) * 5000;
+    const lockId = `${keyAsset.id}-claim-${monsterId}-${section}-${lockBucket}`;
     try {
       await lockDataObject(lockId, keyAsset);
     } catch (error) {
@@ -196,9 +191,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     await visitor.updateDataObject(
       { [visitorKey]: nextVisitorData },
       {
-        analytics: [
-          { analyticName: "section_claimed", profileId, urlSlug, uniqueKey: profileId },
-        ],
+        analytics: [{ analyticName: "section_claimed", profileId, urlSlug, uniqueKey: profileId }],
       },
     );
 

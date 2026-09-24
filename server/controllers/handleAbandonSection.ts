@@ -41,7 +41,10 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
     }
 
     if (releasedSection) {
-      const lockId = `${keyAsset.id}-abandon-${monsterId}-${releasedSection}`;
+      // Fresh lockId per attempt (5s bucket) — `lockDataObject` never
+      // releases, so a constant key would 409 forever after the first use.
+      const lockBucket = Math.round(Date.now() / 5000) * 5000;
+      const lockId = `${keyAsset.id}-abandon-${monsterId}-${releasedSection}-${lockBucket}`;
       try {
         await lockDataObject(lockId, keyAsset);
       } catch (error) {

@@ -45,8 +45,8 @@ export const Trophy = () => {
 
   return (
     <PageContainer isLoading={isLoading}>
-      <div className="w-full max-w-md mx-auto flex flex-col gap-4 py-2">
-        <p className="p2 uppercase tracking-wider text-gray-500 text-center">Monster Mash</p>
+      <div className="w-full flex flex-col gap-4">
+        <h5 className="text-gray-700 uppercase text-center">Monster Mash</h5>
 
         <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Trophy tabs">
           {(["leaderboard", "badges"] as TabId[]).map((id) => (
@@ -72,11 +72,7 @@ export const Trophy = () => {
           />
         )}
         {payload && tab === "badges" && (
-          <BadgesTab
-            badges={payload.badges}
-            ownedCount={payload.ownedBadgesCount}
-            totalCount={payload.totalBadges}
-          />
+          <BadgesTab badges={payload.badges} ownedCount={payload.ownedBadgesCount} totalCount={payload.totalBadges} />
         )}
       </div>
     </PageContainer>

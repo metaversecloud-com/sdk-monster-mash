@@ -85,7 +85,7 @@ export interface PartDef {
  * the top of this file). The list is short and stable enough to hand-maintain
  * even though the parts list itself is dynamic.
  */
-export const NO_FEET_LEG_PARTS: readonly string[] = ["mermaid-tail", "tentacles", "spring"] as const;
+export const NO_FEET_LEG_PARTS: readonly string[] = ["mermaid-tail", "tentacles-legs", "spring"] as const;
 
 /** Attach `supportsFeet` metadata to a raw part discovered on S3 / disk. */
 export const applyPartOverrides = (raw: Omit<PartDef, "supportsFeet">): PartDef => {

@@ -56,7 +56,7 @@ interface PeerDraft {
   contributorDisplayName: string;
   submittedAt: number;
   rawUserData: VisitorDataObjectType; // captured for the final write to avoid double-fetch
-  target: UserInterface;
+  target: UserInterface | null; // null when the peer's User couldn't be resolved
 }
 
 /**
@@ -86,25 +86,44 @@ export const finalizeMonster = async ({
 }: FinalizeMonsterInput): Promise<FinalizeMonsterResult> => {
   try {
     // 1. Collect peer picks from each peer's visitor dataObject.
+    //
+    // A missing peer contributedDrafts entry is NOT fatal — it means the
+    // peer submitted their section before the `contributedDrafts` schema
+    // landed (or their write was rolled back). We proceed with empty picks
+    // + empty name token for that section so the monster still gets a
+    // composed name from whatever tokens ARE present and the world drop
+    // still fires. Same for a missing contributor id on the slot.
     const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
     const peers: PeerDraft[] = [];
     for (const s of SECTIONS) {
       if (s === callerSection) continue;
       const slot = entry.sections?.[s];
       if (!slot || !slot.contributorProfileId) {
-        throw new Error(`finalizeMonster: missing contributor for section ${s}`);
+        console.warn(`finalizeMonster: missing contributor slot for ${monsterId}/${s} — continuing without it`);
+        continue;
       }
-      const target = await User.create({ credentials: { ...credentials, profileId: slot.contributorProfileId } });
-      const rawUserData = ((await target.fetchDataObject()) || {}) as VisitorDataObjectType;
+      let rawUserData: VisitorDataObjectType = {};
+      let target: UserInterface | null = null;
+      try {
+        target = await User.create({ credentials: { ...credentials, profileId: slot.contributorProfileId } });
+        rawUserData = ((await target.fetchDataObject()) || {}) as VisitorDataObjectType;
+      } catch (error) {
+        console.warn(
+          `finalizeMonster: could not load peer ${slot.contributorProfileId} for ${monsterId}/${s} — using empty picks`,
+          error,
+        );
+      }
       const scoped = (rawUserData[scopedKey] as MonsterMashVisitorData | undefined) ?? undefined;
       const draft = scoped?.contributedDrafts?.[monsterId]?.[s];
       if (!draft) {
-        throw new Error(`finalizeMonster: peer ${slot.contributorProfileId} has no contributedDrafts entry for ${monsterId}/${s}`);
+        console.warn(
+          `finalizeMonster: peer ${slot.contributorProfileId} has no contributedDrafts entry for ${monsterId}/${s} — using empty picks`,
+        );
       }
       peers.push({
         section: s,
-        picks: draft.picks,
-        nameToken: draft.nameToken,
+        picks: draft?.picks ?? {},
+        nameToken: draft?.nameToken ?? "",
         contributorProfileId: slot.contributorProfileId,
         contributorDisplayName: slot.contributorDisplayName ?? "",
         submittedAt: slot.submittedAt ?? Date.now(),
@@ -251,6 +270,7 @@ export const finalizeMonster = async ({
     };
 
     for (const p of peers) {
+      if (!p.target) continue; // couldn't resolve this peer's User earlier
       try {
         await patchPeerAtomically({
           target: p.target,

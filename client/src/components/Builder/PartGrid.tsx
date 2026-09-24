@@ -37,7 +37,7 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
       <button
         key={tileId}
         type="button"
-        className={`card flex flex-col items-center justify-center gap-1 p-1 transition ${
+        className={`card flex flex-col items-center justify-center gap-1 p-[2px] overflow-hidden transition ${
           isPicked ? "ring-1 ring-blue-500" : ""
         } ${isNone ? "border-dashed border-red-300 text-red-500" : ""} ${isDisabled ? "opacity-40" : ""}`}
         style={{ height: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.height || crop.height }}
@@ -46,25 +46,23 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
         disabled={isDisabled}
         onClick={() => onChange(tileId)}
       >
-        <div className="w-full rounded overflow-hidden">
-          {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt=""
-              aria-hidden="true"
-              className="block w-full"
-              style={{
-                objectFit: "cover",
-                objectPosition: crop.objectPosition,
-                marginTop: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.marginTop || 0,
-              }}
-            />
-          ) : (
-            <span aria-hidden="true" className="text-2xl">
-              {isNone ? "🚫" : "?"}
-            </span>
-          )}
-        </div>
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt=""
+            aria-hidden="true"
+            className="block w-full"
+            style={{
+              objectFit: "cover",
+              objectPosition: crop.objectPosition,
+              marginTop: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.marginTop || 0,
+            }}
+          />
+        ) : (
+          <span aria-hidden="true" className="text-2xl">
+            {isNone ? "🚫" : "?"}
+          </span>
+        )}
         {hasNoFeet && <span className="rounded-full bg-red-100 text-red-700 text-[10px] px-1 py-0.5">no feet</span>}
       </button>
     );

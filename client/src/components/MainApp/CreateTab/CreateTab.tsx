@@ -164,16 +164,14 @@ export const CreateTab = () => {
           type="button"
           className="card p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-dashed border-2 border-blue-300 hover:border-blue-500"
           onClick={startNew}
-          disabled={isBusy || !!activeDraft}
+          disabled={isBusy}
         >
           <span aria-hidden="true" className="text-5xl">
             ➕
           </span>
           <span className="h4">Create New Monster</span>
           <span className="p2 text-gray-600 text-center">
-            {activeDraft
-              ? "Finish or abandon your current section first."
-              : "Server picks your section at random — head, torso, or legs."}
+            Server picks your section at random — head, torso, or legs.
           </span>
         </button>
 

@@ -43,26 +43,7 @@ export const SectionSlot = ({
   const contributorName = slot?.contributorDisplayName;
   const mine = slot?.contributorProfileId === callerProfileId;
 
-  if (status === "available") {
-    return (
-      <div className="flex flex-col items-center gap-1 border-2 border-dashed border-gray-300 rounded-xl p-2 min-h-[92px] w-full">
-        <span className="text-md text-gray-600">{SECTION_LABELS[section]}</span>
-        {callerContributed ? (
-          <span className="text-[10px] text-gray-500 text-center leading-tight my-auto">
-            one section
-            <br />
-            per monster
-          </span>
-        ) : (
-          <button className="btn text-xs py-1 px-2" onClick={onJoin} disabled={isBusy}>
-            Join
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (status === "locked") {
+  if (status === "available" || status === "locked") {
     return (
       <div
         className={`flex items-center gap-1 rounded-xl p-2 min-h-[92px] w-full ${
@@ -70,15 +51,27 @@ export const SectionSlot = ({
         }`}
       >
         <div
-          className={`w-20 h-20 flex items-center justify-center rounded border-2 bg-white mr-2 text-2xl ${
+          className={`w-[100px] h-[100px] flex shrink-0 items-center justify-center rounded border-2 bg-white mr-2 text-2xl ${
             mine ? "border-2 border-amber-400 bg-amber-50" : "border-2 border-dashed border-gray-300"
           }`}
         >
-          🔒
+          <span aria-hidden="true" className="text-2xl text-gray-500">
+            {status === "locked" ? "🔒" : "?"}
+          </span>
         </div>
         <div className="flex flex-col gap-1 my-auto">
-          <span className="text-md text-gray-500">{SECTION_LABELS[section]} - locked</span>
-          {mine ? (
+          <p className="text-md text-gray-500">
+            {SECTION_LABELS[section]} - {status === "locked" ? "locked" : "available"}
+          </p>
+          {status === "available" && !mine ? (
+            callerContributed ? (
+              <p className="text-[10px] text-gray-500">You can only contribute one section per monster</p>
+            ) : (
+              <button className="btn text-xs py-1 px-2" onClick={onJoin} disabled={isBusy}>
+                Join
+              </button>
+            )
+          ) : status === "locked" && mine ? (
             <button className="btn text-xs py-1 px-2" onClick={onResume} disabled={isBusy}>
               Resume
             </button>
@@ -95,13 +88,16 @@ export const SectionSlot = ({
   // status === "done"
   return (
     <div className="flex items-center gap-1 border-2 border-green-500 bg-green-50 rounded-xl p-2 min-h-[92px] w-full">
-      <div className="w-20 h-20 flex items-center justify-center rounded border-2 border-green-500 bg-white mr-2">
+      <div className="w-[100px] h-[100px] flex items-center justify-center rounded border-2 border-green-500 bg-white mr-2">
         {mine && callerPicks ? (
           <SectionLayeredImage
             section={section}
             picks={callerPicks}
-            containerStyle={{ width: "90px", height: "90px" }}
-            containerClassName="rounded"
+            containerClassName="w-[100px] h-[100px] overflow-hidden"
+            imgStyle={{
+              height: "140px",
+              marginTop: section === "head" ? "0px" : section === "torso" ? "-45px" : "-55px",
+            }}
             ariaLabel={`your ${section}`}
           />
         ) : (

@@ -31,8 +31,12 @@ export const Home = () => {
     if (!hasInteractiveParams) return;
     // Pass forceRefreshInventory through — Topia sets this when badges are updated.
     const forceRefreshInventory = searchParams.get("forceRefreshInventory") === "true";
+    // Post-deploy content bust — admin appends `?forceRefreshContent=true`
+    // to their app URL and the next /main-app rescans the parts folder.
+    // Non-admins get the flag ignored server-side.
+    const forceRefreshContent = searchParams.get("forceRefreshContent") === "true";
     backendAPI
-      .get("/main-app", { params: { forceRefreshInventory } })
+      .get("/main-app", { params: { forceRefreshInventory, forceRefreshContent } })
       .then((response) => {
         if (response?.data?.success && response.data.data) {
           setMainAppState(dispatch, response.data.data);

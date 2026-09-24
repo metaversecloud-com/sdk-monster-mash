@@ -92,9 +92,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
     if (!hasHydrated.current) return;
     if (phase !== "picking" && phase !== "confirming") return;
     const timeout = setTimeout(() => {
-      backendAPI
-        .post(`/monsters/${monsterId}/draft`, { section, picks, nameToken })
-        .catch(() => {});
+      backendAPI.post(`/monsters/${monsterId}/draft`, { section, picks, nameToken }).catch(() => {});
     }, 500);
     return () => clearTimeout(timeout);
   }, [picks, nameToken, monsterId, section, phase]);
@@ -339,14 +337,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
 
         {phase === "raced" && <RaceDialog onBackToList={returnToMainApp} onStartNew={startFreshMonster} />}
 
-        {pendingLegsSwap && (
-          <NoFeetModal
-            keepFeetId={picks["feet"] ?? ""}
-            newLegsId={pendingLegsSwap}
-            onKeep={closeNoFeet}
-            onUseNewLegs={applyNewLegs}
-          />
-        )}
+        {pendingLegsSwap && <NoFeetModal onKeep={closeNoFeet} onUseNewLegs={applyNewLegs} />}
       </div>
     </PageContainer>
   );

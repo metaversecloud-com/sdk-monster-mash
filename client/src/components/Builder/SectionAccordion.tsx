@@ -16,15 +16,15 @@ interface SectionAccordionProps {
  */
 export const SectionAccordion = ({ category, chosen, isOpen, onToggle, children }: SectionAccordionProps) => {
   return (
-    <div className={`card p-2 ${isOpen ? "ring-1 ring-blue-500" : ""}`}>
+    <div className={`card p-1 gap-1 ${isOpen ? "ring-1 ring-blue-500" : ""}`}>
       <a
         className="w-full flex items-center justify-between gap-1 text-left"
         aria-expanded={isOpen}
         aria-controls={`accordion-panel-${category.id}`}
         onClick={onToggle}
       >
-        <span className="font-semibold flex-1 min-w-0 text-xs text-gray-700">{category.label}</span>
-        <span className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap flex-shrink-0">
+        <span className="font-semibold flex-1 pt-1 pl-1 text-xs text-gray-700">{category.label}</span>
+        <span className="flex items-center gap-1 pt-1 pr-1 text-[10px] font-semibold whitespace-nowrap flex-shrink-0">
           {chosen ? (
             <span className="inline-flex items-center gap-1 text-green-700" aria-label="Chosen">
               Chosen

@@ -125,8 +125,8 @@ export const SectionSubmitted = ({
         <SectionLayeredImage
           section={section}
           picks={picks}
-          containerClassName="rounded-2xl border-2 border-taupe-500 bg-white mx-auto"
-          containerStyle={{ width: "140px", height: "140px" }}
+          containerClassName="overflow-hidden w-full h-[190px] rounded-2xl border-2 border-taupe-500 bg-white mx-auto"
+          imgStyle={{ height: "250px", marginTop: section === "head" ? "0px" : section === "torso" ? "-75px" : "-5px" }}
           ariaLabel={`your submitted ${section}`}
         />
       )}
