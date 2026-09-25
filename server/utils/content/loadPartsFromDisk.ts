@@ -53,6 +53,28 @@ export const loadPartsFromDisk = (): PartDef[] => {
     }
   }
 
+  // Collision check — part ids are the filename stem, and `partById` (in
+  // shared/content/monsterMash.ts) keys by that stem alone. If two files
+  // across different sections/categories share the same stem, the second
+  // overwrites the first in `partById` and picks resolve to the wrong art
+  // (this exact bug bit us with `tentacles.png` in legs/legs and torso/arms
+  // and again with `kimono.png` in torso/shirt and legs/waist). Rename one
+  // of the conflicting files with a section/category suffix, e.g.
+  // `kimono-shirt.png` / `kimono-waist.png`.
+  const seenIds = new Map<string, string>();
+  for (const p of collected) {
+    const location = `${p.section}/${p.categoryId}/${p.imageName}`;
+    const prior = seenIds.get(p.id);
+    if (prior && prior !== location) {
+      console.error(
+        `loadPartsFromDisk: DUPLICATE part id "${p.id}" — ${prior} and ${location}. ` +
+          `Rename one of the files (e.g. append -${p.categoryId}) so ids are globally unique.`,
+      );
+    } else {
+      seenIds.set(p.id, location);
+    }
+  }
+
   console.log(
     `loadPartsFromDisk: ${collected.length} parts loaded from ${root} (${seen} images seen · ${skipped} skipped)`,
   );

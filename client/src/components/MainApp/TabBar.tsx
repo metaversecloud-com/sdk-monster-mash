@@ -17,7 +17,7 @@ export const TabBar = () => {
   const { isBusy } = useBusy();
 
   return (
-    <div className="flex justify-center border-b border-gray-200 mt-4" role="tablist" aria-label="Monster Mash">
+    <div className="flex justify-center border-b border-gray-200 mt-2" role="tablist" aria-label="Monster Mash">
       {TABS.map((tab) => {
         const isActive = tab.id === activeTab;
         return (

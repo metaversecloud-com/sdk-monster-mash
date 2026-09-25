@@ -1,7 +1,7 @@
 import { useContext } from "react";
 
 // components
-import { BannerStack, CreateTab, GalleryTab, PageContainer, TabBar, VoteTab } from "@/components";
+import { BannerStack, CreateTab, GalleryTab, NextCategoryLine, PageContainer, TabBar, VoteTab } from "@/components";
 
 // context
 import { GlobalStateContext } from "@/context/GlobalContext";
@@ -34,8 +34,9 @@ export const MainApp = ({ isLoading }: MainAppProps) => {
           <BannerStack />
 
           <TabBar />
+          <NextCategoryLine />
 
-          <div className="mt-2">
+          <div>
             {activeTab === "create" && <CreateTab />}
             {activeTab === "gallery" && <GalleryTab />}
             {activeTab === "vote" && <VoteTab />}

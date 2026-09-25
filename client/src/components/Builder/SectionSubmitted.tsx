@@ -1,6 +1,6 @@
 import { Section } from "@shared/types/index";
 import { useBusy } from "@/context/BusyContext";
-import { SectionLayeredImage } from "./SectionLayeredImage";
+import { Confetti, SectionLayeredImage } from "@/components";
 
 interface SectionSubmittedProps {
   section: Section;
@@ -41,6 +41,7 @@ export const SectionSubmitted = ({
     const attribution = (contributorNames ?? []).filter(Boolean).join(" · ");
     return (
       <div className="flex flex-col items-center gap-2  text-center">
+        <Confetti />
         <h5 className="text-gray-700 uppercase">Monster Mash</h5>
         <h2 className="h2 text-green-700 text-semibold relative">IT'S ALIVE!</h2>
         <p className="p2">Your section finished the monster!</p>

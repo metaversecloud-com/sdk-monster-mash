@@ -6,10 +6,18 @@ interface SectionSlotProps {
   entry: MonsterIndexEntry;
   callerProfileId: string;
   callerContributed: boolean; // caller has ANY section submitted on this monster
+  /**
+   * True when the caller's `activeDraft` (an in-progress lock, not yet
+   * submitted) points at THIS monster. Blocks the Join button on this
+   * monster's other available slots ("one section per monster") and lets
+   * the locked-by-me slot expose a Cancel affordance.
+   */
+  callerHasDraftHere?: boolean;
   /** Caller's saved picks for THIS monster/section — used to render a layered preview. */
   callerPicks?: { [categoryId: string]: string };
   onJoin: () => void;
   onResume: () => void;
+  onCancel?: () => void;
   isBusy?: boolean;
 }
 
@@ -27,21 +35,33 @@ const SECTION_LABELS: Record<Section, string> = {
  * `contributedDrafts` on their visitor data) drive a client-side layered
  * preview — no server-side per-section compose. Peer-completed sections
  * always show "?" until the whole monster finalizes.
+ *
+ * When the caller has an in-progress claim on this monster (`callerHasDraftHere`):
+ *   - the locked-by-me slot shows Resume AND Cancel (spec: no need to open
+ *     the Builder just to abandon)
+ *   - other available slots on this monster show the "one section per
+ *     monster" text instead of a Join button — same treatment as when they
+ *     already submitted a section here.
  */
 export const SectionSlot = ({
   section,
   entry,
   callerProfileId,
   callerContributed,
+  callerHasDraftHere,
   callerPicks,
   onJoin,
   onResume,
+  onCancel,
   isBusy,
 }: SectionSlotProps) => {
   const slot = entry.sections?.[section];
   const status = slot?.status ?? "available";
   const contributorName = slot?.contributorDisplayName;
   const mine = slot?.contributorProfileId === callerProfileId;
+  // "One per monster" text fires whenever the caller has SOME stake here —
+  // either a submitted contribution or a currently-locked draft.
+  const lockedIntoThisMonster = callerContributed || !!callerHasDraftHere;
 
   if (status === "available" || status === "locked") {
     return (
@@ -64,7 +84,7 @@ export const SectionSlot = ({
             {SECTION_LABELS[section]} - {status === "locked" ? "locked" : "available"}
           </p>
           {status === "available" && !mine ? (
-            callerContributed ? (
+            lockedIntoThisMonster ? (
               <p className="text-[10px] text-gray-500">You can only contribute one section per monster</p>
             ) : (
               <button className="btn text-xs py-1 px-2" onClick={onJoin} disabled={isBusy}>
@@ -72,9 +92,16 @@ export const SectionSlot = ({
               </button>
             )
           ) : status === "locked" && mine ? (
-            <button className="btn text-xs py-1 px-2" onClick={onResume} disabled={isBusy}>
-              Resume
-            </button>
+            <div className="flex flex-wrap gap-1">
+              <button className="btn text-xs py-1 px-2" onClick={onResume} disabled={isBusy}>
+                Resume
+              </button>
+              {onCancel && (
+                <button className="btn btn-outline text-xs py-1 px-2" onClick={onCancel} disabled={isBusy}>
+                  Cancel
+                </button>
+              )}
+            </div>
           ) : (
             <p className="text-[10px] text-gray-700 truncate max-w-full" title={contributorName}>
               {contributorName ?? "in progress"}

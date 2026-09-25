@@ -1,5 +1,6 @@
 export * from "./AdminIconButton.js";
 export * from "./AdminView.js";
+export * from "./ClaimSwitchModal.js";
 export * from "./ConfirmationModal.js";
 export * from "./Loading.js";
 export * from "./PageContainer.js";

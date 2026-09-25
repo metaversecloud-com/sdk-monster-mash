@@ -6,11 +6,14 @@ interface MonsterCardProps {
   entry: MonsterIndexEntry;
   callerProfileId: string;
   callerIsAdmin: boolean;
-  callerHasActiveDraft: boolean;
+  /** True when the caller's `activeDraft` points at THIS monster (in-progress claim, not yet submitted). */
+  callerHasDraftHere?: boolean;
   /** Caller's picks per section for THIS monster (from `contributedDrafts[monsterId]`). */
   callerDrafts?: Partial<Record<Section, { picks: { [categoryId: string]: string }; nameToken: string }>>;
   onJoin: (section: Section) => void;
   onResume: (section: Section) => void;
+  /** Fired when the caller abandons their in-progress claim from this card. */
+  onCancel: (section: Section) => void;
   onAdminDelete: () => void;
 }
 
@@ -22,10 +25,11 @@ export const MonsterCard = ({
   entry,
   callerProfileId,
   callerIsAdmin,
-  callerHasActiveDraft,
+  callerHasDraftHere,
   callerDrafts,
   onJoin,
   onResume,
+  onCancel,
   onAdminDelete,
 }: MonsterCardProps) => {
   const { isBusy } = useBusy();
@@ -51,8 +55,9 @@ export const MonsterCard = ({
 
       <div className="grid gap-2">
         {SECTIONS.map((s) => {
-          const slotBusy =
-            isBusy || (callerHasActiveDraft && entry.sections?.[s]?.contributorProfileId !== callerProfileId);
+          // `isBusy` reflects only the global in-flight state now — Join on
+          // a peer's monster is enabled even when the caller holds a draft
+          // elsewhere; clicking opens ClaimSwitchModal in CreateTab.
           return (
             <SectionSlot
               key={s}
@@ -60,10 +65,12 @@ export const MonsterCard = ({
               entry={entry}
               callerProfileId={callerProfileId}
               callerContributed={contributedHere}
+              callerHasDraftHere={callerHasDraftHere}
               callerPicks={callerDrafts?.[s]?.picks}
               onJoin={() => onJoin(s)}
               onResume={() => onResume(s)}
-              isBusy={slotBusy}
+              onCancel={() => onCancel(s)}
+              isBusy={isBusy}
             />
           );
         })}

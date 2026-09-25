@@ -67,8 +67,8 @@ export const SECTION_CROP: Record<Section, SectionCrop> = {
     },
   },
   legs: {
-    marginTop: "-95px",
-    height: "100px",
+    marginTop: "-75px",
+    height: "120px",
     objectPosition: "center bottom",
     parts: {
       belt: { marginTop: "-50px", height: "55px" },

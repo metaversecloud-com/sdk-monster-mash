@@ -5,7 +5,7 @@ import { GalleryCard } from "./GalleryCard.js";
 
 // context
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
-import { ErrorType } from "@/context/types";
+import { CLEAR_GALLERY_DEEP_LINK, ErrorType } from "@/context/types";
 
 // shared
 import { GalleryResponseData } from "@shared/types/index";
@@ -27,13 +27,25 @@ type SortValue = "newest" | "oldest";
  */
 export const GalleryTab = () => {
   const dispatch = useContext(GlobalDispatchContext);
-  const { hasInteractiveParams } = useContext(GlobalStateContext);
+  const { hasInteractiveParams, galleryDeepLink } = useContext(GlobalStateContext);
 
-  const [sort, setSort] = useState<SortValue>("newest");
-  const [mine, setMine] = useState(false);
+  const [sort, setSort] = useState<SortValue>(galleryDeepLink?.sort ?? "newest");
+  const [mine, setMine] = useState(!!galleryDeepLink?.mine);
   const [winners, setWinners] = useState(false);
   const [gallery, setGallery] = useState<GalleryResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Apply-once handling of a deep-link intent from another surface (e.g.
+  // the completion banner's "See Your Monster" button). We seed local
+  // filter state from `galleryDeepLink` on mount, then clear the intent so
+  // it doesn't fight the user's later filter changes.
+  useEffect(() => {
+    if (!galleryDeepLink) return;
+    if (galleryDeepLink.sort) setSort(galleryDeepLink.sort);
+    if (typeof galleryDeepLink.mine === "boolean") setMine(galleryDeepLink.mine);
+    dispatch?.({ type: CLEAR_GALLERY_DEEP_LINK });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [galleryDeepLink]);
 
   useEffect(() => {
     if (!hasInteractiveParams) return;
@@ -58,7 +70,7 @@ export const GalleryTab = () => {
       role="tabpanel"
       id="monster-mash-tab-gallery"
       aria-labelledby="monster-mash-tab-btn-gallery"
-      className="flex flex-col gap-4 py-6"
+      className="flex flex-col gap-4 py-2"
     >
       <div className="flex flex-wrap items-center gap-4 px-2">
         <label className="flex items-center gap-2">

@@ -93,11 +93,18 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Clear per-contributor `contributedMonsters[id]` AND any leftover
-    // `contributedDrafts[id]` on every contributor (in-progress deletes may
-    // still have picks on visitor data). One combined write per contributor.
-    // We only have their profileIds → reach for User (not Visitor), per the
-    // Visitor/User memory: "User class for foreign-profile fanout writes".
+    // 3. Clear per-contributor visitor state for this monster:
+    //   - `contributedMonsters[id]` (history)
+    //   - `contributedDrafts[id]` (in-progress picks, if any)
+    //   - `pendingCompletionBanners` entries pointing at this monster
+    //     (spec edge case: "If an admin deleted the monster, the player
+    //     would not get the toasts or banner." — for peers who haven't
+    //     opened the app since finalize, the queued blue banner would
+    //     name a monster that no longer exists; drop it here.)
+    //   - `pendingWinBanners` entries pointing at this monster (same
+    //     reasoning for green award banners).
+    // One combined write per contributor. Foreign profileId → User class
+    // per the Visitor/User memory.
     for (const profileId of contributorProfileIds) {
       try {
         const user: UserInterface = await User.create({ profileId, credentials: { ...credentials, profileId } });
@@ -109,10 +116,16 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
         delete nextContrib[monsterId];
         const nextDrafts = { ...(scoped.contributedDrafts ?? {}) };
         delete nextDrafts[monsterId];
+        const nextCompletionBanners = (scoped.pendingCompletionBanners ?? []).filter(
+          (b) => b.monsterId !== monsterId,
+        );
+        const nextWinBanners = (scoped.pendingWinBanners ?? []).filter((b) => b.monsterId !== monsterId);
         const patched: MonsterMashVisitorData = {
           ...scoped,
           contributedMonsters: nextContrib,
           contributedDrafts: nextDrafts,
+          pendingCompletionBanners: nextCompletionBanners,
+          pendingWinBanners: nextWinBanners,
         };
         await user.updateDataObject({ [scopedKey]: patched }, {});
       } catch (error) {

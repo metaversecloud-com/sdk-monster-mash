@@ -1,7 +1,7 @@
 import { useContext, useMemo, useState } from "react";
 
 // components
-import { ConfirmationModal } from "@/components";
+import { ClaimSwitchModal, ConfirmationModal } from "@/components";
 import { MonsterCard } from "./MonsterCard.js";
 
 // context
@@ -16,9 +16,9 @@ import { MonsterIndexEntry, Section } from "@shared/types/index";
 import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
 /**
- * Epic 4 Create tab: full card grid (mockup image11).
+ * Create tab: full card grid (mockup image11).
  *
- * Card ordering — first to last:
+ * Card ordering:
  *   1. Create-New tile (always).
  *   2. Cards where the caller has an active draft (Resume prompt on top).
  *   3. Cards where the caller has contributed a section (Done state, art
@@ -26,8 +26,10 @@ import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
  *   4. Cards with at least one AVAILABLE section (Join-target).
  *   5. Remaining in-progress cards (all locked/done, no caller stake).
  *
- * Admin trash → in-progress delete confirm (spec §Admin, mockup image13).
- * Race on Join → toast + refetch (mockup image12 is Builder-side).
+ * "One section per monster" flow: when the caller has an in-progress
+ * activeDraft, Join buttons on OTHER monsters stay enabled — clicking
+ * fires `ClaimSwitchModal` which offers Resume, Abandon+Join, or Dismiss.
+ * The card that OWNS the draft exposes a Cancel button on the locked slot.
  */
 export const CreateTab = () => {
   const dispatch = useContext(GlobalDispatchContext);
@@ -37,6 +39,7 @@ export const CreateTab = () => {
   const { isBusy, run } = useBusy();
   const [deleteTarget, setDeleteTarget] = useState<MonsterIndexEntry | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [pendingSwitch, setPendingSwitch] = useState<{ monsterId: string; section: Section } | null>(null);
 
   const roster = mainApp?.monsters ?? [];
   const callerProfileId = visitor?.profileId ?? "";
@@ -103,16 +106,10 @@ export const CreateTab = () => {
     });
   };
 
-  const joinSection = (entry: MonsterIndexEntry, section: Section) => {
-    if (isBusy) return;
-    if (activeDraft) {
-      setClaimError("You already have a section in progress. Finish or abandon it first.");
-      return;
-    }
-    setClaimError(null);
-    return run(async () => {
+  const performClaim = (monsterId: string, section: Section) =>
+    run(async () => {
       try {
-        await backendAPI.post(`/monsters/${entry.monsterId}/claim`, { section });
+        await backendAPI.post(`/monsters/${monsterId}/claim`, { section });
       } catch (error) {
         const httpStatus = (error as { response?: { status?: number } })?.response?.status;
         if (httpStatus === 409) {
@@ -123,6 +120,16 @@ export const CreateTab = () => {
         }
       }
     });
+
+  const joinSection = (entry: MonsterIndexEntry, section: Section) => {
+    if (isBusy) return;
+    setClaimError(null);
+    // Caller has a draft on a DIFFERENT monster → prompt for switch.
+    if (activeDraft && activeDraft.monsterId !== entry.monsterId) {
+      setPendingSwitch({ monsterId: entry.monsterId, section });
+      return;
+    }
+    return performClaim(entry.monsterId, section);
   };
 
   const resumeSection = (entry: MonsterIndexEntry, section: Section) => {
@@ -130,6 +137,49 @@ export const CreateTab = () => {
     if (activeDraft?.monsterId === entry.monsterId && activeDraft.section === section) {
       resumeDraft();
     }
+  };
+
+  const cancelSection = (entry: MonsterIndexEntry, section: Section) => {
+    // Only allow when it's actually the caller's draft.
+    if (activeDraft?.monsterId !== entry.monsterId || activeDraft?.section !== section) return;
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/${entry.monsterId}/abandon`);
+        await refreshMainApp();
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
+  };
+
+  const confirmSwitch = () => {
+    if (!pendingSwitch || !activeDraft) {
+      setPendingSwitch(null);
+      return;
+    }
+    const target = pendingSwitch;
+    setPendingSwitch(null);
+    return run(async () => {
+      try {
+        // Release the current claim first, then take the new section.
+        // If the new claim races and 409s, the caller ends up with no
+        // draft — mainApp refreshes and the CreateTab re-renders.
+        await backendAPI.post(`/monsters/${activeDraft.monsterId}/abandon`);
+        try {
+          await backendAPI.post(`/monsters/${target.monsterId}/claim`, { section: target.section });
+        } catch (error) {
+          const httpStatus = (error as { response?: { status?: number } })?.response?.status;
+          if (httpStatus === 409) {
+            setClaimError("Oops, that one was just claimed! Try another.");
+            await refreshMainApp();
+          } else {
+            setErrorMessage(dispatch, error as ErrorType);
+          }
+        }
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
   };
 
   const confirmDelete = () => {
@@ -150,7 +200,7 @@ export const CreateTab = () => {
       role="tabpanel"
       id="monster-mash-tab-create"
       aria-labelledby="monster-mash-tab-btn-create"
-      className="flex flex-col gap-6 py-6"
+      className="flex flex-col gap-6 py-2"
     >
       {claimError && (
         <div role="alert" className="card p-3 border-l-4 border-red-500 bg-red-50 text-red-700">
@@ -203,10 +253,11 @@ export const CreateTab = () => {
             entry={entry}
             callerProfileId={callerProfileId}
             callerIsAdmin={!!isAdmin}
-            callerHasActiveDraft={!!activeDraft}
+            callerHasDraftHere={activeDraft?.monsterId === entry.monsterId}
             callerDrafts={mainApp?.contributedDrafts?.[entry.monsterId]}
             onJoin={(section) => joinSection(entry, section)}
             onResume={(section) => resumeSection(entry, section)}
+            onCancel={(section) => cancelSection(entry, section)}
             onAdminDelete={() => setDeleteTarget(entry)}
           />
         ))}
@@ -226,6 +277,19 @@ export const CreateTab = () => {
           handleToggleShowConfirmationModal={() => setDeleteTarget(null)}
           confirmLabel="Delete monster"
           cancelLabel="Keep monster"
+        />
+      )}
+
+      {pendingSwitch && activeDraft && (
+        <ClaimSwitchModal
+          currentSection={activeDraft.section}
+          targetSection={pendingSwitch.section}
+          onResumeCurrent={() => {
+            setPendingSwitch(null);
+            resumeDraft();
+          }}
+          onAbandonAndJoin={confirmSwitch}
+          onDismiss={() => setPendingSwitch(null)}
         />
       )}
     </div>
