@@ -1,29 +1,244 @@
 /*
- * App-specific component classes.
+ * Monster Mash — component classes + color utilities.
  *
- * These are unlayered (not wrapped in `@layer { … }`) so they win over both
- * the SDK component styles (.btn, .card, etc.) and Tailwind utilities — no
- * `!important` needed.
+ * Unlayered (not `@layer { … }`) so they win over both the SDK component
+ * styles (.btn, .card, .p2, etc.) and Tailwind utilities — no `!important`
+ * needed. Consume tokens from tokens.css rather than hard-coding values.
  *
- * Use an app-specific prefix on every class name (e.g. `.er-card--running`
- * for the escape-room app, `.kr-tile` for kitchen-rush) so these classes are
- * obviously project-scoped and won't collide with the SDK or Tailwind.
+ * Naming convention: `mm-*` prefix everywhere so these classes are
+ * obviously project-scoped and can't collide with the SDK or Tailwind.
  *
- * Build on top of the SDK's design system rather than replacing it:
+ * Two flavors of class:
  *
- *   <div className="card app-card app-card--featured">…</div>
+ *   1. UTILITY classes below (`mm-bg-*`, `mm-text-*`, `mm-border-*`) —
+ *      drop-in single-property helpers that let JSX read almost like
+ *      Tailwind. Compose freely with existing utilities and SDK classes.
  *
- * not
- *
- *   <div className="app-custom-card">…</div>
- *
- * Consume tokens from `tokens.css` instead of hard-coding values:
- *
- *   .app-card--featured {
- *     background: var(--app-grad-hero);
- *     border-color: var(--app-primary);
- *     box-shadow: var(--app-shadow-card);
- *   }
- *
- * See `.ai/style-guide.md` for the full convention.
+ *   2. COMPONENT classes (`mm-app`, `mm-card`, `mm-accent`, …) — semantic
+ *      surfaces with combined properties. Prefer these when a surface has
+ *      more than one thing to say ("in-progress monster card").
  */
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Background utilities
+ * ────────────────────────────────────────────────────────────────────*/
+
+.mm-bg-app {
+  background-color: var(--mm-bg);
+}
+
+.mm-bg-section {
+  background-color: var(--mm-section);
+}
+
+.mm-bg-card {
+  background-color: var(--mm-card);
+}
+
+.mm-bg-success-lt {
+  background-color: var(--mm-success-lt);
+}
+
+.mm-bg-amber {
+  background-color: var(--mm-amber);
+}
+
+.mm-bg-done {
+  background-color: var(--mm-done);
+}
+
+.mm-bg-pill {
+  background-color: var(--mm-accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Text utilities
+ * ────────────────────────────────────────────────────────────────────*/
+
+.mm-text-white {
+  color: var(--mm-on-bg);
+}
+
+.mm-text-muted {
+  color: var(--mm-on-bg-muted);
+}
+
+.mm-text-subtle {
+  color: var(--mm-on-bg-subtle);
+}
+
+.mm-text-on-card {
+  color: var(--mm-on-card);
+}
+
+.mm-text-on-card-muted {
+  color: var(--mm-on-card-muted);
+}
+
+.mm-text-on-card-subtle {
+  color: var(--mm-on-card-subtle);
+}
+
+.mm-text-success {
+  color: var(--mm-success-lt);
+}
+
+.mm-text-amber {
+  color: var(--mm-amber);
+}
+
+.mm-text-done {
+  color: var(--mm-done);
+}
+
+.mm-text-on-amber {
+  color: var(--mm-on-amber);
+}
+
+.mm-text-on-pill {
+  color: var(--mm-on-pill);
+}
+
+.mm-text-accent-lt {
+  color: var(--mm-accent-lt);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Border utilities
+ * ────────────────────────────────────────────────────────────────────*/
+.mm-border-default {
+  border-width: 2px !important;
+  border-style: solid;
+}
+
+.mm-border-success {
+  border-color: var(--mm-success);
+}
+
+.mm-border-amber {
+  border-color: var(--mm-amber);
+}
+
+.mm-border-done {
+  border-color: var(--mm-done);
+}
+
+.mm-border-section {
+  border-color: var(--mm-section);
+}
+
+.mm-border-card {
+  border-color: var(--mm-card);
+}
+
+.mm-border-pill {
+  border-color: var(--mm-accent);
+}
+
+.mm-border-subtle {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mm-border-blue {
+  border: 4px solid var(--mm-accent-lt);
+}
+
+/* Ring color helper (works with Tailwind's `ring-2` utility). */
+.mm-ring-amber {
+  --tw-ring-color: var(--mm-amber);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Component surfaces
+ * ────────────────────────────────────────────────────────────────────*/
+
+/*
+ * App-shell wrapper — every page's outermost React div. Pairs the app
+ * background with default text color so nested elements without an
+ * explicit color inherit correctly.
+ */
+.mm-app {
+  background-color: var(--mm-bg);
+  color: var(--mm-on-bg);
+}
+
+/*
+ * Dark surface used for the Create New tile, Live Preview, accordions,
+ * name-token picker, etc. Rounded, dark background, white text.
+ */
+.mm-section {
+  background-color: var(--mm-section);
+  color: var(--mm-on-bg);
+  border-radius: 1rem;
+  border: 1px solid var(--mm-accent);
+}
+
+/*
+ * In-progress monster card on the Create tab — light background against
+ * the dark app shell.
+ */
+.mm-card {
+  background-color: var(--mm-card);
+  color: var(--mm-on-card);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+/*
+ * Pill / chip — pill background + white text + padding. Use for status
+ * chips like "admins only", "chosen", the pill-shaped tabs, etc.
+ */
+.mm-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--mm-accent);
+  color: var(--mm-on-pill);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * Amber pill — same shape as `.mm-accent` but on the accent color, for
+ * status like "chosen ✓".
+ */
+.mm-accent--amber {
+  background-color: var(--mm-amber);
+  color: var(--mm-on-amber);
+}
+
+.mm-button-primary {
+  background-color: var(--mm-success-lt);
+  border: 1px solid var(--mm-success);
+  color: var(--mm-bg);
+  min-height: 60px;
+}
+.mm-button-primary:disabled {
+  background-color: var(--mm-accent-dark);
+  border: 1px solid var(--mm-accent);
+  color: var(--mm-accent-lt);
+}
+
+.mm-button-secondary {
+  background-color: var(--mm-accent);
+  border: 1px solid var(--mm-accent-dark);
+  color: var(--mm-accent-lt);
+}
+
+.mm-btn-sm {
+  width: fit-content;
+  height: 30px;
+  font-size: 0.7rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Helper classes
+ * ────────────────────────────────────────────────────────────────────*/
+.mm-flip-vertical {
+  transform: scaleY(-1);
+}
+.mm-text-xs {
+  font-size: 10px;
+}

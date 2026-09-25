@@ -1,12 +1,7 @@
 import { NAME_TOKENS } from "@shared/content/monsterMash";
 import { Section } from "@shared/types/index";
 import { useBusy } from "@/context/BusyContext";
-
-const CAPTIONS: Record<Section, string> = {
-  head: "Your pick becomes the monster's FIRST name (torso picks the last name, legs picks the title).",
-  torso: "Your pick becomes the monster's LAST name (head picks the first name, legs picks the title).",
-  legs: "Your pick becomes the monster's TITLE (head picks the first name, torso picks the last name).",
-};
+import { SuccessIcon } from "../shared";
 
 const LABELS: Record<Section, string> = {
   head: "First name",
@@ -30,21 +25,17 @@ export const NameTokenPicker = ({
   const options = NAME_TOKENS[section];
   const id = `name-token-${section}`;
   const { isBusy } = useBusy();
+
   return (
-    <div className={`card p-3 ${value ? "ring-1 ring-blue-500" : ""}`}>
-      <label htmlFor={id} className="label flex items-center justify-between gap-3">
-        <span className="font-semibold flex-1 min-w-0 text-xs text-gray-700">{LABELS[section]}</span>
-        <span
-          className={`whitespace-nowrap ${
-            value ? "text-green-700 text-[10px]" : "text-red-600 text-[10px] font-semibold"
-          }`}
-        >
-          {value ? "chosen" : "Required"}
-        </span>
-      </label>
+    <div className="mm-section flex flex-col items-center gap-2 p-2">
+      <div className="w-full flex items-baseline justify-between gap-3">
+        <p className="flex-stretch font-semibold mm-text-white">{LABELS[section]}</p>
+        {value ? <SuccessIcon /> : <span className="mm-text-xs mm-text-amber pr-1">Required</span>}
+      </div>
+
       <select
         id={id}
-        className="input mt-2 w-full"
+        className="input w-full"
         value={value}
         disabled={isBusy}
         onChange={(e) => onChange(e.target.value)}
@@ -56,7 +47,6 @@ export const NameTokenPicker = ({
           </option>
         ))}
       </select>
-      <p className="p3 mt-2 text-gray-500">{CAPTIONS[section]}</p>
     </div>
   );
 };

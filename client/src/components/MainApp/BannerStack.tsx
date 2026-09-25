@@ -109,7 +109,7 @@ export const BannerStack = () => {
       )}
 
       {countdownActive && (
-        <div className="rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 flex items-center justify-between gap-2">
+        <div className="rounded-xl border-2 mm-border-amber bg-amber-50 px-4 py-3 flex items-center justify-between gap-2">
           <p className="text-amber-900">
             <span className="font-semibold">{formatCountdown((cycleEnds as number) - now)}</span> left to VOTE on last
             week's monsters!

@@ -36,22 +36,19 @@ export const MonsterCard = ({
   const contributedHere = (entry.contributorProfileIds ?? []).includes(callerProfileId);
 
   return (
-    <div className="card p-3 flex flex-col gap-2 min-h-[220px] relative">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">Art stays hidden until complete</span>
-        {callerIsAdmin && (
-          <a
-            className={`text-right ${isBusy ? "opacity-40 pointer-events-none" : ""}`}
-            aria-label="Delete this monster in progress"
-            onClick={() => {
-              if (isBusy) return;
-              onAdminDelete();
-            }}
-          >
-            <img src="https://sdk-style.s3.amazonaws.com/icons/delete.svg" />
-          </a>
-        )}
-      </div>
+    <div className="mm-card p-2 flex flex-col gap-2 min-h-[220px]">
+      {callerIsAdmin && (
+        <a
+          className={`text-right ${isBusy ? "opacity-40 pointer-events-none" : ""}`}
+          aria-label="Delete this monster in progress"
+          onClick={() => {
+            if (isBusy) return;
+            onAdminDelete();
+          }}
+        >
+          <img src="https://sdk-style.s3.amazonaws.com/icons/delete.svg" />
+        </a>
+      )}
 
       <div className="grid gap-2">
         {SECTIONS.map((s) => {

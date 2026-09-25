@@ -6,8 +6,11 @@ export const AdminIconButton = ({
   showSettings: boolean;
 }) => {
   return (
-    <button className="btn btn-icon icon-with-rounded-border mb-4" onClick={() => setShowSettings(showSettings)}>
-      <img src={`https://sdk-style.s3.amazonaws.com/icons/${showSettings ? "arrow" : "cog"}.svg`} />
+    <button
+      className="absolute top-2 right-2 width-10 height-10 mm-text-white bg-transparent text-3xl border-transparent"
+      onClick={() => setShowSettings(showSettings)}
+    >
+      {showSettings ? "＜" : "⚙"}
     </button>
   );
 };

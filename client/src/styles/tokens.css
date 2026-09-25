@@ -1,24 +1,45 @@
 /*
- * App design tokens.
+ * Monster Mash design tokens (v006 style refresh).
  *
- * Define brand colors, surfaces, gradients, shadows, etc. as CSS custom
- * properties here. Consume them in `components.css` and in JSX inline-style
- * `style={{ ... }}` only for genuinely dynamic values. Don't hard-code hex
- * values inside individual component classes.
+ * Consume these in `components.css` and inline `style={{ ... }}` for
+ * genuinely dynamic values. Utility classes in components.css expose each
+ * token as a ready-to-drop `.mm-bg-*` / `.mm-text-*` / `.mm-border-*`
+ * class — the components mostly compose those with SDK / Tailwind
+ * utilities rather than defining new selectors.
  *
- * Use an app-specific prefix on every variable name (e.g. `--er-cyan` for the
- * escape-room app, `--kr-primary` for kitchen-rush) so tokens are obviously
- * project-scoped and won't collide with anything from the SDK or Tailwind.
+ * Palette (v006 mockup):
+ *   --mm-bg      #1C2741  App background — everywhere
+ *   --mm-section #131D30  Dark surfaces (Create New tile, Live Preview, accordions)
+ *   --mm-card    #F3F5FA  In-progress monster cards
+ *   --mm-amber   #F8A702  Active-claim / countdown accent
+ *   --mm-done    #1A2538  "done" indicators (replaces the previous Tailwind green)
+ *   --mm-accent    #283B6A  Pill/chip background
  *
- * Example:
- *
- *   :root {
- *     --app-primary: #2563eb;
- *     --app-bg-card: #ffffff;
- *     --app-grad-hero: linear-gradient(135deg, #60a5fa, #2563eb);
- *     --app-shadow-card: 0 6px 14px rgba(15, 23, 42, 0.08);
- *   }
+ * Text-on-color companions kept in one place so contrast decisions live
+ * next to the color that motivated them.
  */
+:root {
+  --mm-bg: #1c2741;
+  --mm-section: #131d30;
+  --mm-card: #f3f5fa;
+  --mm-success: #39be90;
+  --mm-success-lt: #4beab2;
+  --mm-amber: #f8a702;
+  --mm-done: #1a2538;
+  --mm-accent-dark: #495576;
+  --mm-accent: #42578c;
+  --mm-accent-lt: #ccd8eb;
+
+  /* Companion text colors that ride on top of each surface. */
+  --mm-on-bg: #ffffff; /* body text on the app background */
+  --mm-on-bg-muted: rgba(255, 255, 255, 0.7); /* secondary copy on dark bg */
+  --mm-on-bg-subtle: rgba(255, 255, 255, 0.5); /* fine print on dark bg */
+  --mm-on-card: #1a2538; /* body text on the in-progress card */
+  --mm-on-card-muted: rgba(26, 37, 56, 0.7);
+  --mm-on-card-subtle: rgba(26, 37, 56, 0.55);
+  --mm-on-pill: #ffffff;
+  --mm-on-amber: #1a2538; /* text sitting on an amber button/chip */
+}
 
 /* Re-add the box-sizing reset that Tailwind's preflight used to provide. */
 *,

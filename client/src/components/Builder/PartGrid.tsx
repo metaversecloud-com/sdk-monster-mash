@@ -37,8 +37,8 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
       <button
         key={tileId}
         type="button"
-        className={`card flex flex-col items-center justify-center gap-1 p-[2px] overflow-hidden transition ${
-          isPicked ? "ring-1 ring-blue-500" : ""
+        className={`rounded-lg bg-white flex flex-col items-center justify-center gap-1 m-[1px] p-[2px] overflow-hidden transition mm-border-default ${
+          isPicked ? "mm-border-success" : "border-transparent"
         } ${isNone ? "border-dashed border-red-300 text-red-500" : ""} ${isDisabled ? "opacity-40" : ""}`}
         style={{ height: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.height || crop.height }}
         aria-pressed={isPicked}
@@ -63,7 +63,7 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
             {isNone ? "🚫" : "?"}
           </span>
         )}
-        {hasNoFeet && <span className="rounded-full bg-red-100 text-red-700 text-[10px] px-1 py-0.5">no feet</span>}
+        {hasNoFeet && <span className="rounded-full bg-red-100 text-red-700 mm-text-xs px-1 py-0.5">no feet</span>}
       </button>
     );
   };

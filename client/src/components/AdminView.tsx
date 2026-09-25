@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 
 // components
 import { ConfirmationModal } from "./ConfirmationModal.js";
+import { Logo } from "./Logo.js";
 
 // context
 import { useBusy } from "@/context/BusyContext";
@@ -67,7 +68,7 @@ export const AdminView = () => {
 
   return (
     <div className="flex flex-col items-center gap-2 text-center">
-      <h5 className="text-gray-700 uppercase">Monster Mash</h5>
+      <Logo className="h-8 w-auto mx-auto" />
       <h3 className="h3">Admin Settings</h3>
 
       {/* Weekly voting toggle row */}

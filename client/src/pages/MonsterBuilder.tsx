@@ -4,6 +4,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BuildingPill,
   LayeredPreview,
+  Logo,
   NameTokenPicker,
   NoFeetModal,
   PageContainer,
@@ -223,113 +224,126 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
 
   if (phase === "submitted" && submitResult) {
     return (
-      <PageContainer isLoading={false}>
-        <SectionSubmitted
-          section={section}
-          isComplete={submitResult.isComplete}
-          composedName={submitResult.composedName}
-          imageUrl={submitResult.imageUrl}
-          contributorNames={submitResult.contributorNames}
-          nameToken={nameToken}
-          picks={picks}
-          sectionsRemaining={Math.max(0, 3 - stepIndex)}
-          onBackToMonsterMash={returnToMainApp}
-        />
-      </PageContainer>
+      <div className="p-2 mm-app min-h-screen">
+        <PageContainer isLoading={false}>
+          <SectionSubmitted
+            section={section}
+            isComplete={submitResult.isComplete}
+            composedName={submitResult.composedName}
+            imageUrl={submitResult.imageUrl}
+            contributorNames={submitResult.contributorNames}
+            nameToken={nameToken}
+            picks={picks}
+            sectionsRemaining={Math.max(0, 3 - stepIndex)}
+            onBackToMonsterMash={returnToMainApp}
+          />
+        </PageContainer>
+      </div>
     );
   }
 
   return (
-    <PageContainer isLoading={isLoading}>
-      <h5 className="text-gray-700 uppercase">Monster Mash</h5>
-      <header className="flex gap-1 mt-2 items-center">
-        <BuildingPill section={section} stepIndex={stepIndex} />
-        <p className="p3 text-gray-600 text-right">preview left, pickers right</p>
-      </header>
-      <div className="w-full flex flex-col gap-4 mt-4">
-        {/* Two-column layout: pinned preview on the left, scrollable
+    <div className="mm-app min-h-screen">
+      <PageContainer isLoading={isLoading}>
+        <div className="flex flex-col gap-2 items-center">
+          <Logo className="h-10 w-auto" />
+          <BuildingPill section={section} stepIndex={stepIndex} />
+        </div>
+        <div className="w-full flex flex-col gap-2 mt-4">
+          {/* Two-column layout: pinned preview on the left, scrollable
             pickers on the right. `position: sticky` on the preview keeps
             it visible as the pickers scroll — natural document scroll on
             the parent means when everything fits the viewport there's no
             scroll at all; only tall content triggers scrolling. */}
-        <div className="flex gap-3 items-start">
-          <aside className="sticky top-2 flex-shrink-0 w-[42%] max-w-[260px] self-start">
-            <LayeredPreview section={section} picks={picks} peerDoneSections={peerDoneSections} />
-          </aside>
+          <div className="flex gap-1 items-start">
+            <aside className="sticky top-2 flex-shrink-0 w-[42%] self-start">
+              <LayeredPreview section={section} picks={picks} peerDoneSections={peerDoneSections} />
+            </aside>
 
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <h4 className="whitespace-nowrap pt-2">
-                {categories[0]?.section === section && `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
-              </h4>
-              <span className="p2 text-gray-600 whitespace-nowrap">
-                {chosenCount} of {categories.length}
-              </span>
+            <div className="mm-section flex flex-col items-center gap-3 p-2">
+              <div className="w-full flex items-baseline justify-between gap-3">
+                <p className="flex-stretch font-semibold mm-text-white">
+                  {categories[0]?.section === section && `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
+                </p>
+                <span className="p2 mm-text-accent-lt">
+                  {chosenCount} of {categories.length}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {categories.map((cat) => (
+                  <SectionAccordion
+                    key={cat.id}
+                    catId={cat.id}
+                    label={cat.label}
+                    chosen={!!picks[cat.id]}
+                    isExpandable={true}
+                    isOpen={openAccordion === cat.id}
+                    onToggle={() => setOpenAccordion(openAccordion === cat.id ? null : cat.id)}
+                  >
+                    <PartGrid
+                      category={cat}
+                      value={picks[cat.id]}
+                      onChange={(id) => handleCategoryChange(cat.id, id)}
+                      disabledIds={cat.id === "feet" ? disabledFeetIds : undefined}
+                    />
+                  </SectionAccordion>
+                ))}
+              </div>
+
+              <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
             </div>
-
-            <div className="flex flex-col gap-2">
-              {categories.map((cat) => (
-                <SectionAccordion
-                  key={cat.id}
-                  category={cat}
-                  chosen={!!picks[cat.id]}
-                  isOpen={openAccordion === cat.id}
-                  onToggle={() => setOpenAccordion(openAccordion === cat.id ? null : cat.id)}
-                >
-                  <PartGrid
-                    category={cat}
-                    value={picks[cat.id]}
-                    onChange={(id) => handleCategoryChange(cat.id, id)}
-                    disabledIds={cat.id === "feet" ? disabledFeetIds : undefined}
-                  />
-                </SectionAccordion>
-              ))}
-            </div>
-
-            <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
           </div>
-        </div>
 
-        {/* Full-width footer: submit + cancel + disclaimer sit under both
+          {/* Full-width footer: submit + cancel + disclaimer sit under both
             columns (mockup shows them separated by a horizontal rule). */}
-        <div className="border-t pt-3 mt-2 flex flex-col gap-2">
-          <button
-            className="btn"
-            disabled={!allChosen || isBusy}
-            onClick={() => setPhase("confirming")}
-            aria-disabled={!allChosen || isBusy}
-          >
-            {allChosen
-              ? `Submit ${section}`
-              : `Submit ${section} (choose all ${categories.length + 1} — ${categories.length + 1 - chosenCount - (nameToken ? 1 : 0)} left)`}
-          </button>
+          <div className="border-t pt-3 mt-2 flex flex-col gap-2">
+            <button
+              className="btn mm-button-primary"
+              disabled={!allChosen || isBusy}
+              onClick={() => setPhase("confirming")}
+              aria-disabled={!allChosen || isBusy}
+            >
+              <div className="flex flex-col">
+                <p className="font-bold text-xl">Submit {section}</p>
+                {allChosen ? (
+                  <p>Ready to submit!</p>
+                ) : (
+                  <p className="text-xs">
+                    choose all {categories.length + 1} — {categories.length + 1 - chosenCount - (nameToken ? 1 : 0)}{" "}
+                    left
+                  </p>
+                )}
+              </div>
+            </button>
 
-          <button
-            className="btn btn-outline"
-            disabled={isBusy}
-            onClick={() =>
-              run(async () => {
-                try {
-                  await backendAPI.post(`/monsters/${monsterId}/abandon`);
-                } finally {
-                  await backendAPI.post("/main-app/return").catch(() => {});
-                }
-              })
-            }
-          >
-            Cancel & release my claim
-          </button>
+            <button
+              className="btn btn-outline"
+              disabled={isBusy}
+              onClick={() =>
+                run(async () => {
+                  try {
+                    await backendAPI.post(`/monsters/${monsterId}/abandon`);
+                  } finally {
+                    await backendAPI.post("/main-app/return").catch(() => {});
+                  }
+                })
+              }
+            >
+              Cancel & release my claim
+            </button>
+          </div>
+
+          {phase === "confirming" && (
+            <SubmitConfirm section={section} onConfirm={submitSection} onCancel={() => setPhase("picking")} />
+          )}
+
+          {phase === "raced" && <RaceDialog onBackToList={returnToMainApp} onStartNew={startFreshMonster} />}
+
+          {pendingLegsSwap && <NoFeetModal onKeep={closeNoFeet} onUseNewLegs={applyNewLegs} />}
         </div>
-
-        {phase === "confirming" && (
-          <SubmitConfirm section={section} onConfirm={submitSection} onCancel={() => setPhase("picking")} />
-        )}
-
-        {phase === "raced" && <RaceDialog onBackToList={returnToMainApp} onStartNew={startFreshMonster} />}
-
-        {pendingLegsSwap && <NoFeetModal onKeep={closeNoFeet} onUseNewLegs={applyNewLegs} />}
-      </div>
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 };
 

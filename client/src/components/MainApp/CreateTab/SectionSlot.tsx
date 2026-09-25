@@ -1,5 +1,6 @@
 import { MonsterIndexEntry, Section } from "@shared/types/index";
 import { SectionLayeredImage } from "@/components/Builder/SectionLayeredImage";
+import { SectionSilhouette } from "@/components/shared/SectionSilhouette";
 
 interface SectionSlotProps {
   section: Section;
@@ -66,44 +67,40 @@ export const SectionSlot = ({
   if (status === "available" || status === "locked") {
     return (
       <div
-        className={`flex items-center gap-1 rounded-xl p-2 min-h-[92px] w-full ${
-          mine ? "border-2 border-amber-400 bg-amber-50" : "border-2 border-dashed border-gray-300"
+        className={`flex items-center gap-1 rounded-xl p-2 min-h-[102px] text-center ${
+          mine ? "border-l-4 mm-border-amber bg-white" : "border border-dashed border-gray-300"
         }`}
       >
-        <div
-          className={`w-[100px] h-[100px] flex shrink-0 items-center justify-center rounded border-2 bg-white mr-2 text-2xl ${
-            mine ? "border-2 border-amber-400 bg-amber-50" : "border-2 border-dashed border-gray-300"
-          }`}
-        >
-          <span aria-hidden="true" className="text-2xl text-gray-500">
-            {status === "locked" ? "🔒" : "?"}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1 my-auto">
-          <p className="text-md text-gray-500">
-            {SECTION_LABELS[section]} - {status === "locked" ? "locked" : "available"}
+        <div className="flex flex-col gap-1 mx-auto px-4">
+          {status === "locked" && (
+            <span aria-hidden="true" className="text-2xl mm-text-on-card-subtle mx-auto">
+              🔒
+            </span>
+          )}
+          <p className="text-md mm-text-on-card pb-1">
+            {SECTION_LABELS[section]} — {status === "locked" ? "locked" : "AVAILABLE"}
           </p>
           {status === "available" && !mine ? (
             lockedIntoThisMonster ? (
-              <p className="text-[10px] text-gray-500">You can only contribute one section per monster</p>
+              <p className="mm-text-xs mm-text-on-card-muted">You can only contribute one section per monster</p>
             ) : (
-              <button className="btn text-xs py-1 px-2" onClick={onJoin} disabled={isBusy}>
+              <button className="btn mm-btn-sm mx-auto" onClick={onJoin} disabled={isBusy}>
                 Join
               </button>
             )
           ) : status === "locked" && mine ? (
             <div className="flex flex-wrap gap-1">
-              <button className="btn text-xs py-1 px-2" onClick={onResume} disabled={isBusy}>
+              <button className="btn mm-btn-sm mx-auto" onClick={onResume} disabled={isBusy}>
                 Resume
               </button>
               {onCancel && (
-                <button className="btn btn-outline text-xs py-1 px-2" onClick={onCancel} disabled={isBusy}>
+                <button className="btn btn-outline mm-btn-sm mx-auto" onClick={onCancel} disabled={isBusy}>
                   Cancel
                 </button>
               )}
             </div>
           ) : (
-            <p className="text-[10px] text-gray-700 truncate max-w-full" title={contributorName}>
+            <p className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
               {contributorName ?? "in progress"}
             </p>
           )}
@@ -114,8 +111,8 @@ export const SectionSlot = ({
 
   // status === "done"
   return (
-    <div className="flex items-center gap-1 border-2 border-green-500 bg-green-50 rounded-xl p-2 min-h-[92px] w-full">
-      <div className="w-[100px] h-[100px] flex items-center justify-center rounded border-2 border-green-500 bg-white mr-2">
+    <div className="flex items-center gap-1 rounded-xl p-2 h-[102px] w-full bg-white">
+      <div className="w-[100px] h-[100px] flex items-center justify-center rounded bg-white mr-2 overflow-hidden">
         {mine && callerPicks ? (
           <SectionLayeredImage
             section={section}
@@ -123,28 +120,26 @@ export const SectionSlot = ({
             containerClassName="w-[100px] h-[100px] overflow-hidden"
             imgStyle={{
               height: "140px",
-              marginTop: section === "head" ? "0px" : section === "torso" ? "-45px" : "-55px",
+              marginTop: section === "head" ? "0px" : section === "torso" ? "-40px" : "-50px",
             }}
             ariaLabel={`your ${section}`}
           />
         ) : (
-          <span aria-hidden="true" className="text-2xl text-gray-500">
-            ?
-          </span>
+          <SectionSilhouette section={section} variant="light" className="w-[80px] h-[80px] object-contain" />
         )}
       </div>
       <div className="flex flex-col gap-1 my-auto">
-        <p className="text-md text-green-700">
-          {SECTION_LABELS[section]} - done
+        <p className="text-md mm-text-on-card">
+          {SECTION_LABELS[section]} — done
           <br />
           {mine ? (
-            <span className="text-[10px]">Art is visible to you</span>
+            <span className="mm-text-xs mm-text-on-card-muted">Art is visible to you</span>
           ) : (
-            <span className="text-[10px] text-gray-500">Art is hidden</span>
+            <span className="mm-text-xs mm-text-on-card-muted">hidden until you submit yours</span>
           )}
         </p>
-        <span className="text-[10px] text-gray-700 truncate max-w-full" title={contributorName}>
-          {contributorName ?? "done"} •{" "}
+        <span className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
+          {contributorName ?? "done"} ·{" "}
           {slot.submittedAt ? new Date(slot.submittedAt).toLocaleDateString() : "unknown date"}
         </span>
       </div>

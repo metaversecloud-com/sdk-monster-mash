@@ -61,15 +61,11 @@ export const GalleryCard = ({ monster }: GalleryCardProps) => {
         type="button"
         onClick={openDetail}
         disabled={isBusy}
-        className="flex-1 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+        className="flex-1 flex items-center justify-center rounded-lg mm-border-section mm-bg-card"
         aria-label={`Open ${monster.name || "monster"} details`}
       >
         {monster.imageUrl ? (
-          <img
-            src={monster.imageUrl}
-            alt={monster.name || "monster"}
-            className="w-40 h-44 object-contain"
-          />
+          <img src={monster.imageUrl} alt={monster.name || "monster"} className="w-40 h-44 object-contain" />
         ) : (
           <span aria-hidden="true" className="text-5xl text-gray-400">
             ?

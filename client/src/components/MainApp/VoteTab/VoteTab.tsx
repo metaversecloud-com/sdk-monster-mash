@@ -82,14 +82,14 @@ export const VoteTab = () => {
       className="flex flex-col gap-4 py-6 px-2"
     >
       {isLoading ? (
-        <p className="p2 text-center text-gray-600 py-10">Loading vote…</p>
+        <p className="p2 text-center mm-text-muted py-10">Loading vote…</p>
       ) : !vote ? (
-        <p className="p2 text-center text-gray-600 py-10">Vote unavailable right now.</p>
+        <p className="p2 text-center mm-text-muted py-10">Vote unavailable right now.</p>
       ) : (
         <>
           <div className="flex justify-between items-start gap-4 flex-wrap">
             {vote.state === "running" && vote.cycleEndsAt ? (
-              <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50 flex-1 min-w-[280px]">
+              <div className="p-4 rounded-2xl border-2 mm-border-amber bg-amber-50 flex-1 min-w-[280px]">
                 <Countdown targetMs={vote.cycleEndsAt} />
                 <p className="p2 mt-1">left to vote on last week's monsters!</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -120,7 +120,7 @@ export const VoteTab = () => {
                   disabled={vote.callerVoteState.hitCap}
                 />
               </div>
-              <p className="p2 text-center text-gray-600">
+              <p className="p2 text-center mm-text-muted">
                 {vote.callerVoteState.hitCap
                   ? `You've hit your vote cap for this cycle (${vote.callerVoteState.cap}). Come back next week!`
                   : `You've voted ${vote.callerVoteState.voted} of ${vote.callerVoteState.cap} times this cycle. Winners appear the next time you open the app after voting closes.`}
@@ -131,7 +131,7 @@ export const VoteTab = () => {
           {vote.state === "not-enough-monsters" && (
             <div className="text-center py-12">
               <h3 className="h3">Not enough monsters for a vote yet</h3>
-              <p className="p2 mt-2 text-gray-600">
+              <p className="p2 mt-2 mm-text-muted">
                 {vote.poolSize ?? 0} of the {vote.minPoolSize} monsters needed are in the pool.
               </p>
             </div>
@@ -140,7 +140,7 @@ export const VoteTab = () => {
           {vote.state === "scheduled" && (
             <div className="text-center py-12">
               <h3 className="h3">No vote is running right now</h3>
-              <p className="p2 mt-2 text-gray-600">
+              <p className="p2 mt-2 mm-text-muted">
                 {vote.nextScheduledStartAt
                   ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
                       weekday: "long",
@@ -157,7 +157,7 @@ export const VoteTab = () => {
           {vote.state === "voting-off" && (
             <div className="text-center py-12">
               <h3 className="h3">No vote is running right now</h3>
-              <p className="p2 mt-2 text-gray-600 italic">Check in with your teacher about the next vote!</p>
+              <p className="p2 mt-2 mm-text-muted italic">Check in with your teacher about the next vote!</p>
             </div>
           )}
         </>

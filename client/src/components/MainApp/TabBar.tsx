@@ -17,7 +17,7 @@ export const TabBar = () => {
   const { isBusy } = useBusy();
 
   return (
-    <div className="flex justify-center border-b border-gray-200 mt-2" role="tablist" aria-label="Monster Mash">
+    <div className="flex justify-center gap-2 mt-2" role="tablist" aria-label="Monster Mash">
       {TABS.map((tab) => {
         const isActive = tab.id === activeTab;
         return (
@@ -27,7 +27,9 @@ export const TabBar = () => {
             aria-selected={isActive}
             aria-controls={`monster-mash-tab-${tab.id}`}
             id={`monster-mash-tab-btn-${tab.id}`}
-            className={`btn ${isActive ? "" : "btn-outline"} min-w-[120px] mx-1 -mb-px`}
+            className={`min-w-[120px] px-4 py-2 text-[1.1rem] rounded-xl border-none transition ${
+              isActive ? "bg-white mm-text-done" : "bg-transparent mm-text-accent-lt hover:mm-text-white"
+            }`}
             onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: tab.id } })}
             disabled={isBusy}
           >

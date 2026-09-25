@@ -44,8 +44,8 @@ export interface SectionCrop {
 
 export const SECTION_CROP: Record<Section, SectionCrop> = {
   head: {
-    marginTop: "-10px",
-    height: "100px",
+    marginTop: "-3px",
+    height: "125px",
     objectPosition: "center top",
     parts: {
       headShape: { marginTop: "20px", height: "60px" },
@@ -56,18 +56,18 @@ export const SECTION_CROP: Record<Section, SectionCrop> = {
     },
   },
   torso: {
-    marginTop: "-55px",
+    marginTop: "-75px",
     height: "130px",
     objectPosition: "center 60%",
     parts: {
       arms: { marginTop: "-50px", height: "55px" },
       collar: { marginTop: "-35px", height: "65px" },
-      shirt: { marginTop: "-58px", height: "75px" },
+      shirt: { marginTop: "-40px", height: "60px" },
       torsoBack: { marginTop: "-35px", height: "90px" },
     },
   },
   legs: {
-    marginTop: "-75px",
+    marginTop: "-90px",
     height: "120px",
     objectPosition: "center bottom",
     parts: {

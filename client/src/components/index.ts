@@ -3,6 +3,7 @@ export * from "./AdminView.js";
 export * from "./ClaimSwitchModal.js";
 export * from "./ConfirmationModal.js";
 export * from "./Loading.js";
+export * from "./Logo.js";
 export * from "./PageContainer.js";
 export * from "./PageFooter.js";
 export * from "./Builder/index.js";

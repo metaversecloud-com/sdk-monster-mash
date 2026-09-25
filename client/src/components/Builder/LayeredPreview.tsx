@@ -1,5 +1,6 @@
 import { CategoryDef } from "@shared/content/monsterMash";
 import { Section, SECTIONS } from "@shared/types/index";
+import { SectionSilhouette } from "@/components/shared/SectionSilhouette";
 import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
 
 interface LayeredPreviewProps {
@@ -45,9 +46,9 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
   const hasAnyPicks = [...layerToPick.values()].some(Boolean);
 
   return (
-    <div className="flex flex-col items-center gap-3 border-taupe-300 border-2 rounded-2xl p-3 bg-taupe-50 text-gray-900">
+    <div className="mm-section flex flex-col items-center gap-3 p-2">
       {/* Header row: "Live preview" + "pinned" chip. */}
-      <div className="text-sm uppercase tracking-wider text-gray-700 font-semibold">Live preview</div>
+      <p className="mm-text-white font-semibold">Live preview</p>
 
       {/* Section stack — head, torso, legs, each in its own block. Order
           matches the visual monster (head on top, legs on bottom). */}
@@ -59,14 +60,10 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
           const crop = SECTION_CROP[s];
 
           if (isMine) {
-            // Active section: solid taupe border, white background, live
-            // <img> stack rendered in LAYER_ORDER z-index. Container's aspect
-            // ratio + each layer's object-position crop out the full-body
-            // canvas whitespace above/below this section's art.
             return (
               <div key={s} className="w-full flex flex-col items-center gap-1">
                 <div
-                  className="relative w-full rounded-xl border-1 border-gray-900 bg-white  justify-center"
+                  className="relative w-full rounded-xl justify-center mm-bg-app"
                   style={{ height: crop.height || "110px", objectFit: "cover", objectPosition: crop.objectPosition }}
                   role="img"
                   aria-label={`Preview: your ${SECTION_LABELS[s].toLowerCase()} in progress`}
@@ -88,10 +85,10 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
                       );
                     })
                   ) : (
-                    <p className="text-xs text-gray-600 text-center p-2">Select parts to see preview</p>
+                    <p className="text-xs mm-text-accent-lt text-center pt-4 p-2">Select parts to see preview</p>
                   )}
                 </div>
-                <span className="text-xs font-semibold">your {SECTION_LABELS[s].toLowerCase()}</span>
+                <span className="text-xs font-semibold mm-text-accent-lt">your {SECTION_LABELS[s].toLowerCase()}</span>
               </div>
             );
           }
@@ -99,30 +96,28 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
           // Peer sections always render as a placeholder — the server no
           // longer composes per-section art, so peers can't see each other's
           // picks. Amber tint when the peer already submitted (someone is
-          // there), grey dashed when nothing's been built yet. Everyone
+          // there), subtle dashed when nothing's been built yet. Everyone
           // sees the composed final image at monster completion.
           void crop;
           return (
             <div key={s} className="w-full flex flex-col items-center gap-1">
               <div
-                className={`w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 p-2 text-center ${
-                  isPeerDone ? "border-taupe-500 bg-taupe-100 text-taupe-900" : "border-gray-300 bg-white text-gray-500"
+                className={`w-full rounded-xl flex flex-col items-center justify-center gap-1 p-2 text-center mm-bg-app ${
+                  isPeerDone ? "mm-border-amber mm-text-white" : "border-white/20  mm-text-accent-lt"
                 }`}
               >
-                <span className="text-2xl leading-none" aria-hidden="true">
-                  ?
-                </span>
+                <SectionSilhouette section={s} variant="dark" className="w-16 h-16 object-contain opacity-80" />
                 {isPeerDone ? (
                   <>
                     <span className="text-sm font-semibold">
                       {peer!.contributorDisplayName ?? "someone"}'s {SECTION_LABELS[s].toLowerCase()}
                     </span>
-                    <span className="text-[10px]">done · hidden until monster complete</span>
+                    <span className="mm-text-xs">done · hidden until monster complete</span>
                   </>
                 ) : (
                   <>
                     <span className="text-sm">{SECTION_LABELS[s].toLowerCase()}</span>
-                    <span className="text-[10px]">not built yet</span>
+                    <span className="mm-text-xs">not built yet</span>
                   </>
                 )}
               </div>
@@ -130,15 +125,6 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
           );
         })}
       </div>
-
-      <div className="w-full h-px bg-taupe-200 my-1" aria-hidden="true" />
-
-      <p className="text-center text-[11px] text-gray-600 leading-snug">
-        Dashed = where your {SECTION_LABELS[section].toLowerCase()} meets the adjacent section.
-        <br />
-        <span className="italic text-gray-500">(so you can't match your art to theirs)</span>
-      </p>
-      <p className="text-center text-[10px] text-gray-400 italic">( preview stays pinned while the list scrolls )</p>
     </div>
   );
 };

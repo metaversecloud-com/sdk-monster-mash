@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 
 // components
-import { BadgesTab, LeaderboardTab, PageContainer } from "@/components";
+import { BadgesTab, LeaderboardTab, Logo, PageContainer } from "@/components";
 
 // context
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
@@ -44,38 +44,40 @@ export const Trophy = () => {
   }, [hasInteractiveParams]);
 
   return (
-    <PageContainer isLoading={isLoading}>
-      <div className="w-full flex flex-col gap-4">
-        <h5 className="text-gray-700 uppercase text-center">Monster Mash</h5>
+    <div className="p-2 mm-app min-h-screen">
+      <PageContainer isLoading={isLoading}>
+        <div className="w-full flex flex-col gap-4">
+          <Logo className="h-8 w-auto mx-auto" />
 
-        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Trophy tabs">
-          {(["leaderboard", "badges"] as TabId[]).map((id) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              className={`btn ${tab === id ? "" : "btn-outline"}`}
-              onClick={() => setTab(id)}
-            >
-              {id === "leaderboard" ? "Leaderboard" : "Badges"}
-            </button>
-          ))}
+          <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Trophy tabs">
+            {(["leaderboard", "badges"] as TabId[]).map((id) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={tab === id}
+                className={`btn ${tab === id ? "" : "btn-outline"}`}
+                onClick={() => setTab(id)}
+              >
+                {id === "leaderboard" ? "Leaderboard" : "Badges"}
+              </button>
+            ))}
+          </div>
+
+          {payload && tab === "leaderboard" && (
+            <LeaderboardTab
+              rows={payload.leaderboard}
+              callerRow={payload.callerRow}
+              cap={payload.cap}
+              isAdmin={payload.isAdmin}
+              onAfterReset={fetchTrophy}
+            />
+          )}
+          {payload && tab === "badges" && (
+            <BadgesTab badges={payload.badges} ownedCount={payload.ownedBadgesCount} totalCount={payload.totalBadges} />
+          )}
         </div>
-
-        {payload && tab === "leaderboard" && (
-          <LeaderboardTab
-            rows={payload.leaderboard}
-            callerRow={payload.callerRow}
-            cap={payload.cap}
-            isAdmin={payload.isAdmin}
-            onAfterReset={fetchTrophy}
-          />
-        )}
-        {payload && tab === "badges" && (
-          <BadgesTab badges={payload.badges} ownedCount={payload.ownedBadgesCount} totalCount={payload.totalBadges} />
-        )}
-      </div>
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 };
 

@@ -28,7 +28,7 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
               w.deleted ? "border-dashed border-red-400" : ""
             }`}
           >
-            <span className="rounded-full bg-gray-900 text-white text-[10px] px-2 py-0.5">{PLACE_LABEL[w.place]}</span>
+            <span className="rounded-full bg-gray-900 text-white mm-text-xs px-2 py-0.5">{PLACE_LABEL[w.place]}</span>
             {w.deleted ? (
               <div className="w-14 h-14 border-2 border-dashed border-red-400 flex items-center justify-center text-red-500 text-xs">
                 [Deleted]

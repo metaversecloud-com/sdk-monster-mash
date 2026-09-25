@@ -1,6 +1,6 @@
 import { Section } from "@shared/types/index";
 import { useBusy } from "@/context/BusyContext";
-import { Confetti, SectionLayeredImage } from "@/components";
+import { Confetti, Logo, SectionLayeredImage, SuccessIcon } from "@/components";
 
 interface SectionSubmittedProps {
   section: Section;
@@ -40,11 +40,11 @@ export const SectionSubmitted = ({
   if (isComplete) {
     const attribution = (contributorNames ?? []).filter(Boolean).join(" · ");
     return (
-      <div className="flex flex-col items-center gap-2  text-center">
+      <div className="flex flex-col items-center gap-3 text-center">
         <Confetti />
-        <h5 className="text-gray-700 uppercase">Monster Mash</h5>
-        <h2 className="h2 text-green-700 text-semibold relative">IT'S ALIVE!</h2>
-        <p className="p2">Your section finished the monster!</p>
+        <Logo className="h-8 w-auto mx-auto" />
+        <h2 className="mm-text-success text-semibold">IT'S ALIVE!</h2>
+        <p className="mm-text-accent-lt">Your section finished the monster!</p>
 
         {imageUrl ? (
           <img
@@ -58,30 +58,27 @@ export const SectionSubmitted = ({
           </div>
         )}
 
-        {composedName && <h3 className="pt-2">{composedName}</h3>}
-        {attribution && <p className="p2 text-gray-600">by {attribution}</p>}
+        {composedName && <h4 className="pt-2 mm-text-white">{composedName}</h4>}
+        {attribution && <p className="text-xs mm-text-accent-lt">by {attribution}</p>}
 
-        <ul className="text-sm text-gray-600 w-full text-left flex flex-col gap-2 p-2">
+        <ul className="text-sm mm-text-accent-lt w-full text-left flex flex-col gap-2 p-2">
           <li className="flex items-center gap-2">
-            <span className="text-green-700" aria-hidden="true">
-              ✓
-            </span>
+            <SuccessIcon />
             Placed in the world
           </li>
           <li className="flex items-center gap-2">
-            <span className="text-green-700" aria-hidden="true">
-              ✓
-            </span>
+            <SuccessIcon />
             Added to the gallery
           </li>
           <li className="flex flex-col">
             <span className="flex items-center gap-2">
-              <span className="text-green-700" aria-hidden="true">
-                ✓
+              <SuccessIcon />
+              <span>
+                Entered in the next vote
+                <br />
+                <span className="mm-text-xs text-amber-700 pt-1">if enough are finished — otherwise the one after</span>
               </span>
-              Entered in the next vote
             </span>
-            <span className="text-xs text-amber-700 ">if enough are finished — otherwise the one after</span>
           </li>
         </ul>
 
@@ -111,9 +108,9 @@ export const SectionSubmitted = ({
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <h5 className="text-gray-700 uppercase">Monster Mash</h5>
-      <h2 className="h2 text-green-700 capitalize">{section} submitted!</h2>
-      <p className="p1">
+      <Logo className="h-8 w-auto mx-auto" />
+      <h2 className="mm-text-success capitalize">{section} submitted!</h2>
+      <p className="mm-text-accent-lt">
         Nice work
         {typeof sectionsRemaining === "number" && sectionsRemaining > 0 && (
           <>
@@ -141,7 +138,7 @@ export const SectionSubmitted = ({
           {section === "legs" ? nameToken : "___"}
         </p>
       </div>
-      <button className="btn" onClick={onBackToMonsterMash} disabled={isBusy}>
+      <button className="btn mm-button-secondary" onClick={onBackToMonsterMash} disabled={isBusy}>
         Back to Monster Mash
       </button>
     </div>

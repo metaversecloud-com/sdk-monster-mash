@@ -105,7 +105,7 @@ export const ConfirmationModal = ({
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-header flex gap-2 grid-cols-2">
           <h4 className="flex-grow text-left">{title}</h4>
-          <a className="pt-2 cursor-pointer" onClick={onDismiss} aria-label="Close" title="Close">
+          <a className="pt-1 cursor-pointer" onClick={onDismiss} aria-label="Close" title="Close">
             <img src="https://sdk-style.s3.amazonaws.com/icons/x.svg" alt="" aria-hidden="true" />
           </a>
         </div>

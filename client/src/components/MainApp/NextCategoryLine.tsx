@@ -45,9 +45,9 @@ export const NextCategoryLine = () => {
   if (!nextCategory) return null;
 
   return (
-    <p className="text-xs text-gray-600 text-center px-2 py-1">
-      Next week's voting category: <strong>{nextCategory}</strong> — FINISH your monsters by {submissionCutoffLabel} to
-      enter them in next week's vote!
+    <p className="text-xs mm-text-muted text-center px-2 py-1">
+      Next week's voting category: <strong className="mm-text-white">{nextCategory}</strong> — FINISH your monsters by{" "}
+      {submissionCutoffLabel} to enter them in next week's vote!
     </p>
   );
 };

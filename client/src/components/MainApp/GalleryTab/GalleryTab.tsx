@@ -74,7 +74,7 @@ export const GalleryTab = () => {
     >
       <div className="flex flex-wrap items-center gap-4 px-2">
         <label className="flex items-center gap-2">
-          <span className="p2 text-gray-700">Sort:</span>
+          <span className="p2 mm-text-muted">Sort:</span>
           <select
             className="input"
             value={sort}
@@ -106,13 +106,13 @@ export const GalleryTab = () => {
       </div>
 
       {mine && (
-        <p className="p2 text-green-700 px-2">
+        <p className="p2 mm-text-amber px-2">
           Your own monsters are never dropped from the gallery — and they keep their awards forever.
         </p>
       )}
 
       {isLoading ? (
-        <p className="p2 text-center text-gray-600 py-10">Loading gallery…</p>
+        <p className="p2 text-center mm-text-muted py-10">Loading gallery…</p>
       ) : gallery && gallery.monsters.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {gallery.monsters.map((m) => (
@@ -122,7 +122,7 @@ export const GalleryTab = () => {
       ) : (
         <div className="flex flex-col items-center gap-2 py-10 text-center">
           <h3 className="h3">The gallery is empty</h3>
-          <p className="p2 text-gray-600">
+          <p className="p2 mm-text-muted">
             {mine
               ? "You haven't contributed to any monsters yet."
               : "No finished monsters — start one on the Create tab."}

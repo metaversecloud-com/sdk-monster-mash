@@ -53,7 +53,7 @@ export const CATEGORIES: readonly CategoryDef[] = [
   { id: "feet", section: "legs", label: "Feet", layerKey: "legs.feet", allowsNone: true },
   { id: "waist", section: "legs", label: "Waist", layerKey: "legs.waist", allowsNone: true },
   { id: "belt", section: "legs", label: "Belt", layerKey: "legs.belt", allowsNone: true },
-  { id: "legsBack", section: "legs", label: "Back item (legs)", layerKey: "legs.back", allowsNone: true },
+  { id: "legsBack", section: "legs", label: "Back item", layerKey: "legs.back", allowsNone: true },
 ] as const;
 
 export const CATEGORIES_BY_SECTION: Record<Section, readonly CategoryDef[]> = {

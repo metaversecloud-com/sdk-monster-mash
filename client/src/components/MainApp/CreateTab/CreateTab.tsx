@@ -208,20 +208,23 @@ export const CreateTab = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
         {/* Create-New tile — always first. */}
         <button
           type="button"
-          className="card p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-dashed border-2 border-blue-300 hover:border-blue-500"
+          className="mm-section p-6 flex flex-col items-center justify-center gap-5 min-h-[220px] border-dashed border-2 mm-border-card hover:border-white/60"
           onClick={startNew}
           disabled={isBusy}
         >
-          <span aria-hidden="true" className="text-5xl">
-            ➕
+          <span
+            aria-hidden="true"
+            className="text-6xl mm-text-accent-lt mm-border-blue rounded-full p-2 w-20 h-20 flex items-center justify-center"
+          >
+            +
           </span>
-          <span className="h4">Create New Monster</span>
-          <span className="p2 text-gray-600 text-center">
-            Server picks your section at random — head, torso, or legs.
+          <span>
+            <h3 className="mm-text-white">Create New Monster</h3>
+            <p className="text-sm mm-text-accent-lt text-center mt-1">you'll be given a section to build</p>
           </span>
         </button>
 
@@ -233,15 +236,15 @@ export const CreateTab = () => {
         {activeDraft && !sortedRoster.some((m) => m.monsterId === activeDraft.monsterId) && (
           <button
             type="button"
-            className="card p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-2 border-amber-400"
+            className="mm-section p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-2 mm-border-amber"
             onClick={resumeDraft}
             disabled={isBusy}
           >
             <span aria-hidden="true" className="text-5xl">
               🎨
             </span>
-            <span className="h4">Resume {activeDraft.section}</span>
-            <span className="p2 text-gray-600 text-center">
+            <span className="h4 mm-text-white">Resume {activeDraft.section}</span>
+            <span className="p2 mm-text-muted text-center">
               Locked at {new Date(activeDraft.lockedAt).toLocaleString()}. Auto-releases after 30 min of idle.
             </span>
           </button>
@@ -264,7 +267,7 @@ export const CreateTab = () => {
       </div>
 
       {sortedRoster.length === 0 && !activeDraft && (
-        <p className="p2 text-center text-gray-600">
+        <p className="p2 text-center mm-text-muted">
           No monsters in progress yet — click "Create New Monster" to start one.
         </p>
       )}
