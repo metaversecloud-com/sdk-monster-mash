@@ -99,6 +99,10 @@
   color: var(--mm-on-pill);
 }
 
+.mm-text-accent {
+  color: var(--mm-accent);
+}
+
 .mm-text-accent-lt {
   color: var(--mm-accent-lt);
 }

@@ -76,17 +76,12 @@ export const BannerStack = () => {
     <div aria-live="polite" aria-label="Monster Mash announcements" className="flex flex-col gap-2">
       {shownCompletion && (
         <div className="rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 flex items-center justify-between gap-2">
-          <p className="text-blue-800 font-semibold">
+          <p className="mm-text-accent font-semibold">
             {shownCompletion.monsterName || "Your monster"} is complete! A monster you helped build is finished.
           </p>
-          <button
-            type="button"
-            className="btn-text text-blue-800 underline whitespace-nowrap"
-            disabled={isBusy}
-            onClick={openGalleryForMyMonsters}
-          >
+          <a className="mm-text-done underline" onClick={openGalleryForMyMonsters}>
             See Your Monster →
-          </button>
+          </a>
         </div>
       )}
 
@@ -97,26 +92,21 @@ export const BannerStack = () => {
             {VOTING_CATEGORY_BY_ID[shownWin.category]?.label ?? shownWin.category} in the vote that ended{" "}
             {fmtDate(shownWin.awardedAt)}!
           </p>
-          <button
-            type="button"
-            className="btn-text text-green-800 underline"
-            disabled={isBusy}
-            onClick={openGalleryForMyMonsters}
-          >
-            See your monster →
-          </button>
+          <a className="mm-text-done underline" onClick={openGalleryForMyMonsters}>
+            See Your Monster →
+          </a>
         </div>
       )}
 
       {countdownActive && (
-        <div className="rounded-xl border-2 mm-border-amber bg-amber-50 px-4 py-3 flex items-center justify-between gap-2">
+        <div className="rounded-xl border-2 mm-border-amber bg-amber-50 px-4 py-2 flex items-center justify-between gap-2">
           <p className="text-amber-900">
             <span className="font-semibold">{formatCountdown((cycleEnds as number) - now)}</span> left to VOTE on last
             week's monsters!
           </p>
           <button
             type="button"
-            className="btn"
+            className="btn mm-btn-sm"
             disabled={isBusy}
             onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
           >
