@@ -27,7 +27,7 @@ export const NameTokenPicker = ({
   const { isBusy } = useBusy();
 
   return (
-    <div className="mm-section flex flex-col items-center gap-2 p-2">
+    <div className="w-full mm-section flex flex-col items-center gap-2 p-2">
       <div className="w-full flex items-baseline justify-between gap-3">
         <p className="flex-stretch font-semibold mm-text-white">{LABELS[section]}</p>
         {value ? <SuccessIcon /> : <span className="mm-text-xs mm-text-amber pr-1">Required</span>}

@@ -1,6 +1,6 @@
 import { Section } from "@shared/types/index";
 import { useBusy } from "@/context/BusyContext";
-import { Confetti, Logo, SectionLayeredImage, SuccessIcon } from "@/components";
+import { Confetti, DownloadBtn, Logo, SectionLayeredImage, SuccessIcon } from "@/components";
 
 interface SectionSubmittedProps {
   section: Section;
@@ -76,28 +76,13 @@ export const SectionSubmitted = ({
               <span>
                 Entered in the next vote
                 <br />
-                <span className="mm-text-xs text-amber-700 pt-1">if enough are finished — otherwise the one after</span>
+                <span className="mm-text-xs mm-text-amber pt-1">if enough are finished — otherwise the one after</span>
               </span>
             </span>
           </li>
         </ul>
 
-        {imageUrl && (
-          <>
-            <a
-              className="btn"
-              href={imageUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              aria-label={`Open ${composedName ?? "monster"} PNG in a new tab`}
-            >
-              Download PNG
-            </a>
-            <p className="text-xs text-red-600 mb-2">
-              opens the image in a new browser tab to save — not an in-app download
-            </p>
-          </>
-        )}
+        {imageUrl && <DownloadBtn imageUrl={imageUrl} />}
 
         <button className="btn btn-outline w-full" onClick={onBackToMonsterMash} disabled={isBusy}>
           Back to Monster Mash

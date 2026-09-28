@@ -102,7 +102,7 @@ export const ConfirmationModal = ({
       }}
       role="presentation"
     >
-      <div className="modal" role="dialog" aria-modal="true">
+      <div className="modal max-w-[600px]" role="dialog" aria-modal="true">
         <div className="modal-header flex gap-2 grid-cols-2">
           <h4 className="flex-grow text-left">{title}</h4>
           <a className="pt-1 cursor-pointer" onClick={onDismiss} aria-label="Close" title="Close">

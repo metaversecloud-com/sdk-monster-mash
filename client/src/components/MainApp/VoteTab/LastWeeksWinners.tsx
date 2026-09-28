@@ -30,8 +30,8 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
           >
             <span className="rounded-full bg-gray-900 text-white mm-text-xs px-2 py-0.5">{PLACE_LABEL[w.place]}</span>
             {w.deleted ? (
-              <div className="w-14 h-14 border-2 border-dashed border-red-400 flex items-center justify-center text-red-500 text-xs">
-                [Deleted]
+              <div className="w-14 h-14 border-2 border-dashed border-red-400 flex items-center justify-center text-red-500 text-[10px] text-center px-1 leading-tight">
+                [Monster Deleted]
               </div>
             ) : w.imageUrl ? (
               <img src={w.imageUrl} alt={w.name} className="w-14 h-14 object-contain" />
@@ -40,11 +40,11 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
                 ?
               </span>
             )}
-            <p className="text-[11px] font-semibold leading-tight text-center">{w.name || "unnamed"}</p>
-            {w.contributorDisplayNames.length > 0 && (
+            {!w.deleted && <p className="text-[11px] font-semibold leading-tight text-center">{w.name || "unnamed"}</p>}
+            {!w.deleted && w.contributorDisplayNames.length > 0 && (
               <p className="text-[9px] text-gray-500 truncate max-w-full">{w.contributorDisplayNames.join(" · ")}</p>
             )}
-            {w.deleted && <p className="text-[9px] text-red-500">place is kept</p>}
+            {w.deleted && <p className="text-[9px] text-red-500 text-center">removed by an admin — place is kept</p>}
           </div>
         ))}
       </div>

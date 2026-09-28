@@ -1,7 +1,8 @@
-interface DownloadArrowProps {
+interface DownloadBtnProps {
   imageUrl: string | null;
   label?: string;
   showCaption?: boolean;
+  className?: string;
 }
 
 /**
@@ -12,10 +13,10 @@ interface DownloadArrowProps {
  * Falls back to a disabled placeholder when the image URL is null (e.g. a
  * finalize step that hasn't landed).
  */
-export const DownloadArrow = ({ imageUrl, label = "Download PNG", showCaption = true }: DownloadArrowProps) => {
+export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = true, className }: DownloadBtnProps) => {
   if (!imageUrl) {
     return (
-      <button className="btn btn-outline" disabled aria-label={`${label} — pending`}>
+      <button className={`btn btn-outline ${className ?? ""}`} disabled aria-label={`${label} — pending`}>
         {label}
       </button>
     );
@@ -23,7 +24,7 @@ export const DownloadArrow = ({ imageUrl, label = "Download PNG", showCaption = 
   return (
     <div className="flex flex-col items-center gap-1">
       <a
-        className="btn"
+        className={`btn ${className ?? ""}`}
         href={imageUrl}
         target="_blank"
         rel="noreferrer noopener"
@@ -32,7 +33,7 @@ export const DownloadArrow = ({ imageUrl, label = "Download PNG", showCaption = 
         {label}
       </a>
       {showCaption && (
-        <p className="text-xs text-red-600 text-center">
+        <p className="mm-text-xs mm-text-amber mb-2">
           opens the image in a new browser tab to save — not an in-app download
         </p>
       )}
@@ -40,4 +41,4 @@ export const DownloadArrow = ({ imageUrl, label = "Download PNG", showCaption = 
   );
 };
 
-export default DownloadArrow;
+export default DownloadBtn;

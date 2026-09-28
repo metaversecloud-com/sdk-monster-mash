@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 
 // components
-import { AwardRibbon, ConfirmationModal, DownloadArrow, Logo, PageContainer } from "@/components";
+import { AwardRibbon, ConfirmationModal, DownloadBtn, Logo, PageContainer } from "@/components";
 
 // context
 import { useBusy } from "@/context/BusyContext";
@@ -86,7 +86,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
 
           {monster ? (
             <>
-              <h2 className="h2 leading-tight">{monster.name || "unnamed"}</h2>
+              <h2 className="mm-text-white">{monster.name || "unnamed"}</h2>
               {monster.latestAward && <AwardRibbon award={monster.latestAward} />}
               {monster.imageUrl ? (
                 <img
@@ -100,27 +100,29 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
                 </div>
               )}
               {monster.contributorDisplayNames.length > 0 && (
-                <p className="p2 text-gray-700">by {monster.contributorDisplayNames.join(" · ")}</p>
+                <p className="text-xs mm-text-accent-lt">by {monster.contributorDisplayNames.join(" · ")}</p>
               )}
               {born && <p className="text-sm text-gray-500">Born {born}</p>}
 
-              <DownloadArrow imageUrl={monster.imageUrl} />
+              <div className="grid gap-2">
+                <DownloadBtn imageUrl={monster.imageUrl} />
 
-              <button className="btn btn-outline w-full" onClick={returnToMainApp} disabled={isBusy}>
-                Back to Monster Mash
-              </button>
-
-              {payload?.canDelete && (
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  aria-label="Delete this monster (admin only)"
-                  onClick={() => setShowDelete(true)}
-                  disabled={isBusy || !monster}
-                >
-                  Delete monster
+                <button className="btn btn-outline w-full" onClick={returnToMainApp} disabled={isBusy}>
+                  Back to Monster Mash
                 </button>
-              )}
+
+                {payload?.canDelete && (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    aria-label="Delete this monster (admin only)"
+                    onClick={() => setShowDelete(true)}
+                    disabled={isBusy || !monster}
+                  >
+                    Delete monster
+                  </button>
+                )}
+              </div>
             </>
           ) : (
             !isLoading && <p className="p2">Monster not found.</p>
@@ -129,11 +131,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
           {showDelete && monster && (
             <ConfirmationModal
               title={`Delete ${monster.name || "this monster"}?`}
-              message={
-                `It will be removed from the gallery and the world. ` +
-                `If it's in this week's vote, it will be disqualified. ` +
-                `Deletion is permanent: cleared from the key asset AND from all three user records.`
-              }
+              message="Deletion is permanent. It will be removed from the gallery and the world. If it's in this week's vote, it will be disqualified."
               confirmLabel="Delete monster"
               cancelLabel="Keep monster"
               handleOnConfirm={handleDelete}

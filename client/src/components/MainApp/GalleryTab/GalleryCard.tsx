@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { AwardRibbon, DownloadArrow } from "@/components/shared";
+import { AwardRibbon, DownloadBtn } from "@/components/shared";
 import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
@@ -8,22 +8,27 @@ import { backendAPI, setErrorMessage } from "@/utils";
 
 interface GalleryCardProps {
   monster: GalleryMonster;
+  /** True when the caller is an admin — surfaces the per-card Delete affordance. */
+  callerIsAdmin?: boolean;
+  /** Opens the delete-confirmation modal at the tab level. Only invoked when admin. */
+  onAdminDelete?: (monster: GalleryMonster) => void;
 }
 
 /**
- * One monster card on the Gallery tab (mockup image3 / image25).
+ * One monster card on the Gallery tab (mockup image3 / image25 / image5).
  *   - Green outline when the caller contributed (spec §Gallery: "Green outline = yours").
  *   - Award ribbon at the top when awarded.
  *   - Contributor names dot-separated.
  *   - "Born {date}" caption.
  *   - Per-card Download button (opens PNG in a new tab).
+ *   - Admin only: Delete button next to Download.
  *
  * Card click triggers a modal → drawer iframe transition (server closes the
  * main-app modal and reopens as the Single Monster View drawer) so the
  * detail surface matches the fixed-width look reached from clicking the
  * finished-monster asset in the world.
  */
-export const GalleryCard = ({ monster }: GalleryCardProps) => {
+export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCardProps) => {
   const dispatch = useContext(GlobalDispatchContext);
   const { isBusy, run } = useBusy();
   const born = monster.birthdate
@@ -81,7 +86,21 @@ export const GalleryCard = ({ monster }: GalleryCardProps) => {
         {born && <p className="text-xs text-gray-500">Born {born}</p>}
       </div>
 
-      <DownloadArrow imageUrl={monster.imageUrl} label="Download" showCaption={false} />
+      <div className="flex items-center justify-center gap-2">
+        <DownloadBtn imageUrl={monster.imageUrl} label="Download" showCaption={false} />
+        {callerIsAdmin && onAdminDelete && (
+          <button
+            type="button"
+            className="btn btn-danger"
+            aria-label={`Delete ${monster.name || "this monster"} (admin only)`}
+            title="Admin only — delete this monster from gallery and world"
+            onClick={() => onAdminDelete(monster)}
+            disabled={isBusy}
+          >
+            Delete
+          </button>
+        )}
+      </div>
     </div>
   );
 };
