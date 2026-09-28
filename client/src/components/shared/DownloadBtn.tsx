@@ -32,11 +32,7 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
       >
         {label}
       </a>
-      {showCaption && (
-        <p className="mm-text-xs mm-text-amber mb-2">
-          opens the image in a new browser tab to save — not an in-app download
-        </p>
-      )}
+      {showCaption && <p className="mm-text-xs mm-text-amber mb-2">opens the image in a new browser tab to save</p>}
     </>
   );
 };

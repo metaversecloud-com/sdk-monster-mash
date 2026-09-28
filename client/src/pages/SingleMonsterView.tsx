@@ -68,8 +68,15 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
     if (!monsterId) return;
     return run(async () => {
       try {
-        await backendAPI.delete(`/monsters/${monsterId}`);
-        await backendAPI.post("/main-app/return").catch(() => {});
+        // `shouldCloseIframe: true` tells the server to fire
+        // `visitor.closeIframe` BEFORE it tears down the monster's dropped
+        // asset — otherwise the drawer's `credentials.assetId` (which is
+        // often the monster we're deleting, when the drawer was opened by
+        // clicking the world asset) would already be gone by the time the
+        // SDK went to close it. Closing lands the admin cleanly back in
+        // the world; a return-to-main-app transition can't work here since
+        // the assetId it would open on has just been deleted.
+        await backendAPI.delete(`/monsters/${monsterId}`, { data: { shouldCloseIframe: true } });
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
       } finally {

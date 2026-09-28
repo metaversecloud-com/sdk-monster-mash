@@ -305,7 +305,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
               aria-disabled={!allChosen || isBusy}
             >
               <div className="flex flex-col">
-                <p className="font-bold text-xl">Submit {section}</p>
+                <p className="font-bold text-xl capitalize">Submit {section}</p>
                 {allChosen ? (
                   <p>Ready to submit!</p>
                 ) : (

@@ -29,9 +29,11 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     const monsterId = req.params.id;
     if (!monsterId) return res.status(400).json({ success: false, message: "monsterId required" });
 
+    const shouldCloseIframe = !!(req.body?.shouldCloseIframe ?? req.query?.shouldCloseIframe);
+
     // Admin gate.
     const keyAsset = await getKeyAsset(credentials);
-    const { isAdmin } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
+    const { visitor, isAdmin } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
     if (!isAdmin) return res.status(403).json({ success: false, message: "Admin only." });
 
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
@@ -41,6 +43,14 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     const contributorProfileIds = entry.contributorProfileIds ?? [];
     const monsterAssetId = entry.monsterAssetId;
     const isComplete = entry.state === "complete";
+
+    if (shouldCloseIframe && credentials.assetId) {
+      try {
+        await visitor.closeIframe(credentials.assetId);
+      } catch (error) {
+        console.warn("handleDeleteMonster: closeIframe failed (non-fatal)", error);
+      }
+    }
 
     // 1. Remove from roster + strip from window/cycle if applicable.
     const nextMonsters = { ...dataObject.monsters };
@@ -116,9 +126,7 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
         delete nextContrib[monsterId];
         const nextDrafts = { ...(scoped.contributedDrafts ?? {}) };
         delete nextDrafts[monsterId];
-        const nextCompletionBanners = (scoped.pendingCompletionBanners ?? []).filter(
-          (b) => b.monsterId !== monsterId,
-        );
+        const nextCompletionBanners = (scoped.pendingCompletionBanners ?? []).filter((b) => b.monsterId !== monsterId);
         const nextWinBanners = (scoped.pendingWinBanners ?? []).filter((b) => b.monsterId !== monsterId);
         const patched: MonsterMashVisitorData = {
           ...scoped,
