@@ -30,4 +30,14 @@ export interface MonsterAssetDataObject {
   sections: Record<Section, SectionRecord>;
   /** Denormalized ribbon for the Single Monster View drawer. */
   latestAward?: AwardRibbon;
+  /**
+   * ID of the Monster Mash key asset that owns this monster.
+   * Set at drop time so admin actions initiated from the world (e.g. the
+   * SingleMonsterView drawer opened by clicking the monster asset) can
+   * resolve the roster back to the RIGHT key asset — `credentials.assetId`
+   * in that flow points at THIS monster, not the key. Older monsters
+   * dropped before this field existed fall back to a scene-wide lookup in
+   * `getKeyAsset`.
+   */
+  keyAssetId?: string;
 }

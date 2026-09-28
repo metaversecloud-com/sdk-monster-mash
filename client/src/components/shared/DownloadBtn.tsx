@@ -22,9 +22,9 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
     );
   }
   return (
-    <div className="flex flex-col items-center gap-1">
+    <>
       <a
-        className={`btn ${className ?? ""}`}
+        className={`btn text-sm no-underline ${className ?? ""}`}
         href={imageUrl}
         target="_blank"
         rel="noreferrer noopener"
@@ -37,7 +37,7 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
           opens the image in a new browser tab to save — not an in-app download
         </p>
       )}
-    </div>
+    </>
   );
 };
 

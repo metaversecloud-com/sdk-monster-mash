@@ -146,12 +146,6 @@ export const GalleryTab = () => {
         </label>
       </div>
 
-      {mine && (
-        <p className="p2 mm-text-amber px-2">
-          Your own monsters are never dropped from the gallery — and they keep their awards forever.
-        </p>
-      )}
-
       {isLoading ? (
         <p className="p2 text-center mm-text-muted py-10">Loading gallery…</p>
       ) : gallery && gallery.monsters.length > 0 ? (

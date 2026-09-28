@@ -79,7 +79,7 @@ export const BannerStack = () => {
           <p className="mm-text-accent font-semibold">
             {shownCompletion.monsterName || "Your monster"} is complete! A monster you helped build is finished.
           </p>
-          <a className="mm-text-done underline" onClick={openGalleryForMyMonsters}>
+          <a className="mm-text-done underline cursor-pointer" onClick={openGalleryForMyMonsters}>
             See Your Monster →
           </a>
         </div>
@@ -92,7 +92,7 @@ export const BannerStack = () => {
             {VOTING_CATEGORY_BY_ID[shownWin.category]?.label ?? shownWin.category} in the vote that ended{" "}
             {fmtDate(shownWin.awardedAt)}!
           </p>
-          <a className="mm-text-done underline" onClick={openGalleryForMyMonsters}>
+          <a className="mm-text-done underline cursor-pointer" onClick={openGalleryForMyMonsters}>
             See Your Monster →
           </a>
         </div>

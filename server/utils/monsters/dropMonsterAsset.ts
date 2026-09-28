@@ -34,7 +34,7 @@ export const dropMonsterAsset = async ({
   monsterAssetData,
 }: DropMonsterInput): Promise<DroppedAssetInterface> => {
   try {
-    const { interactivePublicKey, sceneDropId, urlSlug } = credentials;
+    const { assetId: keyAssetId, interactivePublicKey, sceneDropId, urlSlug } = credentials;
     const asset = await Asset.create(process.env.IMG_ASSET_ID || "webImageAsset", { credentials });
 
     const clickableLink = `${clickableLinkBase.replace(/\/$/, "")}/?screen=single-monster&monsterId=${monsterId}`;
@@ -45,7 +45,7 @@ export const dropMonsterAsset = async ({
     };
 
     const droppedAsset = await DroppedAsset.drop(asset, {
-      assetScale: 0.8,
+      assetScale: 0.6,
       clickType: DroppedAssetClickType.LINK,
       clickableLink,
       clickableLinkTitle: "Monster Mash",
@@ -59,10 +59,16 @@ export const dropMonsterAsset = async ({
       urlSlug,
     });
 
-    // Persist the monster's canonical record on this dropped asset.
-    await droppedAsset.setDataObject(monsterAssetData as unknown as Record<string, unknown>, {}).catch((error) => {
-      console.warn("dropMonsterAsset: could not persist monster dataObject", error);
-    });
+    // Persist the monster's canonical record on this dropped asset. Include
+    // the key asset's id so admin actions initiated from a world click on
+    // this monster (drawer opens with `credentials.assetId = monster's id`)
+    // can still resolve the roster back to the right key asset.
+    const monsterAssetDataWithKey = { ...monsterAssetData, keyAssetId };
+    await droppedAsset
+      .setDataObject(monsterAssetDataWithKey as unknown as Record<string, unknown>, {})
+      .catch((error) => {
+        console.warn("dropMonsterAsset: could not persist monster dataObject", error);
+      });
 
     // Best-effort celebration particle.
     try {
