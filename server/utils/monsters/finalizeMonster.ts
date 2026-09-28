@@ -260,8 +260,15 @@ export const finalizeMonster = async ({
       endAt: 0,
       eligibleMonsterIds: [] as string[],
     };
+    // Add the monster to this week's eligible pool. Eligibility follows the
+    // `state === "complete"` roster entry, NOT the dropped-asset drop — a
+    // world-drop failure (S3 hiccup, missing image URL) shouldn't strand a
+    // finished monster out of the vote pool while the Gallery is happily
+    // rendering it. If the asset drop later succeeds, the monster is already
+    // eligible; if it never succeeds, the vote still works because matchups
+    // key on `monsterId`, not `monsterAssetId`.
     const eligibleIds = new Set(window.eligibleMonsterIds ?? []);
-    if (monsterAssetId) eligibleIds.add(monsterId);
+    eligibleIds.add(monsterId);
 
     const nextRoster = { ...(dataObject.monsters ?? {}) };
     nextRoster[monsterId] = {

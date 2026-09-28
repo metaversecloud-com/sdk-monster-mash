@@ -32,6 +32,10 @@ export interface WeeklyAdvanceResult {
  *   3. Open the new submission window for the week we've just entered.
  *   4. If the previous window has ≥ MIN_POOL_SIZE_FOR_VOTE monsters, open a
  *      fresh cycle with the next category from the rotation.
+ *   5. Otherwise, carry the previous window's `eligibleMonsterIds` forward
+ *      into the new submission window (spec: "Entered in the next vote — if
+ *      enough are finished — otherwise the one after"). Winners and
+ *      admin-deleted monsters are stripped from the carry.
  *
  * Idempotent — if we're still in the same window, returns `changed: false`.
  */
@@ -100,6 +104,7 @@ export const advanceWeeklyCycle = (
 
   // Step 4: open a fresh vote cycle if the previous window has enough monsters.
   const prevEligible = previousWindow?.eligibleMonsterIds ?? [];
+  const monstersRoster = keyAssetDataObject.monsters ?? {};
   let nextCategoryIndex = keyAssetDataObject.categorySchedule?.nextIndex ?? 0;
   const categoryOrder = keyAssetDataObject.categorySchedule?.orderIds ?? [];
   let nextVoteCycle: VoteCycle | null = null;
@@ -118,6 +123,28 @@ export const advanceWeeklyCycle = (
         totalMatchupsServed: 0,
       };
       nextCategoryIndex = (nextCategoryIndex + 1) % categoryOrder.length;
+    }
+  }
+
+  // Step 5: carry over any unvoted-on monsters into the new submission window.
+  // Per spec §Finalize copy ("Entered in the next vote — if enough are finished
+  // — otherwise the one after"), a completed monster that missed its shot at a
+  // vote (previous window was short of MIN, or weekly voting was off) rolls
+  // forward and keeps accumulating with next week's finalizes until a pool
+  // reaches quorum. Without this carry-over, the Vote tab reports "0 of 10 in
+  // the pool" every Sunday even when the Gallery shows a stack of finished
+  // monsters. Monsters that just went INTO the vote cycle above are not
+  // carried (they're already being voted on); monsters already crowned in
+  // `storedWinners` are also filtered out so they can't re-enter a future
+  // pool. Missing roster entries (evicted or admin-deleted) are dropped too.
+  if (!nextVoteCycle) {
+    const alreadyCrowned = new Set(updatedStoredWinners.map((w) => w.monsterId));
+    const carriedOver = prevEligible.filter((id) => {
+      const entry = monstersRoster[id];
+      return !!entry && entry.state === "complete" && !alreadyCrowned.has(id);
+    });
+    if (carriedOver.length > 0) {
+      nextSubmissionWindow.eligibleMonsterIds = [...carriedOver];
     }
   }
 
