@@ -54,7 +54,7 @@ variable "eks_dev" {
   description = <<-EOT
     Dev EKS cluster and the ServiceAccount the app pod runs as. The IRSA role
     created here is only reachable once that ServiceAccount exists and carries
-    the eks.amazonaws.com/role-arn annotation (see argo/ in this repo).
+    the eks.amazonaws.com/role-arn annotation (see apps/sdk-monster-mash in metaversecloud-com/sdk-gitops).
   EOT
   type = object({
     cluster_name    = string
