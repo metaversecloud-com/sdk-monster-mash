@@ -41,7 +41,7 @@ a provider block *and* the resources that use it, not just an entry in
 
 `server/routes.ts` reads `S3_BUCKET`. Set it:
 
-- **dev** — `argo/overlays/dev/monstermash0-config.yaml`, plus the
+- **dev** — `apps/sdk-monster-mash/envs/dev/monstermash0-config.yaml` in metaversecloud-com/sdk-gitops, plus the
   `monstermash0-sa` ServiceAccount annotated with the `dev_irsa_role_arn`
   output. Without the annotation the pod falls back to the node role and every
   call is AccessDenied.
