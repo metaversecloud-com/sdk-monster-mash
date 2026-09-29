@@ -12,18 +12,43 @@ export interface MonsterIndexEntry {
   monsterId: string;
   monsterAssetId?: string;
   state: "in-progress" | "complete";
-  createdAt: number;
-  lastEditedAt: number;
+
+  /**
+   * In-progress-only fields. Cleared at finalize so the completed roster
+   * entry stays lean — Firestore per-doc size caps get real once the app
+   * has been played for a few weeks and 200 finished monsters accumulate.
+   *
+   *   - `createdAt` / `lastEditedAt` are used for eldest-first eviction of
+   *     IN-PROGRESS monsters and for stale-lock expiry sweeps. Completed
+   *     monsters sort by `birthdate` instead (see `evictFinishedIfCapped`).
+   *   - `sections` holds the per-slot state machine (available/locked/done +
+   *     contributor identity). Once all three sections are done, we don't
+   *     need the map anymore — display names are baked into
+   *     `contributorNames`, and the section identity map lives on the
+   *     dropped-monster asset (`MonsterAssetDataObject.sections`).
+   */
+  createdAt?: number;
+  lastEditedAt?: number;
+  sections?: Record<Section, SectionRosterEntry>;
+
+  /**
+   * Complete-only fields. Populated at finalize.
+   *
+   *   - `contributorNames` is a pipe-separated string in [head, torso, legs]
+   *     order — same ordering as `contributorProfileIds`. Cheaper than a
+   *     three-element array-of-strings once you multiply by 200 monsters.
+   */
   birthdate?: number;
   name?: string;
   imageUrl?: string;
-  sections: Record<Section, SectionRosterEntry>;
   contributorProfileIds: string[];
+  contributorNames?: string;
   latestAward?: AwardRibbon;
+
   // NOTE: picks/nameToken per section live on each contributor's visitor
   // dataObject (`contributedDrafts[monsterId][section]`) — the roster
-  // intentionally holds only status + contributor identity, so this
-  // per-instance key asset stays small at scale.
+  // intentionally holds only identity, so this per-instance key asset
+  // stays small at scale.
 }
 
 export interface SubmissionWindow {

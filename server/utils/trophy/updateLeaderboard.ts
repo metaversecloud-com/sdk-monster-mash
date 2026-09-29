@@ -41,13 +41,25 @@ export const computeLeaderboardForWinners = ({
   const displayNameByProfile = new Map<string, string>();
   for (const entry of Object.values(monsters ?? {})) {
     if (!entry) continue;
-    for (const profileId of entry.contributorProfileIds ?? []) {
+    const profileIds = entry.contributorProfileIds ?? [];
+    for (const profileId of profileIds) {
       contributionCount.set(profileId, (contributionCount.get(profileId) ?? 0) + 1);
     }
-    for (const s of ["head", "torso", "legs"] as const) {
-      const slot = entry.sections?.[s];
-      if (slot?.contributorProfileId && slot.contributorDisplayName) {
-        displayNameByProfile.set(slot.contributorProfileId, slot.contributorDisplayName);
+    // Zip contributorProfileIds with the display-name source. Complete
+    // monsters carry a pipe-joined `contributorNames` in matching order;
+    // in-progress monsters still keep per-section identity on `sections`.
+    if (entry.contributorNames) {
+      const names = entry.contributorNames.split("|");
+      for (let i = 0; i < profileIds.length; i++) {
+        const name = names[i];
+        if (profileIds[i] && name) displayNameByProfile.set(profileIds[i], name);
+      }
+    } else if (entry.sections) {
+      for (const s of ["head", "torso", "legs"] as const) {
+        const slot = entry.sections[s];
+        if (slot?.contributorProfileId && slot.contributorDisplayName) {
+          displayNameByProfile.set(slot.contributorProfileId, slot.contributorDisplayName);
+        }
       }
     }
   }

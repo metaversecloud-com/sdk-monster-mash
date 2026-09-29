@@ -87,19 +87,10 @@ export const finalizeMonster = async ({
   try {
     // 1. Collect peer picks from each peer's visitor dataObject.
     //
-    // Preferred source is `contributedDrafts[monsterId][section]` on the
-    // peer's visitor data (current schema). If that isn't there — e.g. the
-    // peer submitted their section BEFORE the contributedDrafts schema
-    // landed — fall back to legacy `entry.inProgressSections[section]` on
-    // the key-asset roster, which older code wrote at submit time. We
-    // access that field via a type escape because the current
-    // `MonsterIndexEntry` no longer declares it, but old runtime data may
-    // still carry it. A truly missing entry logs and continues with empty
+    // Source of truth: `contributedDrafts[monsterId][section]` on the peer's
+    // visitor data. A truly missing entry logs and continues with empty
     // picks + empty name token so the composed monster still ships.
     const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
-    const legacyEntry = entry as unknown as {
-      inProgressSections?: Partial<Record<Section, { parts?: { [k: string]: string }; nameToken?: string }>>;
-    };
     const peers: PeerDraft[] = [];
     for (const s of SECTIONS) {
       if (s === callerSection) continue;
@@ -127,22 +118,15 @@ export const finalizeMonster = async ({
 
       let picks: { [categoryId: string]: string };
       let nameToken: string;
-      let source: "contributedDrafts" | "legacy-roster" | "none";
+      let source: "contributedDrafts" | "none";
       if (draft) {
         picks = draft.picks ?? {};
         nameToken = draft.nameToken ?? "";
         source = "contributedDrafts";
       } else {
-        const legacy = legacyEntry.inProgressSections?.[s];
-        if (legacy && (legacy.parts || legacy.nameToken)) {
-          picks = legacy.parts ?? {};
-          nameToken = legacy.nameToken ?? "";
-          source = "legacy-roster";
-        } else {
-          picks = {};
-          nameToken = "";
-          source = "none";
-        }
+        picks = {};
+        nameToken = "";
+        source = "none";
       }
 
       console.log(
@@ -270,17 +254,26 @@ export const finalizeMonster = async ({
     const eligibleIds = new Set(window.eligibleMonsterIds ?? []);
     eligibleIds.add(monsterId);
 
+    // Build the lean COMPLETE-shape entry from scratch — do NOT spread the
+    // old in-progress entry. Once finalized, the roster only needs identity
+    // fields; the state machine (`sections`), lock-expiry pointers
+    // (`createdAt`, `lastEditedAt`), and legacy `inProgressSections` are
+    // deliberately dropped so the key asset stays small at scale (Firestore
+    // per-doc size caps). Per-section picks + nameTokens live on the
+    // dropped-monster asset's dataObject (`MonsterAssetDataObject.sections`).
+    // Display names collapse to a pipe-joined string in [head, torso, legs]
+    // order — matches `contributorProfileIds` ordering.
     const nextRoster = { ...(dataObject.monsters ?? {}) };
     nextRoster[monsterId] = {
-      ...nextRoster[monsterId],
+      monsterId,
       state: "complete",
       birthdate,
       name: composedName,
-      sections: entry.sections,
       contributorProfileIds,
-      lastEditedAt: birthdate,
+      contributorNames: contributorDisplayNames.join("|"),
       ...(monsterAssetId ? { monsterAssetId } : {}),
       ...(imageUrl ? { imageUrl } : {}),
+      ...(nextRoster[monsterId]?.latestAward ? { latestAward: nextRoster[monsterId].latestAward } : {}),
     };
     const eviction = evictFinishedIfCapped(nextRoster);
     const rosterAfterCap = eviction.changed ? eviction.monsters : nextRoster;

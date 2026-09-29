@@ -140,7 +140,7 @@ export const SectionSlot = ({
         </p>
         <span className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
           {contributorName ?? "done"} ·{" "}
-          {slot.submittedAt ? new Date(slot.submittedAt).toLocaleDateString() : "unknown date"}
+          {slot?.submittedAt ? new Date(slot.submittedAt).toLocaleDateString() : "unknown date"}
         </span>
       </div>
     </div>

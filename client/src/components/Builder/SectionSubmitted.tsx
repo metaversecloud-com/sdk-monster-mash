@@ -82,8 +82,7 @@ export const SectionSubmitted = ({
           </li>
         </ul>
 
-        {imageUrl && <DownloadBtn imageUrl={imageUrl} />}
-
+        {imageUrl && <DownloadBtn className="btn-outline" imageUrl={imageUrl} />}
         <button className="btn btn-outline w-full" onClick={onBackToMonsterMash} disabled={isBusy}>
           Back to Monster Mash
         </button>

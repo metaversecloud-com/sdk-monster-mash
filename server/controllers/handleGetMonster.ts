@@ -4,7 +4,7 @@ import {
   KeyAssetDataObject,
   SingleMonsterResponseData,
 } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { contributorDisplayNamesFromEntry, errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
 
 /**
  * GET /api/monsters/:id
@@ -39,7 +39,7 @@ export const handleGetMonster = async (req: Request, res: Response) => {
           birthdate: entry.birthdate ?? 0,
           imageUrl: entry.imageUrl ?? null,
           contributorProfileIds: entry.contributorProfileIds ?? [],
-          contributorDisplayNames: computeDisplayNames(entry),
+          contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
           latestAward: entry.latestAward,
           callerContributed,
           fromCallerHistory: false,
@@ -74,11 +74,3 @@ export const handleGetMonster = async (req: Request, res: Response) => {
   }
 };
 
-const computeDisplayNames = (entry: { sections?: any }): string[] => {
-  const names: string[] = [];
-  for (const s of ["head", "torso", "legs"] as const) {
-    const n = entry.sections?.[s]?.contributorDisplayName;
-    if (n) names.push(n);
-  }
-  return names;
-};

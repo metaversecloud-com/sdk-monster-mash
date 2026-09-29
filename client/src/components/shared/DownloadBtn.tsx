@@ -24,15 +24,15 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
   return (
     <>
       <a
-        className={`btn text-sm no-underline ${className ?? ""}`}
+        className={`grid text-center btn text-sm no-underline ${showCaption && "leading-[.9] h-fit max-h-[50px]"} ${className ?? ""}`}
         href={imageUrl}
         target="_blank"
         rel="noreferrer noopener"
         aria-label={`Open the PNG in a new browser tab`}
       >
         {label}
+        {showCaption && <p className="mm-text-xs mm-text-amber mb-2">opens the image in a new browser tab to save</p>}
       </a>
-      {showCaption && <p className="mm-text-xs mm-text-amber mb-2">opens the image in a new browser tab to save</p>}
     </>
   );
 };

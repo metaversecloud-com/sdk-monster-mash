@@ -27,14 +27,17 @@ export const expireStaleLocks = (
   const next: KeyAssetDataObject["monsters"] = {};
 
   for (const [id, entry] of Object.entries(monsters)) {
-    if (!entry || entry.state === "complete") {
+    // Skip complete monsters — the roster's lean complete-shape doesn't
+    // carry `sections` anymore, and locks are an in-progress concept.
+    if (!entry || entry.state === "complete" || !entry.sections) {
       next[id] = entry;
       continue;
     }
-    const nextEntry: MonsterIndexEntry = { ...entry, sections: { ...entry.sections } };
+    const nextSections = { ...entry.sections };
+    const nextEntry: MonsterIndexEntry = { ...entry, sections: nextSections };
     let entryChanged = false;
     for (const section of SECTIONS) {
-      const slot = nextEntry.sections[section];
+      const slot = nextSections[section];
       if (!slot || slot.status !== "locked") continue;
       const anchor = slot.lockedAt ?? slot.submittedAt ?? 0;
       if (anchor < cutoff) {
@@ -43,7 +46,7 @@ export const expireStaleLocks = (
           section,
           contributorProfileId: slot.contributorProfileId,
         });
-        nextEntry.sections[section] = { status: "available" };
+        nextSections[section] = { status: "available" };
         entryChanged = true;
       }
     }

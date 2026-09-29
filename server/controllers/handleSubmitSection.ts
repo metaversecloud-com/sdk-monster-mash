@@ -77,15 +77,19 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
       return res.status(409).json({ success: false, message: "You don't hold the lock on this section." });
     }
 
+    // In-progress monsters always carry `sections`; guard for the type-
+    // narrowing since the roster type marks it optional (complete monsters
+    // drop the field to keep the key asset small).
+    const currentSections = entry.sections ?? ({} as NonNullable<typeof entry.sections>);
     const updatedSections = {
-      ...entry.sections,
+      ...currentSections,
       [section]: {
         status: "done" as const,
         contributorProfileId: profileId,
         contributorDisplayName: displayName,
         submittedAt: now,
       },
-    };
+    } as NonNullable<typeof entry.sections>;
     const uniqueContributors = new Set([...(entry.contributorProfileIds ?? []), profileId]);
 
     // Detect completion (third section landing).

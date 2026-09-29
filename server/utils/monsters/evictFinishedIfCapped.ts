@@ -9,11 +9,12 @@ export interface EvictFinishedResult {
 
 /**
  * Enforces `FINISHED_CAP` on the roster's completed entries. Eviction is
- * caller-oblivious — pure eldest by `lastEditedAt`. The "your own monsters
- * are never dropped from the gallery" carve-out is enforced on the CALLER
- * side by enriching each contributor's `visitorData.contributedMonsters`
- * with monster metadata at finalize time; evicted own-monsters still surface
- * in the caller's "mine" filter.
+ * caller-oblivious — pure eldest by `birthdate` (the completion timestamp;
+ * complete-shape entries don't carry `lastEditedAt`/`createdAt` anymore).
+ * The "your own monsters are never dropped from the gallery" carve-out is
+ * enforced on the CALLER side by enriching each contributor's
+ * `visitorData.contributedMonsters` with monster metadata at finalize time;
+ * evicted own-monsters still surface in the caller's "mine" filter.
  *
  * The corresponding dropped asset in the world is left alone — eviction is
  * only a roster / display-cap concern.
@@ -29,8 +30,8 @@ export const evictFinishedIfCapped = (
   if (finished.length <= FINISHED_CAP) return { monsters, changed: false, evictedIds };
 
   finished.sort(([, a], [, b]) => {
-    const aAge = (a as MonsterIndexEntry)?.lastEditedAt ?? (a as MonsterIndexEntry)?.createdAt ?? 0;
-    const bAge = (b as MonsterIndexEntry)?.lastEditedAt ?? (b as MonsterIndexEntry)?.createdAt ?? 0;
+    const aAge = (a as MonsterIndexEntry)?.birthdate ?? 0;
+    const bAge = (b as MonsterIndexEntry)?.birthdate ?? 0;
     return aAge - bAge;
   });
 

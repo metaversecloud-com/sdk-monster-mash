@@ -6,7 +6,7 @@ import {
   MonsterIndexEntry,
   MonsterMashVisitorData,
 } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { contributorDisplayNamesFromEntry, errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
 
 /**
  * GET /api/gallery
@@ -114,19 +114,14 @@ export const handleGetGallery = async (req: Request, res: Response) => {
 };
 
 /**
- * The roster carries contributor display names on each section slot; the
- * caller's contributedMonsters store carries the 3-tuple. Use whichever
- * has data.
+ * Prefer the caller's visitor-side 3-tuple (it survives roster eviction).
+ * Otherwise pull from the roster entry — `contributorNames` on complete
+ * monsters, `sections[s].contributorDisplayName` on in-progress ones.
  */
 const computeDisplayNames = (
   entry: MonsterIndexEntry,
   contribEntry: MonsterMashVisitorData["contributedMonsters"][string] | undefined,
 ): string[] => {
   if (contribEntry?.contributorDisplayNames?.length) return contribEntry.contributorDisplayNames;
-  const names: string[] = [];
-  for (const s of ["head", "torso", "legs"] as const) {
-    const n = entry.sections?.[s]?.contributorDisplayName;
-    if (n) names.push(n);
-  }
-  return names;
+  return contributorDisplayNamesFromEntry(entry);
 };

@@ -109,14 +109,21 @@ jest.mock("@utils/index.js", () => {
       monsterAssetData: {},
       composedName: "Test Monster",
       keyAssetPatch: {
+        // Lean complete-shape (matches the real finalize): no `sections`,
+        // no `createdAt`/`lastEditedAt`, contributor display names collapse
+        // into `contributorNames`.
         monsters: {
           [monsterId]: {
-            ...entry,
+            monsterId,
             state: "complete",
             birthdate: 12345,
             name: "Test Monster",
             monsterAssetId: "dropped-monster-42",
             imageUrl: "https://example.com/monster.png",
+            contributorProfileIds: entry.contributorProfileIds ?? [],
+            contributorNames: (entry.contributorProfileIds ?? [])
+              .map((_: string, i: number) => `Contrib ${i}`)
+              .join("|"),
           },
         },
       },
@@ -500,9 +507,12 @@ describe("routes", () => {
     });
 
     // KeyAsset now has state=complete + composed name (from finalize's patch).
+    // Complete-shape entries are lean — the section state map is dropped in
+    // favor of `contributorNames` (pipe-joined, [head, torso, legs] order).
     expect(keyAsset.dataObject.monsters[monsterId].state).toBe("complete");
     expect(keyAsset.dataObject.monsters[monsterId].name).toBe("Test Monster");
-    expect(keyAsset.dataObject.monsters[monsterId].sections.legs.status).toBe("done");
+    expect(keyAsset.dataObject.monsters[monsterId].sections).toBeUndefined();
+    expect(keyAsset.dataObject.monsters[monsterId].contributorNames).toBe("Contrib 0|Contrib 1|Contrib 2");
 
     // Finalize is called once with the caller's picks + nameToken and receives
     // the section that triggered completion. No per-section image compose.

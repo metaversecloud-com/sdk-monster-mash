@@ -1,4 +1,5 @@
 export * from "./composeMonsterName.js";
+export * from "./contributorDisplayNames.js";
 export * from "./dropMonsterAsset.js";
 export * from "./evictFinishedIfCapped.js";
 export * from "./evictInProgressIfCapped.js";

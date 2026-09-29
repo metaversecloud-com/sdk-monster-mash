@@ -10,6 +10,7 @@ import {
   VoteTabState,
 } from "@shared/types/index.js";
 import {
+  contributorDisplayNamesFromEntry,
   errorHandler,
   getCredentials,
   getKeyAsset,
@@ -122,11 +123,6 @@ const buildMatchup = (
 
 const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster | null => {
   if (!entry) return null;
-  const contributorDisplayNames: string[] = [];
-  for (const s of ["head", "torso", "legs"] as const) {
-    const n = entry.sections?.[s]?.contributorDisplayName;
-    if (n) contributorDisplayNames.push(n);
-  }
   return {
     monsterId: entry.monsterId,
     monsterAssetId: entry.monsterAssetId,
@@ -134,7 +130,7 @@ const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster 
     birthdate: entry.birthdate ?? 0,
     imageUrl: entry.imageUrl ?? null,
     contributorProfileIds: entry.contributorProfileIds ?? [],
-    contributorDisplayNames,
+    contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
     latestAward: entry.latestAward,
     callerContributed: false,
     fromCallerHistory: false,
@@ -152,11 +148,7 @@ const collectLastWinners = (dataObject: KeyAssetDataObject): StoredWinnerPayload
       monsterId: w.monsterId,
       name: entry?.name ?? w.snapshotName ?? "",
       imageUrl: entry?.imageUrl ?? w.snapshotImageUrl ?? null,
-      contributorDisplayNames: entry
-        ? (["head", "torso", "legs"] as const)
-            .map((s) => entry.sections?.[s]?.contributorDisplayName ?? "")
-            .filter(Boolean)
-        : [],
+      contributorDisplayNames: entry ? contributorDisplayNamesFromEntry(entry) : [],
       place: w.place,
       category: w.category,
       awardedAt: w.awardedAt,

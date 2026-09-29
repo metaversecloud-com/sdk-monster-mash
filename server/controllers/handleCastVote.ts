@@ -9,6 +9,7 @@ import {
   GalleryMonster,
 } from "@shared/types/index.js";
 import {
+  contributorDisplayNamesFromEntry,
   errorHandler,
   getCredentials,
   getKeyAsset,
@@ -154,11 +155,6 @@ const dedupPush = <T,>(arr: T[], value: T): T[] => (arr.includes(value) ? arr : 
 
 const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster | null => {
   if (!entry) return null;
-  const contributorDisplayNames: string[] = [];
-  for (const s of ["head", "torso", "legs"] as const) {
-    const n = entry.sections?.[s]?.contributorDisplayName;
-    if (n) contributorDisplayNames.push(n);
-  }
   return {
     monsterId: entry.monsterId,
     monsterAssetId: entry.monsterAssetId,
@@ -166,7 +162,7 @@ const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster 
     birthdate: entry.birthdate ?? 0,
     imageUrl: entry.imageUrl ?? null,
     contributorProfileIds: entry.contributorProfileIds ?? [],
-    contributorDisplayNames,
+    contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
     latestAward: entry.latestAward,
     callerContributed: false,
     fromCallerHistory: false,
