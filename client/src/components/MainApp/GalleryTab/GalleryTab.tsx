@@ -179,8 +179,8 @@ export const GalleryTab = () => {
         <ConfirmationModal
           title={`Delete ${deleteTarget.name || "this monster"}?`}
           message="Deletion is permanent. It will be removed from the gallery and the world. If it's in this week's vote, it will be disqualified."
-          confirmLabel="Delete monster"
-          cancelLabel="Keep monster"
+          confirmLabel="Delete Monster"
+          cancelLabel="Keep Monster"
           handleOnConfirm={confirmDelete}
           handleToggleShowConfirmationModal={() => setDeleteTarget(null)}
         />

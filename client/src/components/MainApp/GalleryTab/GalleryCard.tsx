@@ -51,11 +51,11 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
   return (
     <div
       className={`card p-3 flex flex-col gap-2 min-h-[320px] ${
-        monster.callerContributed ? "border-2 border-green-500" : ""
+        monster.callerContributed ? "mm-border-2 mm-border-success" : ""
       }`}
     >
       {monster.latestAward && (
-        <div className="flex justify-start">
+        <div className="flex justify-center">
           <AwardRibbon award={monster.latestAward} />
         </div>
       )}
@@ -76,8 +76,8 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
         )}
       </button>
 
-      <div className="flex flex-col items-center text-center gap-1">
-        <p className="h4 leading-tight">{monster.name || "unnamed"}</p>
+      <div className="flex flex-col items-center text-center gap-1 min-h-[90px]">
+        <h4 className="leading-tight">{monster.name || "unnamed"}</h4>
         {monster.contributorDisplayNames.length > 0 && (
           <p className="p2 text-gray-700 text-sm">{monster.contributorDisplayNames.join(" · ")}</p>
         )}

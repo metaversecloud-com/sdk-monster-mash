@@ -14,7 +14,7 @@ export const AwardRibbon = ({ award }: { award: AwardRibbonType }) => {
     day: "numeric",
   });
   return (
-    <div className="inline-block rounded-full bg-gray-900 text-white text-xs uppercase tracking-wider px-3 py-1">
+    <div className="w-fit text-center gap-2 rounded-full mm-bg-accent px-3 p-1 text-xs font-semibold mr-1">
       {PLACE_LABEL[award.place]} · {label.toUpperCase()} · {dateStr}
     </div>
   );

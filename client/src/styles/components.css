@@ -175,7 +175,7 @@
 .mm-btn-primary {
   background-color: var(--mm-success);
   border: 1px solid var(--mm-success-dark);
-  color: var(--mm-bg);
+  color: var(--mm-section);
   min-height: 60px;
 }
 .mm-btn-primary:disabled {
@@ -277,7 +277,7 @@
 }
 
 .mm-loading__dot:nth-child(1) {
-  background: var(--mm-success-dark);
+  background: var(--mm-success-lt);
   animation-delay: 0ms;
 }
 .mm-loading__dot:nth-child(2) {
@@ -285,7 +285,7 @@
   animation-delay: 120ms;
 }
 .mm-loading__dot:nth-child(3) {
-  background: var(--mm-success-lt);
+  background: var(--mm-success-dark);
   animation-delay: 240ms;
 }
 

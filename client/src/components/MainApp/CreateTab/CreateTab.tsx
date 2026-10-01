@@ -270,8 +270,8 @@ export const CreateTab = () => {
           message={buildDeleteMessage(deleteTarget)}
           handleOnConfirm={confirmDelete}
           handleToggleShowConfirmationModal={() => setDeleteTarget(null)}
-          confirmLabel="Delete monster"
-          cancelLabel="Keep monster"
+          confirmLabel="Delete Monster"
+          cancelLabel="Keep Monster"
         />
       )}
 

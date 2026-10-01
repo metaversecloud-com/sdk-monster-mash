@@ -97,11 +97,12 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
                   Composite pending.
                 </div>
               )}
-              {monster.contributorDisplayNames.length > 0 && (
-                <p className="text-xs mm-text-accent-lt">by {monster.contributorDisplayNames.join(" · ")}</p>
-              )}
-              {born && <p className="text-sm text-gray-500">Born {born}</p>}
-
+              <div>
+                {monster.contributorDisplayNames.length > 0 && (
+                  <p className="text-xs mm-text-accent-lt">by {monster.contributorDisplayNames.join(" · ")}</p>
+                )}
+                {born && <p className="text-xs mm-text-accent-lt">Born {born}</p>}
+              </div>
               <div className="w-full grid gap-2">
                 <DownloadBtn className="btn-outline" imageUrl={monster.imageUrl} />
 
@@ -117,7 +118,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
                     onClick={() => setShowDelete(true)}
                     disabled={isBusy || !monster}
                   >
-                    Delete monster
+                    Delete Monster
                   </button>
                 )}
               </div>
@@ -130,8 +131,8 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
             <ConfirmationModal
               title={`Delete ${monster.name || "this monster"}?`}
               message="Deletion is permanent. It will be removed from the gallery and the world. If it's in this week's vote, it will be disqualified."
-              confirmLabel="Delete monster"
-              cancelLabel="Keep monster"
+              confirmLabel="Delete Monster"
+              cancelLabel="Keep Monster"
               handleOnConfirm={handleDelete}
               handleToggleShowConfirmationModal={() => setShowDelete(false)}
             />
