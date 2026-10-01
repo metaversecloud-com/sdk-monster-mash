@@ -75,8 +75,8 @@ export const BannerStack = () => {
   return (
     <div aria-live="polite" aria-label="Monster Mash announcements" className="flex flex-col gap-2">
       {shownCompletion && (
-        <div className="rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 flex items-center justify-between gap-2">
-          <p className="mm-text-accent font-semibold">
+        <div className="rounded-xl mm-border-default mm-border-accent mm-bg-accent-lt px-4 py-3 flex items-center justify-between gap-2">
+          <p className="mm-text-done font-semibold">
             {shownCompletion.monsterName || "Your monster"} is complete! A monster you helped build is finished.
           </p>
           <a className="mm-text-done underline cursor-pointer" onClick={openGalleryForMyMonsters}>
@@ -86,8 +86,8 @@ export const BannerStack = () => {
       )}
 
       {shownWin && (
-        <div className="rounded-xl border-2 border-green-500 bg-green-50 px-4 py-3 flex items-center justify-between gap-2">
-          <p className="text-green-800 font-semibold">
+        <div className="rounded-xl mm-border-default mm-border-success mm-bg-success-lt px-4 py-3 flex items-center justify-between gap-2">
+          <p className="mm-text-done font-semibold">
             Your monster placed {PLACE_LABEL[shownWin.place]} in{" "}
             {VOTING_CATEGORY_BY_ID[shownWin.category]?.label ?? shownWin.category} in the vote that ended{" "}
             {fmtDate(shownWin.awardedAt)}!
@@ -99,8 +99,8 @@ export const BannerStack = () => {
       )}
 
       {countdownActive && (
-        <div className="rounded-xl border-2 mm-border-amber bg-amber-50 px-4 py-2 flex items-center justify-between gap-2">
-          <p className="mm-text-on-amber">
+        <div className="rounded-xl mm-border-default mm-border-amber mm-bg-amber px-4 py-2 flex items-center justify-between gap-2">
+          <p className="mm-text-done font-semibold">
             <span className="font-semibold">{formatCountdown((cycleEnds as number) - now)}</span> left to VOTE on last
             week's monsters!
           </p>

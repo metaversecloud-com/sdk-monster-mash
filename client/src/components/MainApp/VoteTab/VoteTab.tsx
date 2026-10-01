@@ -89,10 +89,10 @@ export const VoteTab = () => {
         <>
           <div className="flex justify-between items-start gap-4 flex-wrap">
             {vote.state === "running" && vote.cycleEndsAt ? (
-              <div className="p-4 rounded-2xl border-2 mm-border-amber bg-amber-50 flex-1 min-w-[280px]">
+              <div className="p-4 rounded-2xl mm-border-default mm-border-amber mm-bg-amber flex-1 min-w-[280px]">
                 <Countdown targetMs={vote.cycleEndsAt} />
                 <p className="p2 mt-1">left to vote on last week's monsters!</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs mm-text-on-amber mt-1">
                   Times are a guide — the window opens and closes the next time someone opens the app.
                 </p>
               </div>
@@ -104,7 +104,7 @@ export const VoteTab = () => {
 
           {vote.state === "running" && vote.matchup && vote.categoryQuestion && (
             <>
-              <h2 className="h2 text-center mt-4">Which one is the {vote.categoryQuestion}?</h2>
+              <h2 className="mm-text-white text-center mt-4">Which one is the {vote.categoryQuestion}?</h2>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <MatchupCard
                   monster={vote.matchup.pair[0]}
@@ -130,7 +130,7 @@ export const VoteTab = () => {
 
           {vote.state === "not-enough-monsters" && (
             <div className="text-center py-12">
-              <h3 className="h3">Not enough monsters for a vote yet</h3>
+              <h3 className="mm-text-white">Not enough monsters for a vote yet</h3>
               <p className="p2 mt-2 mm-text-muted">
                 {vote.poolSize ?? 0} of the {vote.minPoolSize} monsters needed are in the pool.
               </p>
@@ -139,7 +139,7 @@ export const VoteTab = () => {
 
           {vote.state === "scheduled" && (
             <div className="text-center py-12">
-              <h3 className="h3">No vote is running right now</h3>
+              <h3 className="mm-text-white">No vote is running right now</h3>
               <p className="p2 mt-2 mm-text-muted">
                 {vote.nextScheduledStartAt
                   ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
@@ -156,7 +156,7 @@ export const VoteTab = () => {
 
           {vote.state === "voting-off" && (
             <div className="text-center py-12">
-              <h3 className="h3">No vote is running right now</h3>
+              <h3 className="mm-text-white">No vote is running right now</h3>
               <p className="p2 mt-2 mm-text-muted italic">Check in with your teacher about the next vote!</p>
             </div>
           )}

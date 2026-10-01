@@ -1,12 +1,6 @@
 import { Request, Response } from "express";
 import { KeyAssetDataObject, MonsterMashVisitorData } from "@shared/types/index.js";
-import {
-  errorHandler,
-  getCredentials,
-  getKeyAsset,
-  getVisitor,
-  lockDataObject,
-} from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, lockDataObject } from "@utils/index.js";
 
 /**
  * POST /api/monsters/:id/abandon
@@ -21,6 +15,7 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
     const credentials = getCredentials(source);
     const { profileId, urlSlug, sceneDropId } = credentials;
     const monsterId = req.params.id;
+
     if (!monsterId) return res.status(400).json({ success: false, message: "monsterId required" });
 
     const keyAsset = await getKeyAsset(credentials);
@@ -43,8 +38,7 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
     if (releasedSection) {
       // Fresh lockId per attempt (5s bucket) — `lockDataObject` never
       // releases, so a constant key would 409 forever after the first use.
-      const lockBucket = Math.round(Date.now() / 5000) * 5000;
-      const lockId = `${keyAsset.id}-abandon-${monsterId}-${releasedSection}-${lockBucket}`;
+      const lockId = `${keyAsset.id}-abandon-${monsterId}-${releasedSection}-${Math.round(Date.now() / 5000) * 5000}`;
       try {
         await lockDataObject(lockId, keyAsset);
       } catch (error) {
@@ -52,15 +46,12 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
         return res.status(409).json({ success: false, message: "Try abandoning again in a moment." });
       }
 
-      const updatedSections = {
-        ...entry!.sections,
-        [releasedSection]: { status: "available" as const },
-      };
-      // We already hold `lockId`. Plain update matches tic-tac-toe's pattern —
-      // re-passing lock would re-acquire → "data object busy".
       await keyAsset.updateDataObject(
         {
-          [`monsters.${monsterId}.sections`]: updatedSections,
+          [`monsters.${monsterId}.sections`]: {
+            ...entry!.sections,
+            [releasedSection]: { status: "available" as const },
+          },
           [`monsters.${monsterId}.lastEditedAt`]: Date.now(),
         },
         {},
@@ -80,9 +71,7 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
     await visitor.updateDataObject(
       { [visitorKey]: nextVisitorData },
       {
-        analytics: [
-          { analyticName: "section_abandoned", profileId, urlSlug, uniqueKey: profileId },
-        ],
+        analytics: [{ analyticName: "section_abandoned", profileId, urlSlug, uniqueKey: profileId }],
       },
     );
 

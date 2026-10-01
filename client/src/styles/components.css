@@ -35,20 +35,28 @@
   background-color: var(--mm-card);
 }
 
+.mm-bg-success {
+  background-color: var(--mm-success);
+}
+
 .mm-bg-success-lt {
   background-color: var(--mm-success-lt);
 }
 
 .mm-bg-amber {
-  background-color: var(--mm-amber);
+  background-color: var(--mm-amber-lt);
 }
 
 .mm-bg-done {
   background-color: var(--mm-done);
 }
 
-.mm-bg-pill {
+.mm-bg-accent {
   background-color: var(--mm-accent);
+}
+
+.mm-bg-accent-lt {
+  background-color: var(--mm-accent-lt);
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -80,7 +88,7 @@
 }
 
 .mm-text-success {
-  color: var(--mm-success-lt);
+  color: var(--mm-success);
 }
 
 .mm-text-amber {
@@ -115,6 +123,10 @@
   border-style: solid;
 }
 
+.mm-border-success-dark {
+  border-color: var(--mm-success-dark);
+}
+
 .mm-border-success {
   border-color: var(--mm-success);
 }
@@ -135,7 +147,7 @@
   border-color: var(--mm-card);
 }
 
-.mm-border-pill {
+.mm-border-accent {
   border-color: var(--mm-accent);
 }
 
@@ -214,8 +226,8 @@
 }
 
 .mm-button-primary {
-  background-color: var(--mm-success-lt);
-  border: 1px solid var(--mm-success);
+  background-color: var(--mm-success);
+  border: 1px solid var(--mm-success-dark);
   color: var(--mm-bg);
   min-height: 60px;
 }
