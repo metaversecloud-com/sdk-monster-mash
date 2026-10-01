@@ -6,11 +6,6 @@ const SECTION_LABELS: Record<Section, string> = {
   legs: "Legs",
 };
 
-/**
- * Blue pill under the Builder header — "Building: Head · N of 3".
- * `stepIndex` is 1-based (1..3): how many sections were already done
- * plus one, per the mockup convention.
- */
 export const BuildingPill = ({ section, stepIndex }: { section: Section; stepIndex: number }) => {
   return (
     <div className="w-fit text-center gap-2 rounded-full mm-bg-accent px-3 p-1 text-xs font-semibold mr-1">

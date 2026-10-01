@@ -118,7 +118,11 @@
 /* ─────────────────────────────────────────────────────────────────────
  * Border utilities
  * ────────────────────────────────────────────────────────────────────*/
-.mm-border-default {
+.mm-border-1 {
+  border-width: 1px !important;
+  border-style: solid;
+}
+.mm-border-2 {
   border-width: 2px !important;
   border-style: solid;
 }
@@ -162,6 +166,34 @@
 /* Ring color helper (works with Tailwind's `ring-2` utility). */
 .mm-ring-amber {
   --tw-ring-color: var(--mm-amber);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Button utilities
+ * ────────────────────────────────────────────────────────────────────*/
+
+.mm-btn-primary {
+  background-color: var(--mm-success);
+  border: 1px solid var(--mm-success-dark);
+  color: var(--mm-bg);
+  min-height: 60px;
+}
+.mm-btn-primary:disabled {
+  background-color: var(--mm-accent-dark);
+  border: 1px solid var(--mm-accent);
+  color: var(--mm-accent-lt);
+}
+
+.mm-btn-secondary {
+  background-color: var(--mm-accent);
+  border: 1px solid var(--mm-accent-dark);
+  color: var(--mm-accent-lt);
+}
+
+.mm-btn-sm {
+  width: fit-content;
+  height: 30px;
+  font-size: 0.7rem;
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -216,37 +248,58 @@
   letter-spacing: 0.02em;
 }
 
-/*
- * Amber pill — same shape as `.mm-accent` but on the accent color, for
- * status like "chosen ✓".
- */
 .mm-accent--amber {
   background-color: var(--mm-amber);
   color: var(--mm-on-amber);
 }
 
-.mm-button-primary {
-  background-color: var(--mm-success);
-  border: 1px solid var(--mm-success-dark);
-  color: var(--mm-bg);
-  min-height: 60px;
-}
-.mm-button-primary:disabled {
-  background-color: var(--mm-accent-dark);
-  border: 1px solid var(--mm-accent);
-  color: var(--mm-accent-lt);
+/*
+ * Loading
+ */
+.mm-loading {
+  display: grid;
+  place-items: center;
+  padding: var(--gap-2xl) var(--gap-md);
+  min-height: 240px;
 }
 
-.mm-button-secondary {
-  background-color: var(--mm-accent);
-  border: 1px solid var(--mm-accent-dark);
-  color: var(--mm-accent-lt);
+.mm-loading__dots {
+  display: inline-flex;
+  gap: 10px;
 }
 
-.mm-btn-sm {
-  width: fit-content;
-  height: 30px;
-  font-size: 0.7rem;
+.mm-loading__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mm-success-dark);
+  animation: mm-bounce 1s ease-in-out infinite;
+}
+
+.mm-loading__dot:nth-child(1) {
+  background: var(--mm-success-dark);
+  animation-delay: 0ms;
+}
+.mm-loading__dot:nth-child(2) {
+  background: var(--mm-success);
+  animation-delay: 120ms;
+}
+.mm-loading__dot:nth-child(3) {
+  background: var(--mm-success-lt);
+  animation-delay: 240ms;
+}
+
+@keyframes mm-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  40% {
+    transform: translateY(-12px);
+    opacity: 1;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────

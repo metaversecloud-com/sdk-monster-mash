@@ -1,11 +1,5 @@
 import { MIN_POOL_SIZE_FOR_VOTE, STORED_WINNERS_MAX, VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash.js";
-import {
-  KeyAssetDataObject,
-  Place,
-  StoredWinner,
-  SubmissionWindow,
-  VoteCycle,
-} from "@shared/types/index.js";
+import { KeyAssetDataObject, Place, StoredWinner, SubmissionWindow, VoteCycle } from "@shared/types/index.js";
 import { computeWinners } from "./computeWinners.js";
 import { currentSubmissionWindow } from "./computeWindows.js";
 
@@ -127,8 +121,7 @@ export const advanceWeeklyCycle = (
   }
 
   // Step 5: carry over any unvoted-on monsters into the new submission window.
-  // Per spec §Finalize copy ("Entered in the next vote — if enough are finished
-  // — otherwise the one after"), a completed monster that missed its shot at a
+  // A completed monster that missed its shot at a
   // vote (previous window was short of MIN, or weekly voting was off) rolls
   // forward and keeps accumulating with next week's finalizes until a pool
   // reaches quorum. Without this carry-over, the Vote tab reports "0 of 10 in

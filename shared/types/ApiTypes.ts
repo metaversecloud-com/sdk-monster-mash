@@ -76,10 +76,16 @@ export interface GalleryMonster {
   fromCallerHistory: boolean;
 }
 
+/**
+ * Single-shot payload: the server returns the UNION of the key-asset roster
+ * (every complete monster) and the caller's own `contributedMonsters` history
+ * (so evicted own-monsters still surface). Each card carries
+ * `callerContributed` + `latestAward`, which is all the client needs to apply
+ * the Gallery's three UI controls (sort, "my monsters only", "winners only")
+ * as pure derived state. Avoids a round-trip on every checkbox toggle.
+ */
 export interface GalleryResponseData {
   monsters: GalleryMonster[];
-  filter: { mine: boolean; winners: boolean };
-  sort: "newest" | "oldest";
   totalOnRoster: number;
   totalInCallerHistory: number;
 }

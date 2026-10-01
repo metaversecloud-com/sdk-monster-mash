@@ -2,23 +2,14 @@ import { Section } from "@shared/types/index";
 
 /**
  * Per-section crop hints for the Builder's PartGrid tiles and LayeredPreview
- * boxes. Every part PNG ships on the same 200×350 full-body canvas so the
- * server compositor can stack layers without repositioning; each section's
- * actual art only occupies a slice of that canvas, so displaying the full
- * PNG at square aspect leaves large empty regions (head has blank space
- * below, torso above AND below, legs above).
+ * boxes.
  *
- * `aspectRatio` — the container's shape. Wider-than-tall values crop out
+ * `aspectRatio` - the container's shape. Wider-than-tall values crop out
  *   the empty region above/below the art.
- * `objectPosition` — which slice of the image is anchored inside that
+ * `objectPosition` - which slice of the image is anchored inside that
  *   container. Combined with `object-fit: cover` the image scales to fill
  *   the container's width and the extra height overflows in the direction
  *   opposite the anchor.
- *
- * Values are conservative defaults picked to match the 200×350 art —
- * tweak here if the artist re-crops the canvas. All boxes in the Builder
- * (active section stack, peer-revealed section image, placeholder
- * silhouette) use the same values so the column reads as one figure.
  */
 export interface SectionCrop {
   marginTop?: string;

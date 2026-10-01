@@ -12,9 +12,7 @@ export interface MonsterMashVisitorData {
   /**
    * Every monster this profile has contributed a section to (this instance).
    * Enriched on finalize with monster metadata so the "Show only my monsters"
-   * gallery filter still surfaces monsters that have rotated out of the
-   * 200-cap roster (spec §Gallery: "Your own monsters are never dropped from
-   * the gallery").
+   * gallery filter still surfaces monsters that have rotated out of the 200-cap.roster.
    */
   contributedMonsters: {
     [monsterId: string]: {
@@ -70,11 +68,8 @@ export interface MonsterMashVisitorData {
   // Badge/analytics counters — all per instance.
   daysAppOpened: string[];
   weeksVotedIn: string[];
-  weeksSubmittedIn: string[];
-  weeksCreatedMonsterIn: string[];
   votesCastThisWeek: { windowId: string; count: number };
   totalVotesCast: number;
-  totalThirdSectionCompletions: number;
 }
 
 /**

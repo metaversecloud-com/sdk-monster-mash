@@ -21,10 +21,13 @@ interface GetVisitorResult {
 }
 
 /**
- * Default per-profile per-instance shape written on first-open. Missing keys
- * are added by the initializer below when we upgrade schemas.
+ * Default per-profile per-instance shape written on first-open — and the
+ * fallback used by any peer-visitor-writing utility that opens a new scoped
+ * slot (enqueueBanners, finalizeMonster). One source of truth so the three
+ * sites can't drift. Missing keys are added by the initializer below when
+ * schemas evolve.
  */
-const DEFAULT_VISITOR_DATA = (): MonsterMashVisitorData => ({
+export const createEmptyVisitorData = (): MonsterMashVisitorData => ({
   schemaVersion: 1,
   dateStarted: Date.now(),
   contributedMonsters: {},
@@ -32,11 +35,8 @@ const DEFAULT_VISITOR_DATA = (): MonsterMashVisitorData => ({
   pendingCompletionBanners: [],
   daysAppOpened: [],
   weeksVotedIn: [],
-  weeksSubmittedIn: [],
-  weeksCreatedMonsterIn: [],
   votesCastThisWeek: { windowId: "", count: 0 },
   totalVotesCast: 0,
-  totalThirdSectionCompletions: 0,
 });
 
 /**
@@ -69,7 +69,7 @@ export const getVisitor = async (
 
     let visitorData: MonsterMashVisitorData;
     if (!scoped || scoped.schemaVersion !== 1) {
-      visitorData = DEFAULT_VISITOR_DATA();
+      visitorData = createEmptyVisitorData();
       await visitor
         .updateDataObject({ [key]: visitorData }, { lock: { lockId, releaseLock: true } })
         .catch(() => console.warn("getVisitor: lock contention writing default visitor data"));

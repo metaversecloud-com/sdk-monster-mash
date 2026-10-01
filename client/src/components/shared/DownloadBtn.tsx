@@ -16,7 +16,7 @@ interface DownloadBtnProps {
 export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = true, className }: DownloadBtnProps) => {
   if (!imageUrl) {
     return (
-      <button className={`btn btn-outline ${className ?? ""}`} disabled aria-label={`${label} — pending`}>
+      <button className={`btn btn-outline ${className ?? ""}`} disabled aria-label={`${label} - pending`}>
         {label}
       </button>
     );

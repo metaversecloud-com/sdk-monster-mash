@@ -15,7 +15,7 @@ interface BadgesTabProps {
 }
 
 /**
- * Trophy Badges tab (mockup image24). Four groups × 38 badges:
+ * Trophy Badges tab. Four groups × 38 badges:
  *   - Earned → gold circle + name, yellow tile.
  *   - Locked → padlock icon, dim tile.
  */
@@ -29,39 +29,35 @@ export const BadgesTab = ({ badges, ownedCount, totalCount }: BadgesTabProps) =>
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between">
-        <p className="text-sm uppercase tracking-wider text-gray-600 font-semibold">Your Badges</p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs uppercase tracking-wider font-semibold mm-text-accent-lt">Your Badges</p>
+        <p className="text-xs mm-text-accent-lt">
           {ownedCount} of {totalCount}
         </p>
       </div>
       {byGroup.map(({ group, label, items }) => (
         <section key={group}>
-          <h4 className="h4 mb-2">{label}</h4>
+          <h5 className="mm-text-white mb-1 capitalize">{label}</h5>
           <div className="grid grid-cols-3 gap-2">
-            {items.map((badge) => (
-              <div
-                key={badge.name}
-                className={`p-2 rounded-lg border flex flex-col items-center gap-1 text-center ${
-                  badge.owned ? "bg-yellow-50 border-yellow-400" : "bg-gray-50 border-gray-200 opacity-70"
-                }`}
-              >
-                {badge.owned ? (
-                  badge.iconUrl ? (
-                    <img src={badge.iconUrl} alt="" aria-hidden="true" className="w-10 h-10 rounded-full" />
-                  ) : (
-                    <span className="w-10 h-10 rounded-full bg-yellow-400" aria-hidden="true" />
-                  )
-                ) : (
-                  <span
-                    className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-500"
-                    aria-hidden="true"
-                  >
-                    🔒
+            {items.map((badge) => {
+              const style: React.CSSProperties = { maxWidth: "100%", filter: "none", opacity: 1 };
+              if (!badge.owned) {
+                style.filter = "grayscale(1)";
+                style.opacity = 0.7;
+              }
+              return (
+                <div className="tooltip" key={badge.name}>
+                  <span className="p3 tooltip-content" style={{ width: "115px" }}>
+                    {badge.name}
                   </span>
-                )}
-                <p className="text-xs leading-tight">{badge.name}</p>
-              </div>
-            ))}
+                  {badge.iconUrl ? (
+                    <img src={badge.iconUrl} alt={badge.name} style={style} />
+                  ) : (
+                    <span className="w-24 h-24 rounded-full bg-yellow-400 inline-block" style={style} aria-hidden />
+                  )}
+                  <p className="text-xs mm-text-accent-lt pb-2">{badge.name}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
       ))}

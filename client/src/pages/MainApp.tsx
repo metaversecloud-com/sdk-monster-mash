@@ -19,11 +19,6 @@ interface MainAppProps {
   isLoading: boolean;
 }
 
-/**
- * Main modal surface — Monster Mash root inside the Topia iframe.
- * Wrapped in `.mm-app` so the whole modal picks up the dark background
- * and default text color from tokens.css.
- */
 export const MainApp = ({ isLoading }: MainAppProps) => {
   const { activeTab } = useContext(GlobalStateContext);
 
@@ -36,7 +31,7 @@ export const MainApp = ({ isLoading }: MainAppProps) => {
             <p className="p2 mm-text-accent-lt">Create and vote with your friends!</p>
           </header>
 
-          <BannerStack />
+          <BannerStack activeTab={activeTab} />
 
           <TabBar />
           <NextCategoryLine />

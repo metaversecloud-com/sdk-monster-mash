@@ -15,9 +15,7 @@ import { ErrorType } from "@/context/types";
 import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
 /**
- * Router-level "Home" — dispatched into by App.tsx. Reads `?screen=` to pick
- * a surface. Epic 1 shipped MainApp only; Epic 2 adds the `builder` branch.
- * Later epics add `single-monster`, `trophy`, `how-to`.
+ * Router-level "Home" - dispatched into by App.tsx. Reads `?screen=` to pick a surface.
  */
 export const Home = () => {
   const dispatch = useContext(GlobalDispatchContext);
@@ -29,9 +27,8 @@ export const Home = () => {
 
   useEffect(() => {
     if (!hasInteractiveParams) return;
-    // Pass forceRefreshInventory through — Topia sets this when badges are updated.
     const forceRefreshInventory = searchParams.get("forceRefreshInventory") === "true";
-    // Post-deploy content bust — admin appends `?forceRefreshContent=true`
+    // Post-deploy content bust - admin appends `?forceRefreshContent=true`
     // to their app URL and the next /main-app rescans the parts folder.
     // Non-admins get the flag ignored server-side.
     const forceRefreshContent = searchParams.get("forceRefreshContent") === "true";

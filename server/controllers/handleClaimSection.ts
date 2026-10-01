@@ -20,10 +20,8 @@ import {
  *     someone else
  *   - the caller already has an unexpired activeDraft on a DIFFERENT monster
  *   - the caller has ALREADY contributed a section to this same monster
- *     (spec §Create: one section per caller per monster — collaborative
- *     mode is the point of the game)
  * The 409 is what fires the "Oops, that one was just claimed" race dialog
- * on the client (mockup image12).
+ * on the client.
  */
 export const handleClaimSection = async (req: Request, res: Response) => {
   try {
@@ -52,7 +50,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     //   2. A stale-consistency read on a prior /main-app flipped the section
     //      back to `available` on the wire even though they still hold it.
     // Either way: re-establish the lock (if drifted), refresh the visitor
-    // lastActivityAt, and transition them into the drawer — no need to
+    // lastActivityAt, and transition them into the drawer - no need to
     // gate on "you already have a draft" (that's them).
     if (currentDraft && currentDraft.monsterId === monsterId && currentDraft.section === section) {
       const entry = dataObject.monsters?.[monsterId];
@@ -109,7 +107,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       return res.json({ success: true, data: { monsterId, section, resumed: true } });
     }
 
-    // Caller has a DIFFERENT active draft — refuse.
+    // Caller has a DIFFERENT active draft - refuse.
     if (currentDraft && dataObject.monsters?.[currentDraft.monsterId]) {
       return res.status(409).json({
         success: false,
@@ -153,7 +151,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     await keyAsset.fetchDataObject();
     const freshEntry = (keyAsset.dataObject as KeyAssetDataObject).monsters?.[monsterId];
     if (!freshEntry || freshEntry.sections?.[section]?.status !== "available") {
-      // We already hold `lockId` — don't try to release with the same id
+      // We already hold `lockId` - don't try to release with the same id
       // (the SDK treats that as a re-acquire → "data object busy"). Let it
       // TTL-expire.
       return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
@@ -173,8 +171,8 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       [`monsters.${monsterId}.lastEditedAt`]: now,
     };
 
-    // Plain update — we already hold `lockId`. Passing lock again would
-    // re-acquire → busy. Matches sdk-tictactoe's pattern.
+    // Plain update - we already hold `lockId`. Passing lock again would
+    // re-acquire → busy.
     await keyAsset.updateDataObject(patch, {});
 
     const nextVisitorData: MonsterMashVisitorData = {

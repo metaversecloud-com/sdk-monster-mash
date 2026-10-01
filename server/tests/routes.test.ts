@@ -40,11 +40,8 @@ const emptyVisitorData = {
   pendingCompletionBanners: [],
   daysAppOpened: [],
   weeksVotedIn: [],
-  weeksSubmittedIn: [],
-  weeksCreatedMonsterIn: [],
   votesCastThisWeek: { windowId: "", count: 0 },
   totalVotesCast: 0,
-  totalThirdSectionCompletions: 0,
 };
 
 const HEAD_PICKS = {
@@ -235,7 +232,6 @@ const defaultKeyAssetDataObject = (): any => ({
   schemaVersion: 1,
   timezone: "America/New_York",
   weeklyVotingEnabled: true,
-  howToImageUrl: null,
   monsters: {} as any,
   currentSubmissionWindow: {
     windowId: "2026-09-13",
@@ -277,7 +273,9 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/main-app").query(baseCreds as any);
+    const res = await request(app)
+      .get("/api/main-app")
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -782,7 +780,7 @@ describe("routes", () => {
     expect(keyAsset.dataObject.currentVoteCycle.tallies).toEqual({ "other-monster": { shown: 3, wins: 1 } });
   });
 
-  test("GET /gallery returns only finished monsters by default (newest first)", async () => {
+  test("GET /gallery returns every complete roster monster, newest first, no in-progress", async () => {
     const keyAssetData = defaultKeyAssetDataObject();
     keyAssetData.monsters = {
       "mon-a": {
@@ -835,18 +833,18 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/gallery").query(baseCreds as any);
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
     expect(res.body.data.monsters).toHaveLength(2);
     // Newest first: Bravo (birthdate 10) before Alpha (birthdate 5).
     expect(res.body.data.monsters.map((m: any) => m.monsterId)).toEqual(["mon-b", "mon-a"]);
-    expect(res.body.data.filter).toEqual({ mine: false, winners: false });
-    expect(res.body.data.sort).toBe("newest");
     expect(res.body.data.totalOnRoster).toBe(2);
   });
 
-  test("GET /gallery?mine=true includes evicted monsters from the caller's contributedMonsters", async () => {
+  test("GET /gallery includes evicted monsters from the caller's contributedMonsters so the client can toggle 'mine' locally", async () => {
     const evictedMonsterId = "mon-evicted";
     const keyAssetData = defaultKeyAssetDataObject();
     // Roster does NOT include the evicted monster.
@@ -894,7 +892,9 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/gallery").query({ ...baseCreds, mine: "true" });
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
     const ids = res.body.data.monsters.map((m: any) => m.monsterId);
@@ -907,9 +907,10 @@ describe("routes", () => {
       name: "OldEvicted",
       imageUrl: "https://example.com/evicted.png",
     });
+    expect(res.body.data.totalInCallerHistory).toBe(2);
   });
 
-  test("GET /gallery?winners=true filters to monsters with a latestAward only", async () => {
+  test("GET /gallery stamps latestAward on winning monsters so the client can toggle 'winners' locally", async () => {
     const keyAssetData = defaultKeyAssetDataObject();
     keyAssetData.monsters = {
       "mon-no-award": {
@@ -955,11 +956,18 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/gallery").query({ ...baseCreds, winners: "true" });
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.monsters).toHaveLength(1);
-    expect(res.body.data.monsters[0].monsterId).toBe("mon-award");
+    // Both monsters come back; the client decides what to show based on
+    // `latestAward`. Only the awarded one carries the ribbon field.
+    expect(res.body.data.monsters).toHaveLength(2);
+    const award = res.body.data.monsters.find((m: any) => m.monsterId === "mon-award");
+    const noAward = res.body.data.monsters.find((m: any) => m.monsterId === "mon-no-award");
+    expect(award?.latestAward).toMatchObject({ category: "silliest", place: 1 });
+    expect(noAward?.latestAward).toBeUndefined();
   });
 
   test("GET /monsters/:id returns single-monster payload (roster hit) + admin canDelete=true", async () => {
@@ -994,7 +1002,9 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get(`/api/monsters/${monsterId}`).query(baseCreds as any);
+    const res = await request(app)
+      .get(`/api/monsters/${monsterId}`)
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
@@ -1027,11 +1037,15 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/vote").query(baseCreds as any);
+    const res = await request(app)
+      .get("/api/vote")
+      .query(baseCreds as any);
     expect(res.status).toBe(200);
     expect(res.body.data.state).toBe("not-enough-monsters");
     expect(res.body.data.poolSize).toBe(3);
-    expect(res.body.data.minPoolSize).toBe(10);
+    // Reference the shared constant instead of a hard-coded value so this
+    // test survives tuning MIN_POOL_SIZE_FOR_VOTE.
+    expect(res.body.data.minPoolSize).toBe(require("@shared/content/monsterMash").MIN_POOL_SIZE_FOR_VOTE);
   });
 
   test("GET /vote returns running state with matchup + last winners when a cycle is open", async () => {
@@ -1084,7 +1098,9 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/vote").query(baseCreds as any);
+    const res = await request(app)
+      .get("/api/vote")
+      .query(baseCreds as any);
     expect(res.status).toBe(200);
     expect(res.body.data.state).toBe("running");
     expect(res.body.data.categoryQuestion).toBe("Silliest");
@@ -1135,11 +1151,13 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).post("/api/vote/cast").send({
-      ...baseCreds,
-      winnerMonsterId: "m1",
-      loserMonsterId: "m2",
-    });
+    const res = await request(app)
+      .post("/api/vote/cast")
+      .send({
+        ...baseCreds,
+        winnerMonsterId: "m1",
+        loserMonsterId: "m2",
+      });
     expect(res.status).toBe(200);
     expect(res.body.data.ok).toBe(true);
     expect(keyAsset.dataObject.currentVoteCycle.tallies.m1).toEqual({ wins: 1, shown: 1 });
@@ -1153,11 +1171,13 @@ describe("routes", () => {
       visitorData: capped,
       visitorInventory: {},
     });
-    const res2 = await request(app).post("/api/vote/cast").send({
-      ...baseCreds,
-      winnerMonsterId: "m1",
-      loserMonsterId: "m2",
-    });
+    const res2 = await request(app)
+      .post("/api/vote/cast")
+      .send({
+        ...baseCreds,
+        winnerMonsterId: "m1",
+        loserMonsterId: "m2",
+      });
     expect(res2.status).toBe(429);
   });
 
@@ -1188,10 +1208,12 @@ describe("routes", () => {
 
   test("GET /trophy returns leaderboard rows + badges grid", async () => {
     const keyAssetData = defaultKeyAssetDataObject();
-    keyAssetData.trophyLeaderboard = {
-      p1: { displayName: "Alpha", awardsWon: 5, monstersContributedTo: 12, lastActivityAt: 1 },
-      p2: { displayName: "Beta", awardsWon: 3, monstersContributedTo: 10, lastActivityAt: 1 },
-      [baseCreds.profileId]: { displayName: "Alice", awardsWon: 1, monstersContributedTo: 4, lastActivityAt: 1 },
+    // Leaderboard rows are stored as compact pipe-joined strings
+    // ("{displayName}|{awardsWon}|{monstersContributedTo}").
+    keyAssetData.leaderboard = {
+      p1: "Alpha|5|12",
+      p2: "Beta|3|10",
+      [baseCreds.profileId]: "Alice|1|4",
     };
     mockUtils.getCredentials.mockReturnValue(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
@@ -1203,7 +1225,9 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app).get("/api/trophy").query(baseCreds as any);
+    const res = await request(app)
+      .get("/api/trophy")
+      .query(baseCreds as any);
     expect(res.status).toBe(200);
     expect(res.body.data.leaderboard).toHaveLength(3);
     expect(res.body.data.leaderboard[0].displayName).toBe("Alpha");
@@ -1215,9 +1239,11 @@ describe("routes", () => {
     expect(iVoted?.owned).toBe(true);
   });
 
-  test("POST /leaderboard/reset admin-only + wipes trophyLeaderboard", async () => {
+  test("POST /leaderboard/reset admin-only + wipes leaderboard", async () => {
     const keyAssetData = defaultKeyAssetDataObject();
-    keyAssetData.trophyLeaderboard = { p1: { displayName: "Alpha", awardsWon: 5, monstersContributedTo: 3, lastActivityAt: 1 } };
+    keyAssetData.leaderboard = {
+      p1: "Alpha|5|3",
+    };
 
     const app = makeApp();
 
@@ -1244,7 +1270,7 @@ describe("routes", () => {
     });
     res = await request(app).post("/api/leaderboard/reset").send(baseCreds);
     expect(res.status).toBe(200);
-    expect(adminKey.dataObject.trophyLeaderboard).toEqual({});
+    expect(adminKey.dataObject.leaderboard).toEqual({});
   });
 
   test("PUT /admin/settings admin-only + toggles weeklyVotingEnabled + ends running vote", async () => {
@@ -1260,7 +1286,9 @@ describe("routes", () => {
       visitorData: emptyVisitorData,
       visitorInventory: {},
     });
-    let res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: false });
+    let res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: false });
     expect(res.status).toBe(403);
 
     // Admin turning OFF while a cycle is running → ends the vote in the same write.
@@ -1282,14 +1310,18 @@ describe("routes", () => {
       visitorData: emptyVisitorData,
       visitorInventory: {},
     });
-    res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: false });
+    res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: false });
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ weeklyVotingEnabled: false, endedVote: true });
     expect(adminKey.dataObject.weeklyVotingEnabled).toBe(false);
     expect(adminKey.dataObject.currentVoteCycle).toBeNull();
 
     // Turning back ON does NOT open a vote — the next Sunday rollover does.
-    res = await request(app).put("/api/admin/settings").send({ ...baseCreds, weeklyVotingEnabled: true });
+    res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: true });
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ weeklyVotingEnabled: true, endedVote: false });
     expect(adminKey.dataObject.weeklyVotingEnabled).toBe(true);
@@ -1340,9 +1372,7 @@ describe("routes", () => {
     });
 
     const app = makeApp();
-    const res = await request(app)
-      .post(`/api/monsters/${monsterId}/abandon`)
-      .send(baseCreds);
+    const res = await request(app).post(`/api/monsters/${monsterId}/abandon`).send(baseCreds);
 
     expect(res.status).toBe(200);
     expect(res.body.data.released).toBe("head");

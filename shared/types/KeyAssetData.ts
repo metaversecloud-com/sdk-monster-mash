@@ -98,10 +98,7 @@ export interface KeyAssetDataObject {
   schemaVersion: 1;
   timezone: "America/New_York";
 
-  // Admin settings
   weeklyVotingEnabled: boolean;
-  /** Optional override for the Info-sign asset image. Falls back to the bundled asset when null. */
-  howToImageUrl?: string | null;
 
   monsters: { [monsterId: string]: MonsterIndexEntry };
 
@@ -117,17 +114,18 @@ export interface KeyAssetDataObject {
   lastCycleTotalVotes?: number;
 
   /**
-   * Trophy leaderboard cache. Lives on the key asset (not a separate Trophy
+   * Leaderboard cache. Lives on the key asset (not a separate Trophy
    * dropped asset) so the app doesn't need a second dropped asset placed by
    * world builders. The Trophy asset in the world is just a click target with
    * clickableLink → `?screen=trophy`.
+   *
+   * Each row is a pipe-joined string: `"{displayName}|{awardsWon}|{monstersContributedTo}"`.
+   * Compact-string rows keep the per-doc size down at scale (worlds with many
+   * contributors blow past Firestore's 1 MB soft limit fast otherwise). Use
+   * `formatLeaderboardRow` / `parseLeaderboardRow` in `utils/trophy` to
+   * read + write without hand-splitting.
    */
-  trophyLeaderboard?: {
-    [profileId: string]: {
-      displayName: string;
-      awardsWon: number;
-      monstersContributedTo: number;
-      lastActivityAt: number;
-    };
+  leaderboard?: {
+    [profileId: string]: string;
   };
 }

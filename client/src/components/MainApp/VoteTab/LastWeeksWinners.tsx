@@ -8,16 +8,14 @@ interface LastWeeksWinnersProps {
 const PLACE_LABEL = { 1: "1st", 2: "2nd", 3: "3rd" } as const;
 
 /**
- * Top-right winners row on the Vote tab (mockup image28). Hidden when there
- * are no past winners (spec §Vote tab: "winners row shows … and is hidden
- * entirely if there are no past winners").
+ * Top-right winners row on the Vote tab. Hidden when there are no past winners.
  */
 export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
   if (!winners || winners.length === 0) return null;
   const categoryLabel = VOTING_CATEGORY_BY_ID[winners[0].category]?.label ?? winners[0].category;
   return (
-    <aside className="flex flex-col gap-1 items-end">
-      <p className="text-xs uppercase tracking-wider text-gray-600">
+    <aside className="flex flex-col gap-1">
+      <p className="text-xs uppercase tracking-wider mm-text-accent-lt">
         Last week's winners · {categoryLabel.toUpperCase()}
       </p>
       <div className="flex gap-2">
@@ -44,7 +42,7 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
             {!w.deleted && w.contributorDisplayNames.length > 0 && (
               <p className="text-[9px] text-gray-500 truncate max-w-full">{w.contributorDisplayNames.join(" · ")}</p>
             )}
-            {w.deleted && <p className="text-[9px] text-red-500 text-center">removed by an admin — place is kept</p>}
+            {w.deleted && <p className="text-[9px] text-red-500 text-center">removed by an admin - place is kept</p>}
           </div>
         ))}
       </div>

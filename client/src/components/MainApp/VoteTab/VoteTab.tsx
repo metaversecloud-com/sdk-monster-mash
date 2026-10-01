@@ -17,7 +17,7 @@ import { VoteResponseData } from "@shared/types/index";
 import { backendAPI, setErrorMessage } from "@/utils";
 
 /**
- * Epic 6 Vote tab — three states (mockups image28 / image22 / image31):
+ * Vote tab - three states:
  *   - running: countdown + winners row + question + VS matchup + fine print
  *   - scheduled: "No vote is running right now" + next-Sunday date
  *   - not-enough-monsters: pool-progress explainer
@@ -79,7 +79,7 @@ export const VoteTab = () => {
       role="tabpanel"
       id="monster-mash-tab-vote"
       aria-labelledby="monster-mash-tab-btn-vote"
-      className="flex flex-col gap-4 py-6 px-2"
+      className="flex flex-col gap-4 py-2"
     >
       {isLoading ? (
         <p className="p2 text-center mm-text-muted py-10">Loading vote…</p>
@@ -89,11 +89,11 @@ export const VoteTab = () => {
         <>
           <div className="flex justify-between items-start gap-4 flex-wrap">
             {vote.state === "running" && vote.cycleEndsAt ? (
-              <div className="p-4 rounded-2xl mm-border-default mm-border-amber mm-bg-amber flex-1 min-w-[280px]">
+              <div className="p-2 rounded-2xl mm-border-2 mm-border-amber mm-bg-amber flex-1 min-w-[280px]">
                 <Countdown targetMs={vote.cycleEndsAt} />
                 <p className="p2 mt-1">left to vote on last week's monsters!</p>
                 <p className="text-xs mm-text-on-amber mt-1">
-                  Times are a guide — the window opens and closes the next time someone opens the app.
+                  Times are a guide - the window opens and closes the next time someone opens the app.
                 </p>
               </div>
             ) : (

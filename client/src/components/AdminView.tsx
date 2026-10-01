@@ -13,15 +13,12 @@ import { ErrorType } from "@/context/types";
 import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
 /**
- * Monster Mash Admin Settings surface (plan §10.13). Renders inside
- * PageContainer when the caller taps the gear icon.
- *
  * Weekly voting toggle:
  *   - ON  → automatic Sunday→Saturday windows + Sunday vote rollovers.
  *   - OFF → freeze the machinery; the current vote cycle is nulled on the
  *           same server write ("The current vote will end right away and
  *           no awards will be given for it"). Turning back ON does not
- *           immediately open a vote — the next Sunday rollover does.
+ *           immediately open a vote - the next Sunday rollover does.
  */
 export const AdminView = () => {
   const dispatch = useContext(GlobalDispatchContext);

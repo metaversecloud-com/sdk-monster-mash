@@ -6,12 +6,6 @@ import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
 interface LayeredPreviewProps {
   section: Section;
   picks: { [categoryId: string]: string };
-  /**
-   * Peer-contributed sections. Server no longer produces per-section art, so
-   * only the contributor display name is exposed here — peers always render
-   * as a placeholder until the whole monster finalizes and everyone sees the
-   * composed final image.
-   */
   peerDoneSections: Partial<Record<Section, { contributorDisplayName?: string }>>;
 }
 
@@ -21,15 +15,6 @@ const SECTION_LABELS: Record<Section, string> = {
   legs: "Legs",
 };
 
-/**
- * Left column of the Builder — pinned live preview.
- *
- * Layout: each section (head, torso, legs) is its own bordered block in a
- * vertical stack. The caller's active section has a solid taupe border with
- * live-picked art layered inside; peer-done sections show an taupe dashed
- * placeholder; not-yet-built sections show a grey dashed placeholder. Nothing
- * overlaps — every block is a normal-flow flex child.
- */
 export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPreviewProps) => {
   const { categoriesBySection, layerOrder, partById } = useContent();
   const partUrl = makePartUrl(partById);
@@ -50,7 +35,7 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
       {/* Header row: "Live preview" + "pinned" chip. */}
       <p className="mm-text-white font-semibold">Live preview</p>
 
-      {/* Section stack — head, torso, legs, each in its own block. Order
+      {/* Section stack - head, torso, legs, each in its own block. Order
           matches the visual monster (head on top, legs on bottom). */}
       <div className="w-full flex flex-col items-center gap-2">
         {SECTIONS.map((s) => {
@@ -93,11 +78,6 @@ export const LayeredPreview = ({ section, picks, peerDoneSections }: LayeredPrev
             );
           }
 
-          // Peer sections always render as a placeholder — the server no
-          // longer composes per-section art, so peers can't see each other's
-          // picks. Amber tint when the peer already submitted (someone is
-          // there), subtle dashed when nothing's been built yet. Everyone
-          // sees the composed final image at monster completion.
           void crop;
           return (
             <div key={s} className="w-full flex flex-col items-center gap-1">

@@ -6,11 +6,11 @@ interface ClaimSwitchModalProps {
   currentSection: Section;
   /** Section they're trying to join. */
   targetSection: Section;
-  /** Resume the caller's existing draft — closes the modal + reopens the builder. */
+  /** Resume the caller's existing draft - closes the modal + reopens the builder. */
   onResumeCurrent: () => void;
   /** Abandon the current claim and take the new section. */
   onAbandonAndJoin: () => void;
-  /** Dismiss without picking either — modal disappears and nothing happens. */
+  /** Dismiss without picking either - modal disappears and nothing happens. */
   onDismiss: () => void;
 }
 
@@ -23,17 +23,9 @@ const SECTION_LABELS: Record<Section, string> = {
 /**
  * Fires when the caller clicks Join on a section belonging to a DIFFERENT
  * monster than the one their activeDraft points at. Three exits:
- *   1. Confirm — abandon current + take the new section (destructive)
- *   2. Cancel — resume the existing claim (reopens the builder)
- *   3. Dismiss — X / backdrop / Escape; nothing changes server-side
- *
- * Backed by the shared `ConfirmationModal`:
- *   - `handleOnConfirm` gets the abandon+join action
- *   - `handleOnCancel` gets the resume action (fires when Cancel button
- *     is clicked)
- *   - `handleToggleShowConfirmationModal` is the pure state-close
- *     (`setPendingSwitch(null)`); the modal fires it after any button
- *     click AND on X / backdrop / Escape.
+ *   1. Confirm - abandon current + take the new section (destructive)
+ *   2. Cancel - resume the existing claim (reopens the builder)
+ *   3. Dismiss - X / backdrop / Escape; nothing changes server-side
  */
 export const ClaimSwitchModal = ({
   currentSection,

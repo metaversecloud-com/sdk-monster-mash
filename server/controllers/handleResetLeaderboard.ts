@@ -5,8 +5,7 @@ import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/in
  * POST /api/leaderboard/reset
  *
  * Admin-only. Wipes the trophy leaderboard cache (award counts + monsters-
- * built counters). Badges are NOT affected — the spec is explicit that
- * reset only touches counters (mockup image30 body).
+ * built counters).
  */
 export const handleResetLeaderboard = async (req: Request, res: Response) => {
   try {
@@ -18,7 +17,7 @@ export const handleResetLeaderboard = async (req: Request, res: Response) => {
     if (!isAdmin) return res.status(403).json({ success: false, message: "Admin only." });
 
     await keyAsset.updateDataObject(
-      { trophyLeaderboard: {} },
+      { leaderboard: {} },
       {
         analytics: [
           {

@@ -16,11 +16,6 @@ const formatSegments = (ms: number) => {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/**
- * Countdown chip — "3d : 14h : 22m : 45s" — mockup image28. Ticks every
- * second so the smallest segment visibly counts down (times are still spec-
- * caveat "a guide"; window opens/closes on next-open, not on this timer).
- */
 export const Countdown = ({ targetMs }: CountdownProps) => {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

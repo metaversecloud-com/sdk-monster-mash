@@ -5,23 +5,16 @@ import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
 interface SectionLayeredImageProps {
   section: Section;
   picks: { [categoryId: string]: string };
-  /** Additional class names for the outer container. */
   containerClassName?: string;
-  /** Alt text for accessibility (aria-label on the container's role="img"). */
   imgStyle?: CSSProperties;
-  /** Additional class names for the images. */
   ariaLabel?: string;
 }
 
 /**
- * Renders one section's picks as a client-side layered preview — same
+ * Renders one section's picks as a client-side layered preview - same
  * approach the drawer's LayeredPreview uses. Extracted so SectionSlot
  * (Create tab) and SectionSubmitted (post-submit screen) can render a
  * caller's completed section without a per-section server-side compose.
- *
- * The compositor stacks each layer in LAYER_ORDER with `object-fit: cover`
- * + the section's `objectPosition` so the empty regions of the shared
- * 200×350 canvas get cropped out.
  */
 export const SectionLayeredImage = ({
   section,

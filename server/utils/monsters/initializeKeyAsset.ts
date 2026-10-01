@@ -25,7 +25,6 @@ export const initializeKeyAsset = async (keyAsset: DroppedAssetInterface) => {
       schemaVersion: 1,
       timezone: "America/New_York",
       weeklyVotingEnabled: true,
-      howToImageUrl: null,
       monsters: {},
       currentSubmissionWindow: currentSubmissionWindow(),
       currentVoteCycle: null,

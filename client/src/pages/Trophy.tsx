@@ -15,11 +15,6 @@ import { backendAPI, setErrorMessage } from "@/utils";
 
 type TabId = "leaderboard" | "badges";
 
-/**
- * Trophy drawer (mockup image21/24/30). Two tabs — Leaderboard | Badges.
- * Fixed-width drawer surface — reached from clicking the Trophy asset in the
- * world (`?screen=trophy`).
- */
 export const Trophy = () => {
   const dispatch = useContext(GlobalDispatchContext);
   const { hasInteractiveParams } = useContext(GlobalStateContext);
@@ -55,7 +50,7 @@ export const Trophy = () => {
                 key={id}
                 role="tab"
                 aria-selected={tab === id}
-                className={`btn ${tab === id ? "" : "btn-outline"}`}
+                className={`btn ${tab === id ? "mm-btn-secondary" : "btn-outline"}`}
                 onClick={() => setTab(id)}
               >
                 {id === "leaderboard" ? "Leaderboard" : "Badges"}
@@ -67,7 +62,6 @@ export const Trophy = () => {
             <LeaderboardTab
               rows={payload.leaderboard}
               callerRow={payload.callerRow}
-              cap={payload.cap}
               isAdmin={payload.isAdmin}
               onAfterReset={fetchTrophy}
             />

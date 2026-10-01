@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 // components
 import { ConfirmationModal } from "@/components";
@@ -18,22 +18,15 @@ import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 type SortValue = "newest" | "oldest";
 
 /**
- * Epic 5 Gallery tab (mockup image3 / image25).
- *
  * Filter row: Sort dropdown · "Show only my monsters" · "Show only award winners".
- * `mine` reads from visitor.contributedMonsters on the server, so evicted
- * monsters the caller made still surface (spec §Gallery).
+ *
+ * The server returns the FULL union (roster + caller history) in one shot;
+ * the three UI controls apply as pure client-side derived state via
+ * `useMemo`. No round-trip per toggle — the dataset is bounded
+ * (FINISHED_CAP = 200 + caller history), so the extra payload beats the
+ * repeated latency.
  *
  * Card click surfaces the Single Monster View drawer via /?screen=single-monster&monsterId=…
- * (Epic 5's world drop already wires the same route from the finished-monster asset click.)
- *
- * Admins also see a per-card Delete button (mockup image5). Confirming
- * fires `DELETE /monsters/:id`, which drops the monster from the roster,
- * removes the dropped asset from the world, disqualifies it from the
- * running vote cycle, and strips it (plus any queued win/completion
- * banners) from every contributor's user record. If the monster was
- * already crowned in `storedWinners`, that slot flips to "[Monster
- * Deleted]" on the Vote tab automatically (see LastWeeksWinners).
  */
 export const GalleryTab = () => {
   const dispatch = useContext(GlobalDispatchContext);
@@ -59,27 +52,42 @@ export const GalleryTab = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryDeepLink]);
 
+  // Server fetch — one call per mount (and after a delete, to re-sync). The
+  // filter/sort controls do NOT re-fetch.
   const fetchGallery = useCallback(() => {
     if (!hasInteractiveParams) return Promise.resolve();
     setIsLoading(true);
     return backendAPI
-      .get("/gallery", {
-        params: {
-          sort,
-          mine: mine ? "true" : undefined,
-          winners: winners ? "true" : undefined,
-        },
-      })
+      .get("/gallery")
       .then((response) => {
         if (response?.data?.success) setGallery(response.data.data);
       })
       .catch((error) => setErrorMessage(dispatch, error as ErrorType))
       .finally(() => setIsLoading(false));
-  }, [hasInteractiveParams, sort, mine, winners, dispatch]);
+  }, [hasInteractiveParams, dispatch]);
 
   useEffect(() => {
     fetchGallery();
   }, [fetchGallery]);
+
+  // Pure derived state — filter + sort reactively on every toggle.
+  const visibleMonsters = useMemo(() => {
+    const all = gallery?.monsters ?? [];
+    let next = all;
+    if (mine) next = next.filter((m) => m.callerContributed);
+    if (winners) next = next.filter((m) => !!m.latestAward);
+    // Server defaults to newest-first; only re-sort when the user flips the
+    // dropdown. Birthdate is monotonic per completion so a stable `.slice()
+    // + sort` is cheap.
+    if (sort === "oldest") {
+      next = [...next].sort((a, b) => a.birthdate - b.birthdate);
+    } else if (next !== all) {
+      // mine/winners filter stripped some entries; re-sort newest-first on
+      // the surviving set so order stays stable.
+      next = [...next].sort((a, b) => b.birthdate - a.birthdate);
+    }
+    return next;
+  }, [gallery, mine, winners, sort]);
 
   // Refresh the top-level main-app payload too so pinned banner state (a
   // queued win/completion banner pointing at the just-deleted monster)
@@ -148,19 +156,21 @@ export const GalleryTab = () => {
 
       {isLoading ? (
         <p className="p2 text-center mm-text-muted py-10">Loading gallery…</p>
-      ) : gallery && gallery.monsters.length > 0 ? (
+      ) : visibleMonsters.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {gallery.monsters.map((m) => (
+          {visibleMonsters.map((m) => (
             <GalleryCard key={m.monsterId} monster={m} callerIsAdmin={!!isAdmin} onAdminDelete={setDeleteTarget} />
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 py-10 text-center">
-          <h3 className="h3">The gallery is empty</h3>
+          <h3 className="mm-text-white">The gallery is empty</h3>
           <p className="p2 mm-text-muted">
             {mine
               ? "You haven't contributed to any monsters yet."
-              : "No finished monsters — start one on the Create tab."}
+              : winners
+                ? "No monsters have won yet."
+                : "No finished monsters - start one on the Create tab."}
           </p>
         </div>
       )}

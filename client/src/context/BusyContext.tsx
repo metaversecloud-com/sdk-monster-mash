@@ -6,7 +6,7 @@ import { ReactNode, createContext, useCallback, useContext, useMemo, useState } 
  *   const { isBusy, run } = useBusy();
  *   <button disabled={isBusy} onClick={() => run(async () => ...)}>...
  *
- * `run` is a counter — nested / overlapping calls are tolerated; `isBusy`
+ * `run` is a counter - nested / overlapping calls are tolerated; `isBusy`
  * flips false only when the LAST outstanding action resolves. This lets a
  * server call that internally triggers another server call (e.g. delete →
  * refresh) keep everything disabled until the whole sequence finishes.

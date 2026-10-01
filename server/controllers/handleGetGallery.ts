@@ -6,25 +6,32 @@ import {
   MonsterIndexEntry,
   MonsterMashVisitorData,
 } from "@shared/types/index.js";
-import { contributorDisplayNamesFromEntry, errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import {
+  contributorDisplayNamesFromEntry,
+  errorHandler,
+  getCredentials,
+  getKeyAsset,
+  getVisitor,
+} from "@utils/index.js";
 
 /**
  * GET /api/gallery
  *
- * Query params:
- *   ?mine=true     — restrict to caller's contributions (includes monsters
- *                    that have rotated out of the 200-cap roster, sourced
- *                    from `visitorData.contributedMonsters`).
- *   ?winners=true  — restrict to monsters with a `latestAward`.
- *   ?sort=oldest   — default `newest`.
+ * Returns the UNION of:
+ *   - every `state === "complete"` monster on the key-asset roster
+ *   - every entry in the caller's visitor `contributedMonsters` history
+ *     (so monsters that have rotated out of the 200-cap roster still
+ *     surface for the caller - "Your own monsters are never
+ *     dropped from the gallery")
+ *
+ * Each card carries `callerContributed` + `latestAward` so the client can
+ * apply the Gallery's three UI controls (sort, "my monsters only", "winners
+ * only") as pure derived state. Payload is bounded (FINISHED_CAP = 200 +
+ * caller's history), so a single-shot fetch beats a round-trip per toggle.
  */
 export const handleGetGallery = async (req: Request, res: Response) => {
   try {
     const credentials = getCredentials(req.query);
-    const mine = req.query.mine === "true";
-    const winners = req.query.winners === "true";
-    const sort: "newest" | "oldest" = req.query.sort === "oldest" ? "oldest" : "newest";
-
     const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
     const { visitorData } = await getVisitor(credentials);
@@ -32,21 +39,15 @@ export const handleGetGallery = async (req: Request, res: Response) => {
     const rosterFinished = Object.values(dataObject.monsters ?? {}).filter(
       (m): m is MonsterIndexEntry => !!m && m.state === "complete",
     );
-    const rosterById = new Map<string, MonsterIndexEntry>(
-      rosterFinished.map((m) => [m.monsterId, m]),
-    );
+    const rosterById = new Map<string, MonsterIndexEntry>(rosterFinished.map((m) => [m.monsterId, m]));
 
     const callerContrib = visitorData.contributedMonsters ?? {};
     const callerHistoryIds = Object.keys(callerContrib);
     const callerContribSet = new Set(callerHistoryIds);
 
-    // Union candidate ids.
-    const candidateIds = new Set<string>([...rosterById.keys()]);
-    if (mine) {
-      // "mine" starts from the caller's history — includes evicted monsters.
-      candidateIds.clear();
-      for (const id of callerHistoryIds) candidateIds.add(id);
-    }
+    // Union candidate ids: everything on the roster, plus anything in the
+    // caller's history that's since been evicted.
+    const candidateIds = new Set<string>([...rosterById.keys(), ...callerHistoryIds]);
 
     const monsters: GalleryMonster[] = [];
     for (const id of candidateIds) {
@@ -54,28 +55,25 @@ export const handleGetGallery = async (req: Request, res: Response) => {
       const contribEntry = callerContrib[id];
 
       // Prefer roster metadata; fall back to visitor.contributedMonsters for evicted monsters.
-      const source =
-        rosterEntry
-          ? {
-              name: rosterEntry.name ?? "",
-              birthdate: rosterEntry.birthdate ?? 0,
-              imageUrl: rosterEntry.imageUrl ?? null,
-              monsterAssetId: rosterEntry.monsterAssetId,
-              contributorProfileIds: rosterEntry.contributorProfileIds ?? [],
-              contributorDisplayNames: computeDisplayNames(rosterEntry, contribEntry),
-              latestAward: rosterEntry.latestAward,
-            }
-          : {
-              name: contribEntry?.name ?? "",
-              birthdate: contribEntry?.birthdate ?? 0,
-              imageUrl: contribEntry?.imageUrl ?? null,
-              monsterAssetId: contribEntry?.monsterAssetId,
-              contributorProfileIds: contribEntry?.contributorProfileIds ?? [],
-              contributorDisplayNames: contribEntry?.contributorDisplayNames ?? [],
-              latestAward: (contribEntry?.awards ?? [])[0],
-            };
-
-      if (winners && !source.latestAward) continue;
+      const source = rosterEntry
+        ? {
+            name: rosterEntry.name ?? "",
+            birthdate: rosterEntry.birthdate ?? 0,
+            imageUrl: rosterEntry.imageUrl ?? null,
+            monsterAssetId: rosterEntry.monsterAssetId,
+            contributorProfileIds: rosterEntry.contributorProfileIds ?? [],
+            contributorDisplayNames: computeDisplayNames(rosterEntry, contribEntry),
+            latestAward: rosterEntry.latestAward,
+          }
+        : {
+            name: contribEntry?.name ?? "",
+            birthdate: contribEntry?.birthdate ?? 0,
+            imageUrl: contribEntry?.imageUrl ?? null,
+            monsterAssetId: contribEntry?.monsterAssetId,
+            contributorProfileIds: contribEntry?.contributorProfileIds ?? [],
+            contributorDisplayNames: contribEntry?.contributorDisplayNames ?? [],
+            latestAward: (contribEntry?.awards ?? [])[0],
+          };
 
       monsters.push({
         monsterId: id,
@@ -91,12 +89,12 @@ export const handleGetGallery = async (req: Request, res: Response) => {
       });
     }
 
-    monsters.sort((a, b) => (sort === "newest" ? b.birthdate - a.birthdate : a.birthdate - b.birthdate));
+    // Default server-side sort: newest first by birthdate. The client can
+    // re-sort locally when the user flips the dropdown.
+    monsters.sort((a, b) => b.birthdate - a.birthdate);
 
     const payload: GalleryResponseData = {
       monsters,
-      filter: { mine, winners },
-      sort,
       totalOnRoster: rosterFinished.length,
       totalInCallerHistory: callerHistoryIds.length,
     };

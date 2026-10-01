@@ -87,7 +87,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
   // Auto-save every pick / name-token change to `activeDraft` on the caller's
   // visitor dataObject so a closed drawer can Resume with everything intact.
   // Debounced 500ms so a rapid-fire click sequence collapses to one write.
-  // Fire-and-forget — never routes through `run()` (which would disable UI)
+  // Fire-and-forget never routes through `run()` (which would disable UI)
   // and never surfaces errors (the caller retries on their next change).
   useEffect(() => {
     if (!hasHydrated.current) return;
@@ -113,7 +113,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
     return doneCount + 1;
   }, [monster]);
 
-  // Peer-done sections — only contributor names surface here; the placeholder
+  // Peer-done sections - only contributor names surface here; the placeholder
   // stays until the composed final image lands after third-section submit.
   const peerDoneSections = useMemo(() => {
     const map: Partial<Record<Section, { contributorDisplayName?: string }>> = {};
@@ -207,7 +207,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
     });
   };
 
-  // Legs.feet disabled-set — legs pick is a no-feet part → feet disabled (except NONE)
+  // Legs.feet disabled-set - legs pick is a no-feet part → feet disabled (except NONE)
   const disabledFeetIds = useMemo(() => {
     if (section !== "legs") return undefined;
     const legsId = picks["legs"];
@@ -250,11 +250,6 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
           <BuildingPill section={section} stepIndex={stepIndex} />
         </div>
         <div className="w-full flex flex-col gap-2 mt-4">
-          {/* Two-column layout: pinned preview on the left, scrollable
-            pickers on the right. `position: sticky` on the preview keeps
-            it visible as the pickers scroll — natural document scroll on
-            the parent means when everything fits the viewport there's no
-            scroll at all; only tall content triggers scrolling. */}
           <div className="flex gap-1 items-start">
             <aside className="sticky top-2 flex-shrink-0 w-[42%] self-start">
               <LayeredPreview section={section} picks={picks} peerDoneSections={peerDoneSections} />
@@ -295,11 +290,9 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
             </div>
           </div>
 
-          {/* Full-width footer: submit + cancel + disclaimer sit under both
-            columns (mockup shows them separated by a horizontal rule). */}
           <div className="border-t pt-3 mt-2 flex flex-col gap-2">
             <button
-              className="btn mm-button-primary"
+              className="btn mm-btn-primary"
               disabled={!allChosen || isBusy}
               onClick={() => setPhase("confirming")}
               aria-disabled={!allChosen || isBusy}
@@ -310,7 +303,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
                   <p>Ready to submit!</p>
                 ) : (
                   <p className="text-xs">
-                    choose all {categories.length + 1} — {categories.length + 1 - chosenCount - (nameToken ? 1 : 0)}{" "}
+                    choose all {categories.length + 1} - {categories.length + 1 - chosenCount - (nameToken ? 1 : 0)}{" "}
                     left
                   </p>
                 )}

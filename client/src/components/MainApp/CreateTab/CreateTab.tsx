@@ -16,18 +16,16 @@ import { MonsterIndexEntry, Section } from "@shared/types/index";
 import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
 /**
- * Create tab: full card grid (mockup image11).
- *
  * Card ordering:
  *   1. Create-New tile (always).
  *   2. Cards where the caller has an active draft (Resume prompt on top).
  *   3. Cards where the caller has contributed a section (Done state, art
- *      visible per §Reveal rule).
+ *      visible).
  *   4. Cards with at least one AVAILABLE section (Join-target).
  *   5. Remaining in-progress cards (all locked/done, no caller stake).
  *
  * "One section per monster" flow: when the caller has an in-progress
- * activeDraft, Join buttons on OTHER monsters stay enabled — clicking
+ * activeDraft, Join buttons on OTHER monsters stay enabled - clicking
  * fires `ClaimSwitchModal` which offers Resume, Abandon+Join, or Dismiss.
  * The card that OWNS the draft exposes a Cancel button on the locked slot.
  */
@@ -74,8 +72,7 @@ export const CreateTab = () => {
 
   // Every builder transition (Create / Join / Resume) is initiated by a
   // POST that closes THIS iframe (main-app modal) and opens a fresh
-  // Builder iframe as a drawer with all credentials preserved. Client
-  // doesn't need to `navigate()` — Topia's iframe swap replaces the DOM.
+  // Builder iframe as a drawer with all credentials preserved.
   const startNew = () => {
     if (isBusy || activeDraft) return;
     return run(async () => {
@@ -97,7 +94,7 @@ export const CreateTab = () => {
       } catch (error) {
         const httpStatus = (error as { response?: { status?: number } })?.response?.status;
         if (httpStatus === 409) {
-          setClaimError("Your draft is out of date — reloading Monster Mash.");
+          setClaimError("Your draft is out of date - reloading Monster Mash.");
           refreshMainApp();
         } else {
           setErrorMessage(dispatch, error as ErrorType);
@@ -162,8 +159,6 @@ export const CreateTab = () => {
     return run(async () => {
       try {
         // Release the current claim first, then take the new section.
-        // If the new claim races and 409s, the caller ends up with no
-        // draft — mainApp refreshes and the CreateTab re-renders.
         await backendAPI.post(`/monsters/${activeDraft.monsterId}/abandon`);
         try {
           await backendAPI.post(`/monsters/${target.monsterId}/claim`, { section: target.section });
@@ -209,7 +204,7 @@ export const CreateTab = () => {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-        {/* Create-New tile — always first. */}
+        {/* Create-New tile - always first. */}
         <button
           type="button"
           className="mm-section p-6 flex flex-col items-center justify-center gap-5 min-h-[220px] border-dashed border-2 mm-border-card hover:border-white/60"
@@ -228,11 +223,8 @@ export const CreateTab = () => {
           </span>
         </button>
 
-        {/* Resume tile — only when the caller's draft monster is NOT already
-            visible as a MonsterCard on the grid (i.e., it's their first
-            section on that monster and the roster filter hides it). Once
-            another section is done the MonsterCard renders and its own
-            "Resume" slot covers this affordance. */}
+        {/* Resume tile - only when the caller's draft monster is NOT already
+            visible as a MonsterCard on the grid */}
         {activeDraft && !sortedRoster.some((m) => m.monsterId === activeDraft.monsterId) && (
           <button
             type="button"
@@ -268,7 +260,7 @@ export const CreateTab = () => {
 
       {sortedRoster.length === 0 && !activeDraft && (
         <p className="p2 text-center mm-text-muted">
-          No monsters in progress yet — click "Create New Monster" to start one.
+          No monsters in progress yet - click "Create New Monster" to start one.
         </p>
       )}
 

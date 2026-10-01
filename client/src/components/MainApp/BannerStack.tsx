@@ -26,22 +26,13 @@ const formatCountdown = (ms: number) => {
 };
 
 /**
- * Pinned banner stack (spec §Banner priority order + mockup image2 / image7).
- *
- * Order — top to bottom:
+ * Order - top to bottom:
  *   1. BLUE completion banner ("{Name} is complete! A monster you helped
- *      build is finished.") — spec: "at the top, above all other banners".
- *      Only surfaces for PEERS (the third-section submitter never queues
- *      one for themselves; see `finalizeMonster.ts`). Server sends only
- *      the most-recent per open. Acknowledged on mount so it doesn't
- *      re-surface on subsequent opens.
+ *      build is finished.")
  *   2. GREEN winner banner ("Your monster placed 1st in Silliest…").
  *   3. AMBER countdown ("3 days and 14 hours left to VOTE …").
- *
- * The next-week-voting-category advisory lives BELOW the tabs as a single
- * line of small text (see `NextCategoryLine`), not a banner card.
  */
-export const BannerStack = () => {
+export const BannerStack = ({ activeTab }: { activeTab: string }) => {
   const dispatch = useContext(GlobalDispatchContext);
   const { mainApp } = useContext(GlobalStateContext);
   const { isBusy } = useBusy();
@@ -75,7 +66,7 @@ export const BannerStack = () => {
   return (
     <div aria-live="polite" aria-label="Monster Mash announcements" className="flex flex-col gap-2">
       {shownCompletion && (
-        <div className="rounded-xl mm-border-default mm-border-accent mm-bg-accent-lt px-4 py-3 flex items-center justify-between gap-2">
+        <div className="rounded-xl mm-border-2 mm-border-accent mm-bg-accent-lt px-4 py-3 flex items-center justify-between gap-2">
           <p className="mm-text-done font-semibold">
             {shownCompletion.monsterName || "Your monster"} is complete! A monster you helped build is finished.
           </p>
@@ -86,7 +77,7 @@ export const BannerStack = () => {
       )}
 
       {shownWin && (
-        <div className="rounded-xl mm-border-default mm-border-success mm-bg-success-lt px-4 py-3 flex items-center justify-between gap-2">
+        <div className="rounded-xl mm-border-2 mm-border-success mm-bg-success-lt px-4 py-3 flex items-center justify-between gap-2">
           <p className="mm-text-done font-semibold">
             Your monster placed {PLACE_LABEL[shownWin.place]} in{" "}
             {VOTING_CATEGORY_BY_ID[shownWin.category]?.label ?? shownWin.category} in the vote that ended{" "}
@@ -98,8 +89,8 @@ export const BannerStack = () => {
         </div>
       )}
 
-      {countdownActive && (
-        <div className="rounded-xl mm-border-default mm-border-amber mm-bg-amber px-4 py-2 flex items-center justify-between gap-2">
+      {activeTab !== "vote" && countdownActive && (
+        <div className="rounded-xl mm-border-2 mm-border-amber mm-bg-amber px-4 py-2 flex items-center justify-between gap-2">
           <p className="mm-text-done font-semibold">
             <span className="font-semibold">{formatCountdown((cycleEnds as number) - now)}</span> left to VOTE on last
             week's monsters!

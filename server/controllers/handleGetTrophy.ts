@@ -1,20 +1,14 @@
 import { Request, Response } from "express";
 import { LEADERBOARD_CAP } from "@shared/content/monsterMash.js";
 import { BADGES } from "@shared/content/badges.js";
-import {
-  KeyAssetDataObject,
-  TrophyBadgeRow,
-  TrophyLeaderboardRow,
-  TrophyResponseData,
-} from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { KeyAssetDataObject, TrophyBadgeRow, TrophyLeaderboardRow, TrophyResponseData } from "@shared/types/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, parseLeaderboardRow } from "@utils/index.js";
 
 /**
  * GET /api/trophy
  *
  * Returns the leaderboard (top 25 + caller's row if outside top 25) + the
- * badge grid (four groups × 38 badges with owned flags). Client renders
- * both tabs in the Trophy drawer (mockup images 21 / 24).
+ * badge grid (four groups × 38 badges with owned flags).
  */
 export const handleGetTrophy = async (req: Request, res: Response) => {
   try {
@@ -30,11 +24,13 @@ export const handleGetTrophy = async (req: Request, res: Response) => {
     });
 
     // Sort leaderboard: awards desc → monstersContributedTo desc → displayName asc.
-    const rows = Object.entries(dataObject.trophyLeaderboard ?? {})
-      .map(([profileId, row]) => ({ profileId, ...row }))
+    // Rows are compact pipe-joined strings on disk; parse once before sorting.
+    const rows = Object.entries(dataObject.leaderboard ?? {})
+      .map(([profileId, row]) => ({ profileId, ...parseLeaderboardRow(row) }))
       .sort((a, b) => {
         if (b.awardsWon !== a.awardsWon) return b.awardsWon - a.awardsWon;
-        if (b.monstersContributedTo !== a.monstersContributedTo) return b.monstersContributedTo - a.monstersContributedTo;
+        if (b.monstersContributedTo !== a.monstersContributedTo)
+          return b.monstersContributedTo - a.monstersContributedTo;
         return a.displayName.localeCompare(b.displayName);
       });
 

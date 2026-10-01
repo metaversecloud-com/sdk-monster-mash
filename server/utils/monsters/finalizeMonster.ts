@@ -11,6 +11,7 @@ import {
 } from "@shared/types/index.js";
 import { Credentials } from "../../types/index.js";
 import { composeAndUploadMonster } from "../images/composeMonster.js";
+import { createEmptyVisitorData } from "../getVisitor.js";
 import { User } from "../topiaInit.js";
 import { composeMonsterName } from "./composeMonsterName.js";
 import { dropMonsterAsset } from "./dropMonsterAsset.js";
@@ -360,7 +361,7 @@ const patchPeerAtomically = async ({
   enrichment: Partial<MonsterMashVisitorData["contributedMonsters"][string]>;
   appendCompletionBanner: { monsterId: string; monsterName: string; completedAt: number };
 }) => {
-  const scoped = (rawUserData[scopedKey] as MonsterMashVisitorData | undefined) ?? emptyScoped();
+  const scoped = (rawUserData[scopedKey] as MonsterMashVisitorData | undefined) ?? createEmptyVisitorData();
   const existingContribution = scoped.contributedMonsters?.[monsterId] ?? {
     section: "head" as Section,
     submittedAt: Date.now(),
@@ -381,18 +382,3 @@ const patchPeerAtomically = async ({
   };
   await target.updateDataObject({ [scopedKey]: nextScoped }, {});
 };
-
-const emptyScoped = (): MonsterMashVisitorData => ({
-  schemaVersion: 1,
-  dateStarted: Date.now(),
-  contributedMonsters: {},
-  pendingWinBanners: [],
-  pendingCompletionBanners: [],
-  daysAppOpened: [],
-  weeksVotedIn: [],
-  weeksSubmittedIn: [],
-  weeksCreatedMonsterIn: [],
-  votesCastThisWeek: { windowId: "", count: 0 },
-  totalVotesCast: 0,
-  totalThirdSectionCompletions: 0,
-});

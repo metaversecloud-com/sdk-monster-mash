@@ -10,15 +10,13 @@ import { errorHandler, getCredentials, getKeyAsset, getVisitor, User, World } fr
  *   - in-progress  → drop from `monsters` map, clear each contributor's
  *                    `contributedMonsters[id]` (using `User` class for the
  *                    non-caller contributors, since we don't have their
- *                    visitorIds — spec §Visitor/User dataObject).
+ *                    visitorIds.
  *   - complete     → same fanout, plus:
  *                      · delete the monster's dropped asset from the world
  *                      · remove the id from `currentSubmissionWindow.eligibleMonsterIds`
  *                      · remove from `currentVoteCycle.poolMonsterIds` + `tallies`
- *                        (mockup image27's "if it's in this week's vote, it
- *                         will be disqualified")
  *
- * The dropped-asset delete is best-effort — the monster is removed from the
+ * The dropped-asset delete is best-effort - the monster is removed from the
  * roster either way so an in-world orphan doesn't strand admin from a retry.
  */
 export const handleDeleteMonster = async (req: Request, res: Response) => {
@@ -107,10 +105,6 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     //   - `contributedMonsters[id]` (history)
     //   - `contributedDrafts[id]` (in-progress picks, if any)
     //   - `pendingCompletionBanners` entries pointing at this monster
-    //     (spec edge case: "If an admin deleted the monster, the player
-    //     would not get the toasts or banner." — for peers who haven't
-    //     opened the app since finalize, the queued blue banner would
-    //     name a monster that no longer exists; drop it here.)
     //   - `pendingWinBanners` entries pointing at this monster (same
     //     reasoning for green award banners).
     // One combined write per contributor. Foreign profileId → User class

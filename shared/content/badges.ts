@@ -1,23 +1,4 @@
-/**
- * Monster Mash badge catalog. 38 badges grouped into four Trophy-drawer
- * sections (mockup image24). Names match the spec verbatim so the ecosystem
- * inventory lookup by name works — the ecosystem holds the artwork; this
- * file only knows the tag + threshold.
- *
- * `thresholdKind` describes what counters/state trigger the grant:
- *   - buildSubmit: total sections submitted
- *   - buildComplete: total monsters this profile helped complete (any section)
- *   - completeAsThird: total times this profile submitted the THIRD (finishing) section
- *   - vote: total votes cast
- *   - weeksVoted: distinct weeks this profile voted in
- *   - visitAppOpens: distinct app-open days
- *   - winCategory: monsters with an award — one badge per voting category, name
- *     stored as `Winner: {Category} Monster`
- *
- * Grant policy: check when the underlying counter changes. `grantBadgeIfNew`
- * looks up whether the ecosystem badge already exists in the visitor's
- * inventory before granting.
- */
+// TODO: Move params into metadata when PM provides actual badges for inventory
 
 export type BadgeGroup = "building" | "voting" | "visiting" | "winning";
 
@@ -60,7 +41,18 @@ const VISITING: BadgeDef[] = [
   { name: "Legendary Masher", group: "visiting", thresholdKind: "visitAppOpens", threshold: 30 },
 ];
 
-const WINNING = ["silliest", "cutest", "grumpiest", "best-dressed", "spookiest", "friendliest", "sneakiest", "wisest", "bravest", "weirdest"].map(
+const WINNING = [
+  "silliest",
+  "cutest",
+  "grumpiest",
+  "best-dressed",
+  "spookiest",
+  "friendliest",
+  "sneakiest",
+  "wisest",
+  "bravest",
+  "weirdest",
+].map(
   (categoryId): BadgeDef => ({
     name: `Winner: ${toDisplay(categoryId)} Monster`,
     group: "winning",

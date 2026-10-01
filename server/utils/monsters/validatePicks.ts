@@ -28,7 +28,7 @@ export interface ValidatePicksResult {
  *  - Every part id must resolve to a part under the caller's `section`.
  *  - `nameToken` must be one of the section's authored 30.
  *  - Legs-only: if `legs.legs` is a `supportsFeet: false` part, `legs.feet`
- *    must be `"NONE"` (mockup image5's "no feet" pill).
+ *    must be `"NONE"`.
  *  - No `parts.categoryId` outside the section's category list (rejects
  *    smuggling head picks under a torso submit).
  */
@@ -61,9 +61,11 @@ export const validatePicks = async ({
     const part: PartDef | undefined = partById[pick];
     if (!part) return { ok: false, error: `unknown part "${pick}"` };
     if (part.section !== section) return { ok: false, error: `part "${pick}" belongs to section "${part.section}"` };
-    if (part.categoryId !== cat.id) return { ok: false, error: `part "${pick}" belongs to category "${part.categoryId}"` };
+    if (part.categoryId !== cat.id)
+      return { ok: false, error: `part "${pick}" belongs to category "${part.categoryId}"` };
     const partsInCat = partsByCategory[cat.id] ?? [];
-    if (!partsInCat.some((p) => p.id === pick)) return { ok: false, error: `part "${pick}" not registered under "${cat.id}"` };
+    if (!partsInCat.some((p) => p.id === pick))
+      return { ok: false, error: `part "${pick}" not registered under "${cat.id}"` };
     normalized[cat.id] = pick;
   }
 
@@ -78,7 +80,8 @@ export const validatePicks = async ({
 
   // Name token: must be an authored one for this section.
   if (typeof nameToken !== "string" || !nameToken.trim()) return { ok: false, error: "nameToken required" };
-  if (!NAME_TOKENS[section].includes(nameToken)) return { ok: false, error: `nameToken "${nameToken}" not authored for ${section}` };
+  if (!NAME_TOKENS[section].includes(nameToken))
+    return { ok: false, error: `nameToken "${nameToken}" not authored for ${section}` };
 
   return { ok: true, normalizedPicks: normalized };
 };

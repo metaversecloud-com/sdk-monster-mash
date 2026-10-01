@@ -8,9 +8,8 @@ export interface EvictInProgressResult {
 }
 
 /**
- * Enforces `IN_PROGRESS_CAP` (spec §Create tab: max 100 in-progress).
- * Evicts the oldest by `lastEditedAt` (falls back to `createdAt`) — matches
- * spec's "eldest-first" rule. Doesn't touch `state: "complete"` entries.
+ * Enforces `IN_PROGRESS_CAP` (max 100 in-progress).
+ * Evicts the oldest by `lastEditedAt` (falls back to `createdAt`). Doesn't touch `state: "complete"` entries.
  *
  * We reserve one slot for the caller who is about to `POST /monsters/start`,
  * so eviction runs down to `IN_PROGRESS_CAP - 1` when `reserveOne` is true.

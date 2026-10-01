@@ -9,14 +9,14 @@ interface PartGridProps {
   onChange: (partId: string) => void;
   /**
    * Optional disabled-ids set. Used by legs.feet when the picked `legs.legs`
-   * has `supportsFeet: false` — tile shows a "no feet" pill and is unclickable.
+   * has `supportsFeet: false` - tile shows a "no feet" pill and is unclickable.
    */
   disabledIds?: Set<string>;
 }
 
 /**
  * Card-grid part picker for one category. NONE-allowing categories render a
- * dashed-red NONE tile with a no-entry glyph (mockup image29).
+ * dashed-red NONE tile with a no-entry glyph.
  *
  * Each tile crops the part image to just the section's art region (see
  * `SECTION_CROP`) so heads, torsos, and legs each fill their tile without
@@ -37,7 +37,7 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
       <button
         key={tileId}
         type="button"
-        className={`rounded-lg bg-white flex flex-col items-center justify-center gap-1 m-[1px] p-[2px] overflow-hidden transition mm-border-default ${
+        className={`rounded-lg bg-white flex flex-col items-center justify-center gap-1 m-[1px] p-[2px] overflow-hidden transition mm-border-2 ${
           isPicked ? "mm-border-success" : "border-transparent"
         } ${isNone ? "border-dashed border-red-300 text-red-500" : ""} ${isDisabled ? "opacity-40" : ""}`}
         style={{ height: crop.parts?.[category.id as keyof NonNullable<typeof crop.parts>]?.height || crop.height }}

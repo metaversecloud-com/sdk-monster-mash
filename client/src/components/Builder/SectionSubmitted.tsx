@@ -11,7 +11,7 @@ interface SectionSubmittedProps {
   contributorNames?: string[];
   /** Composited monster PNG URL. Complete variant only; null while finalize is retrying. */
   imageUrl?: string | null;
-  /** Just-submitted picks — used for a layered preview on the "not complete" screen. */
+  /** Just-submitted picks - used for a layered preview on the "not complete" screen. */
   picks?: { [categoryId: string]: string };
   /** How many sections still need a contributor to finish this monster. Used in the "not complete" copy. */
   sectionsRemaining?: number;
@@ -19,9 +19,9 @@ interface SectionSubmittedProps {
 }
 
 /**
- * Post-submit screen. Two variants (from mockups image15/image19 + image26):
- *   - Section submitted (not complete yet) — "Name so far:" placeholder.
- *   - Complete — real "IT'S ALIVE!" moment: composed art, name, attribution,
+ * Post-submit screen. Two variants:
+ *   - Section submitted (not complete yet) - "Name so far:" placeholder.
+ *   - Complete - real "IT'S ALIVE!" moment: composed art, name, attribution,
  *     three ✓ bullets (Placed in the world / Added to the gallery / Entered
  *     in the next vote), Download PNG (opens PNG in new tab), Back.
  */
@@ -54,7 +54,7 @@ export const SectionSubmitted = ({
           />
         ) : (
           <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center text-gray-500 p-4">
-            World drop is queued — refresh the app in a moment.
+            World drop is queued - refresh the app in a moment.
           </div>
         )}
 
@@ -76,7 +76,7 @@ export const SectionSubmitted = ({
               <span>
                 Entered in the next vote
                 <br />
-                <span className="mm-text-xs mm-text-amber pt-1">if enough are finished — otherwise the one after</span>
+                <span className="mm-text-xs mm-text-amber pt-1">if enough are finished - otherwise the one after</span>
               </span>
             </span>
           </li>
@@ -99,7 +99,7 @@ export const SectionSubmitted = ({
         {typeof sectionsRemaining === "number" && sectionsRemaining > 0 && (
           <>
             {" "}
-            — {sectionsRemaining} {sectionsRemaining === 1 ? "section" : "sections"} to go
+            - {sectionsRemaining} {sectionsRemaining === 1 ? "section" : "sections"} to go
           </>
         )}
       </p>
@@ -122,7 +122,7 @@ export const SectionSubmitted = ({
           {section === "legs" ? nameToken : "___"}
         </p>
       </div>
-      <button className="btn mm-button-secondary" onClick={onBackToMonsterMash} disabled={isBusy}>
+      <button className="btn mm-btn-secondary" onClick={onBackToMonsterMash} disabled={isBusy}>
         Back to Monster Mash
       </button>
     </div>

@@ -50,21 +50,19 @@ export const handleCastVote = async (req: Request, res: Response) => {
 
     // Vote-cap accounting.
     const cap = Math.max(0, cycle.poolMonsterIds.length * VOTE_CAP_MULTIPLIER);
-    const voted = visitorData.votesCastThisWeek?.windowId === cycle.cycleId
-      ? visitorData.votesCastThisWeek.count
-      : 0;
+    const voted = visitorData.votesCastThisWeek?.windowId === cycle.cycleId ? visitorData.votesCastThisWeek.count : 0;
     if (cap > 0 && voted >= cap) {
       return res.status(429).json({ success: false, message: "You've hit your vote cap for this cycle." });
     }
 
-    // Fresh lockId per attempt (5s bucket) — `lockDataObject` never
+    // Fresh lockId per attempt (5s bucket) - `lockDataObject` never
     // releases, so a constant key would 409 forever after the first use.
     const lockBucket = Math.round(Date.now() / 5000) * 5000;
     const lockId = `${keyAsset.id}-vote-${cycle.cycleId}-${lockBucket}`;
     try {
       await lockDataObject(lockId, keyAsset);
     } catch (error) {
-      return res.status(409).json({ success: false, message: "Vote collision — retry." });
+      return res.status(409).json({ success: false, message: "Vote collision - retry." });
     }
 
     await keyAsset.fetchDataObject();
@@ -151,7 +149,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
   }
 };
 
-const dedupPush = <T,>(arr: T[], value: T): T[] => (arr.includes(value) ? arr : [...arr, value]);
+const dedupPush = <T>(arr: T[], value: T): T[] => (arr.includes(value) ? arr : [...arr, value]);
 
 const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster | null => {
   if (!entry) return null;

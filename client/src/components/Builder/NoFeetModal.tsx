@@ -6,11 +6,7 @@ interface NoFeetModalProps {
 }
 
 /**
- * Mockup image5: legs-no-feet incompatibility. Fires when the user picks a
- * `legs.legs` part whose `supportsFeet` is false while `legs.feet` is a
- * real part. Backed by the shared `ConfirmationModal` — "confirm" swaps to
- * the new legs (clearing feet), "cancel" keeps the current feet + reverts
- * the legs pick.
+ * Fires when the user picks a `legs.legs` part whose `supportsFeet` is false while `legs.feet` is a real part.
  */
 export const NoFeetModal = ({ onKeep, onUseNewLegs }: NoFeetModalProps) => {
   return (

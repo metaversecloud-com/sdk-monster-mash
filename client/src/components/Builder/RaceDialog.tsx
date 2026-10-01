@@ -6,10 +6,8 @@ interface RaceDialogProps {
 }
 
 /**
- * Mockup image12: "Oops, that one was just claimed!" — surfaces when a
- * server response says 409 on claim or on submit-lock verification. Backed
- * by the shared `ConfirmationModal` so styling stays consistent.
- *
+ * "Oops, that one was just claimed!" surfaces when a
+ * server response says 409 on claim or on submit-lock verification.
  * The "cancel" affordance is Back to the list (closes the modal), and the
  * "confirm" affordance kicks off a fresh POST /monsters/start.
  */

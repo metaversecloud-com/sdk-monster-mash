@@ -37,7 +37,7 @@ export const NextCategoryLine = () => {
 
   return (
     <p className="text-xs mm-text-muted text-center px-2 py-1">
-      Next week's voting category: <strong className="mm-text-white">{nextCategory}</strong> — FINISH your monsters by{" "}
+      Next week's voting category: <strong className="mm-text-white">{nextCategory}</strong> - FINISH your monsters by{" "}
       {submissionCutoffLabel} to enter them in next week's vote!
     </p>
   );

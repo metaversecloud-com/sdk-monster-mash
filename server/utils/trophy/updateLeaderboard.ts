@@ -1,38 +1,42 @@
 import { KeyAssetDataObject, StoredWinner } from "@shared/types/index.js";
+import { formatLeaderboardRow, parseLeaderboardRow } from "./leaderboardRow.js";
 
 interface UpdateInput {
-  currentLeaderboard: KeyAssetDataObject["trophyLeaderboard"];
+  currentLeaderboard: KeyAssetDataObject["leaderboard"];
   monsters: KeyAssetDataObject["monsters"];
   freshlyCrowned: StoredWinner[];
 }
 
 /**
- * PURE. Given the current trophyLeaderboard + a batch of freshly-crowned
+ * PURE. Given the current leaderboard + a batch of freshly-crowned
  * winners, returns the next leaderboard state. The caller is responsible
  * for persisting it — this util does not write.
  *
  *   - Each contributor of a winning monster gets +1 award.
  *   - `monstersContributedTo` = distinct monsters this profile has any
  *     section on (recomputed from the current roster snapshot).
+ *
+ * Rows are serialized to the compact pipe-joined form on the way out
+ * (`"{displayName}|{awardsWon}|{monstersContributedTo}"`) — see
+ * `KeyAssetDataObject.leaderboard` for the rationale.
  */
 export const computeLeaderboardForWinners = ({
   currentLeaderboard,
   monsters,
   freshlyCrowned,
-}: UpdateInput): NonNullable<KeyAssetDataObject["trophyLeaderboard"]> => {
-  const nextBoard: NonNullable<KeyAssetDataObject["trophyLeaderboard"]> = { ...(currentLeaderboard ?? {}) };
-  const now = Date.now();
+}: UpdateInput): NonNullable<KeyAssetDataObject["leaderboard"]> => {
+  // Parse the existing compact rows into working objects so we can accumulate
+  // award counts without constantly re-splitting the strings.
+  const working = new Map<string, { displayName: string; awardsWon: number; monstersContributedTo: number }>();
+  for (const [profileId, row] of Object.entries(currentLeaderboard ?? {})) {
+    working.set(profileId, parseLeaderboardRow(row));
+  }
+
   for (const winner of freshlyCrowned) {
     for (const profileId of winner.contributorProfileIds ?? []) {
-      const row = nextBoard[profileId] ?? {
-        displayName: "",
-        awardsWon: 0,
-        monstersContributedTo: 0,
-        lastActivityAt: 0,
-      };
+      const row = working.get(profileId) ?? { displayName: "", awardsWon: 0, monstersContributedTo: 0 };
       row.awardsWon += 1;
-      row.lastActivityAt = now;
-      nextBoard[profileId] = row;
+      working.set(profileId, row);
     }
   }
 
@@ -63,17 +67,25 @@ export const computeLeaderboardForWinners = ({
       }
     }
   }
-  for (const [profileId, count] of contributionCount) {
-    const row = nextBoard[profileId] ?? {
-      displayName: "",
-      awardsWon: 0,
-      monstersContributedTo: 0,
-      lastActivityAt: 0,
-    };
-    row.monstersContributedTo = count;
+  // `monstersContributedTo` is a fresh snapshot of the current roster — for
+  // every profile we know about (either freshly crowned OR carried over from
+  // the previous leaderboard), set the count to whatever the roster says
+  // right now (0 if they're no longer on any monster). Without this, a
+  // historical award-holder whose monsters have all been evicted or deleted
+  // would show a stale "built" number forever.
+  const seenProfiles = new Set<string>([...working.keys(), ...contributionCount.keys()]);
+  for (const profileId of seenProfiles) {
+    const row = working.get(profileId) ?? { displayName: "", awardsWon: 0, monstersContributedTo: 0 };
+    row.monstersContributedTo = contributionCount.get(profileId) ?? 0;
     const displayName = displayNameByProfile.get(profileId);
     if (displayName) row.displayName = displayName;
-    nextBoard[profileId] = row;
+    working.set(profileId, row);
+  }
+
+  // Serialize back to the compact storage shape.
+  const nextBoard: NonNullable<KeyAssetDataObject["leaderboard"]> = {};
+  for (const [profileId, row] of working) {
+    nextBoard[profileId] = formatLeaderboardRow(row);
   }
   return nextBoard;
 };

@@ -25,7 +25,7 @@ import {
  *   - Current window / cycle / stored winners.
  *   - Banner bundle picked from the visitor's pending queues.
  *
- * Nothing here mutates roster/cycle state — those flow through
+ * Nothing here mutates roster/cycle state - those flow through
  * controllers unique to their epic. This controller is safe to call
  * from every tab (Create/Gallery/Vote) on every open.
  */
@@ -40,7 +40,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
 
     // Compute every opportunistic mutation up front (advance weekly cycle,
     // stale-lock expiry, trophy leaderboard) and write them together in a
-    // SINGLE `updateDataObject` call — per the "one write per controller per
+    // SINGLE `updateDataObject` call - per the "one write per controller per
     // dataObject" memory. Two separate writes would trigger lock contention
     // ("This data object is busy") on the SDK side.
     const now = Date.now();
@@ -49,7 +49,27 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
     // After the rollover, the monsters map is the same shape as before (advance
     // doesn't touch it). Run stale-lock expiry on that.
     const expiry = expireStaleLocks(dataObject.monsters, now);
-    const monsters = expiry.monsters;
+    let monsters = expiry.monsters;
+    let monstersChanged = expiry.changed;
+
+    // Stamp `latestAward` onto every freshly-crowned monster in the roster -
+    // without this, the Gallery's "Show only award winners" filter and the
+    // card ribbon stay empty even though the win banner fires correctly. The
+    // win banner reads straight off `pendingWinBanners`, but Gallery/single-
+    // monster surfaces read `latestAward` off the roster entry.
+    if (advance.changed && advance.freshlyCrownedWinners.length > 0) {
+      const nextMonsters = { ...(monsters ?? {}) };
+      for (const w of advance.freshlyCrownedWinners) {
+        const existing = nextMonsters[w.monsterId];
+        if (!existing) continue; // winner's monster was evicted/deleted between crowning and this write - skip.
+        nextMonsters[w.monsterId] = {
+          ...existing,
+          latestAward: { category: w.category, place: w.place, awardedAt: w.awardedAt },
+        };
+      }
+      monsters = nextMonsters;
+      monstersChanged = true;
+    }
 
     const nextPatch: Record<string, unknown> = {};
     if (advance.changed) {
@@ -58,12 +78,12 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       nextPatch.storedWinners = advance.next.storedWinners;
       nextPatch.categorySchedule = advance.next.categorySchedule;
     }
-    if (expiry.changed) {
+    if (monstersChanged) {
       nextPatch.monsters = monsters;
     }
     if (advance.changed && advance.freshlyCrownedWinners.length > 0) {
-      nextPatch.trophyLeaderboard = computeLeaderboardForWinners({
-        currentLeaderboard: dataObject.trophyLeaderboard,
+      nextPatch.leaderboard = computeLeaderboardForWinners({
+        currentLeaderboard: dataObject.leaderboard,
         monsters,
         freshlyCrowned: advance.freshlyCrownedWinners,
       });
@@ -79,7 +99,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       );
     }
 
-    // Win-banner fanout — bucket banners by profileId first so each peer
+    // Win-banner fanout - bucket banners by profileId first so each peer
     // visitor receives a SINGLE write even when they contributed to multiple
     // freshly-crowned winners. The caller's banners get merged into their
     // combined visitor write further down.
@@ -136,7 +156,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       forceRefreshInventory,
     });
 
-    // Admin-only post-deploy trigger — bust the memoized parts catalog + walk
+    // Admin-only post-deploy trigger - bust the memoized parts catalog + walk
     // `client/public/parts/` (or `client/build/parts/` in prod) again. Non-
     // admins get the flag silently ignored so an accidental share of the URL
     // doesn't cost a disk scan. Same pattern as `forceRefreshInventory`.
@@ -158,7 +178,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
     //     lock TTL (30 min). The recent `expireStaleLocks` above flips a
     //     lapsed lock back to `available`; if the visitor's own draft has
     //     also aged out, treat it as gone. When the draft is still fresh
-    //     but the roster reads `available` we DO NOT clear — that pattern
+    //     but the roster reads `available` we DO NOT clear - that pattern
     //     shows up during the eventual-consistency window right after a
     //     claim, and the Join re-claim path heals it.
     let activeDraftShouldClear = false;
@@ -184,10 +204,33 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
         callerWinBanners.length > 0
           ? [...(visitorData.pendingWinBanners ?? []), ...callerWinBanners]
           : visitorData.pendingWinBanners;
+
+      // Also stamp each new win onto the caller's contributedMonsters[id].awards
+      // so the Gallery's "mine + winners" filter surfaces evicted own-winners
+      // (that path uses contribEntry.awards[0] when the roster entry is gone).
+      // Peers get the same treatment inside enqueueWinBannersByProfile above.
+      let nextContributed = visitorData.contributedMonsters;
+      if (callerWinBanners.length > 0) {
+        const draft = { ...(visitorData.contributedMonsters ?? {}) };
+        for (const b of callerWinBanners) {
+          const existing = draft[b.monsterId];
+          if (!existing) continue;
+          const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
+          const alreadyAwarded = (existing.awards ?? []).some(
+            (a) => a.category === award.category && a.place === award.place,
+          );
+          if (!alreadyAwarded) {
+            draft[b.monsterId] = { ...existing, awards: [...(existing.awards ?? []), award] };
+          }
+        }
+        nextContributed = draft;
+      }
+
       const nextScoped: MonsterMashVisitorData = {
         ...visitorData,
         daysAppOpened: nextDays,
         pendingWinBanners: nextPendingWin ?? [],
+        contributedMonsters: nextContributed ?? {},
       };
       if (activeDraftShouldClear) delete nextScoped.activeDraft;
 
@@ -212,7 +255,10 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
           errorHandler({ error, functionName: "handleGetMainApp", message: "Non-fatal: caller-visitor bump failed" }),
         );
       visitorData.daysAppOpened = nextDays;
-      if (callerWinBanners.length > 0) visitorData.pendingWinBanners = nextPendingWin ?? [];
+      if (callerWinBanners.length > 0) {
+        visitorData.pendingWinBanners = nextPendingWin ?? [];
+        visitorData.contributedMonsters = nextContributed ?? {};
+      }
       if (activeDraftShouldClear) delete visitorData.activeDraft;
     }
 

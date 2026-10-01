@@ -1,10 +1,11 @@
 import { UserInterface, VisitorInterface } from "@rtsdk/topia";
 import { MonsterMashVisitorData, Place, VisitorDataObjectType } from "@shared/types/index.js";
 import { Credentials } from "../../types/index.js";
+import { createEmptyVisitorData } from "../getVisitor.js";
 import { User } from "../topiaInit.js";
 
 /**
- * Fan-out helpers for the two banner-queue types the spec defines:
+ * Fan-out helpers for the two banner-queue types:
  *   - Win banners: fired when a vote cycle closes and this profile
  *     contributed to a winning monster.
  *   - Completion banners: fired when the third section of a monster
@@ -29,21 +30,6 @@ interface CompletionBannerEntry {
 
 const scopedKey = (credentials: Credentials): string => `${credentials.urlSlug}-${credentials.sceneDropId}`;
 
-const emptyScoped = (): MonsterMashVisitorData => ({
-  schemaVersion: 1,
-  dateStarted: Date.now(),
-  contributedMonsters: {},
-  pendingWinBanners: [],
-  pendingCompletionBanners: [],
-  daysAppOpened: [],
-  weeksVotedIn: [],
-  weeksSubmittedIn: [],
-  weeksCreatedMonsterIn: [],
-  votesCastThisWeek: { windowId: "", count: 0 },
-  totalVotesCast: 0,
-  totalThirdSectionCompletions: 0,
-});
-
 const patchQueues = async (
   target: VisitorInterface | UserInterface,
   credentials: Credentials,
@@ -51,7 +37,7 @@ const patchQueues = async (
 ) => {
   const raw = ((await target.fetchDataObject()) || {}) as VisitorDataObjectType;
   const key = scopedKey(credentials);
-  const scoped = (raw[key] as MonsterMashVisitorData | undefined) ?? emptyScoped();
+  const scoped = (raw[key] as MonsterMashVisitorData | undefined) ?? createEmptyVisitorData();
   const next = patch(scoped);
   await target.updateDataObject({ [key]: next }, {});
 };
@@ -61,6 +47,12 @@ const patchQueues = async (
  * write per profile. Callers pass a `profileId → banners[]` map so we don't
  * write the same visitor twice when they're a contributor to multiple
  * freshly-crowned winners in the same batch.
+ *
+ * Also stamps each banner's award onto `contributedMonsters[monsterId].awards`
+ * for that contributor — the Gallery's "Show only my monsters" filter reads
+ * from the visitor's contributedMonsters (so evicted own-monsters still
+ * surface), and that path uses `awards[0]` as the ribbon. Without this
+ * fanout the "mine + winners" case silently returns zero cards.
  */
 export const enqueueWinBannersByProfile = async (
   credentials: Credentials,
@@ -74,10 +66,28 @@ export const enqueueWinBannersByProfile = async (
       const target = isCaller
         ? (callerVisitor as VisitorInterface)
         : await User.create({ profileId, credentials: { ...credentials, profileId } });
-      await patchQueues(target, credentials, (scoped) => ({
-        ...scoped,
-        pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
-      }));
+      await patchQueues(target, credentials, (scoped) => {
+        const nextContributed = { ...(scoped.contributedMonsters ?? {}) };
+        for (const b of banners) {
+          const existing = nextContributed[b.monsterId];
+          if (!existing) continue; // profile didn't contribute to this monster — nothing to stamp.
+          const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
+          // De-dupe: skip if the same award (same monster + category + place)
+          // is already present. advanceWeeklyCycle normally only fires once
+          // per monster, but a second main-app open mid-fanout could re-enter.
+          const alreadyAwarded = (existing.awards ?? []).some(
+            (a) => a.category === award.category && a.place === award.place,
+          );
+          nextContributed[b.monsterId] = alreadyAwarded
+            ? existing
+            : { ...existing, awards: [...(existing.awards ?? []), award] };
+        }
+        return {
+          ...scoped,
+          contributedMonsters: nextContributed,
+          pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
+        };
+      });
     } catch (error) {
       console.warn(`enqueueWinBannersByProfile: could not enqueue for ${profileId}`, error);
     }

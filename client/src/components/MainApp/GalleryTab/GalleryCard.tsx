@@ -8,15 +8,13 @@ import { backendAPI, setErrorMessage } from "@/utils";
 
 interface GalleryCardProps {
   monster: GalleryMonster;
-  /** True when the caller is an admin — surfaces the per-card Delete affordance. */
   callerIsAdmin?: boolean;
-  /** Opens the delete-confirmation modal at the tab level. Only invoked when admin. */
   onAdminDelete?: (monster: GalleryMonster) => void;
 }
 
 /**
- * One monster card on the Gallery tab (mockup image3 / image25 / image5).
- *   - Green outline when the caller contributed (spec §Gallery: "Green outline = yours").
+ * One monster card on the Gallery tab.
+ *   - Green outline when the caller contributed.
  *   - Award ribbon at the top when awarded.
  *   - Contributor names dot-separated.
  *   - "Born {date}" caption.
@@ -93,7 +91,7 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
             type="button"
             className="btn btn-danger"
             aria-label={`Delete ${monster.name || "this monster"} (admin only)`}
-            title="Admin only — delete this monster from gallery and world"
+            title="Admin only - delete this monster from gallery and world"
             onClick={() => onAdminDelete(monster)}
             disabled={isBusy}
           >

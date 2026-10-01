@@ -4,8 +4,7 @@ import type { AwardRibbon as AwardRibbonType } from "@shared/types/index";
 const PLACE_LABEL = { 1: "1st", 2: "2nd", 3: "3rd" } as const;
 
 /**
- * Dark ribbon shown on Gallery cards + Single Monster View. Reads
- * `{PLACE · CATEGORY · DATE}` — mockups image9 / image25.
+ * Dark ribbon shown on Gallery cards + Single Monster View. Reads `{PLACE · CATEGORY · DATE}`.
  */
 export const AwardRibbon = ({ award }: { award: AwardRibbonType }) => {
   const label = VOTING_CATEGORY_BY_ID[award.category]?.label ?? award.category;

@@ -23,8 +23,7 @@ import { Section } from "../types/SharedTypes.js";
 /**
  * `layerKey` is the slot this category writes into for `LAYER_ORDER`.
  * `allowsNone` — if true, the picker includes a NONE tile (no-part is a valid look).
- * `required` — every category is required (spec §Builder: "there are no optional categories");
- *   `allowsNone` is how "nothing" is expressed.
+ * `required` — every category is required, `allowsNone` is how "nothing" is expressed.
  */
 export interface CategoryDef {
   id: string;
@@ -69,7 +68,7 @@ export const CATEGORIES_BY_SECTION: Record<Section, readonly CategoryDef[]> = {
 /**
  * `supportsFeet` is legs-only. When a picked `legs.legs` part has
  * `supportsFeet: false`, the Builder disables the `feet` category and
- * fires the incompatibility modal (spec §Legs sub-rule).
+ * fires the incompatibility modal.
  */
 export interface PartDef {
   id: string;
@@ -251,8 +250,7 @@ export const NAME_TOKENS: Record<Section, readonly string[]> = {
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rotation runs in `orderIds` order (spec §Voting Categories launch order).
- * `question` is the H1 on the Vote tab: "Which one is the {question}?".
+ * Rotation runs in `orderIds` order. `question` is the H1 on the Vote tab: "Which one is the {question}?".
  */
 export interface VotingCategoryDef {
   id: string;

@@ -6,9 +6,7 @@ import { errorHandler, getCredentials, getVisitor } from "@utils/index.js";
  * POST /api/banners/acknowledge
  * Body: { win?: boolean, completion?: boolean }
  *
- * Clears the caller's pending banner queues once the client has surfaced
- * them (spec §Banner priority order: "shown until first viewed, then
- * cleared").
+ * Clears the caller's pending banner queues once the client has surfaced them.
  */
 export const handleAcknowledgeBanners = async (req: Request, res: Response) => {
   try {

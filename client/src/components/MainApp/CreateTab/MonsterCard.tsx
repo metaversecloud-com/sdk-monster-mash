@@ -52,7 +52,7 @@ export const MonsterCard = ({
 
       <div className="grid gap-2">
         {SECTIONS.map((s) => {
-          // `isBusy` reflects only the global in-flight state now — Join on
+          // `isBusy` reflects only the global in-flight state now - Join on
           // a peer's monster is enabled even when the caller holds a draft
           // elsewhere; clicking opens ClaimSwitchModal in CreateTab.
           return (

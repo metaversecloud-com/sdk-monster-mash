@@ -7,7 +7,7 @@ interface MatchupCardProps {
   disabled: boolean;
 }
 
-/** One of the two side-by-side matchup cards (mockup image28). */
+/** One of the two side-by-side matchup cards. */
 export const MatchupCard = ({ monster, onVote, isVoting, disabled }: MatchupCardProps) => {
   return (
     <div className="card p-4 flex flex-col items-center gap-2 flex-1 min-w-[220px]">
