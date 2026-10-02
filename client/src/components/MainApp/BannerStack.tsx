@@ -97,7 +97,7 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
           </p>
           <button
             type="button"
-            className="btn mm-btn-sm"
+            className="btn mm-btn-sm w-fit"
             disabled={isBusy}
             onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
           >

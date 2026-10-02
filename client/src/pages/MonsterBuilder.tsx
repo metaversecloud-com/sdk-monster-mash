@@ -298,11 +298,11 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
               aria-disabled={!allChosen || isBusy}
             >
               <div className="flex flex-col">
-                <p className="font-bold text-xl capitalize">Submit {section}</p>
+                <p className="font-bold text-xl capitalize mm-text-done">Submit {section}</p>
                 {allChosen ? (
-                  <p>Ready to submit!</p>
+                  <p className="text-xs mm-text-done">Ready to submit!</p>
                 ) : (
-                  <p className="text-xs">
+                  <p className="text-xs mm-text-done">
                     choose all {categories.length + 1} - {categories.length + 1 - chosenCount - (nameToken ? 1 : 0)}{" "}
                     left
                   </p>

@@ -93,7 +93,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
                   className="w-56 h-72 object-contain rounded-2xl bg-gray-50 border"
                 />
               ) : (
-                <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center text-gray-500 p-4">
+                <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center mm-text-on-card-muted p-4">
                   Composite pending.
                 </div>
               )}

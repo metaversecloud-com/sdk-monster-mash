@@ -53,7 +53,7 @@ export const SectionSubmitted = ({
             className="w-56 h-72 object-contain rounded-2xl bg-gray-50 border"
           />
         ) : (
-          <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center text-gray-500 p-4">
+          <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center mm-text-on-card-muted p-4">
             World drop is queued - refresh the app in a moment.
           </div>
         )}
@@ -116,11 +116,11 @@ export const SectionSubmitted = ({
         />
       )}
       <div className="card p-4 flex flex-col gap-2">
-        <p className="p2 text-gray-600">Name so far:</p>
-        <p className="h4">
+        <p className="p2 mm-on-card-muted">Name so far:</p>
+        <h4>
           {section === "head" ? nameToken : "___"} {section === "torso" ? nameToken : "___"}{" "}
           {section === "legs" ? nameToken : "___"}
-        </p>
+        </h4>
       </div>
       <button className="btn mm-btn-secondary" onClick={onBackToMonsterMash} disabled={isBusy}>
         Back to Monster Mash

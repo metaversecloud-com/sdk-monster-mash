@@ -198,12 +198,12 @@ export const CreateTab = () => {
       className="flex flex-col gap-6 py-2"
     >
       {claimError && (
-        <div role="alert" className="card p-3 border-l-4 border-red-500 bg-red-50 text-red-700">
+        <div role="alert" className="card p-3 border-l-4 mm-border-danger mm-bg-danger-lt mm-text-danger">
           {claimError}
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2">
         {/* Create-New tile - always first. */}
         <button
           type="button"
@@ -217,9 +217,10 @@ export const CreateTab = () => {
           >
             +
           </span>
-          <span>
+          <span className="grid gap-2">
             <h3 className="mm-text-white">Create New Monster</h3>
-            <p className="text-sm mm-text-accent-lt text-center mt-1">you'll be given a section to build</p>
+            <p className="text-xs mm-text-muted text-center mt-1">you'll be given a section to build</p>
+            <div className="btn mm-btn-primary text-lg mt-3">Create</div>
           </span>
         </button>
 

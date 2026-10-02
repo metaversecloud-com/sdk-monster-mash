@@ -91,7 +91,7 @@ export const AdminView = () => {
             />
           </button>
         </div>
-        <p className="p2 text-gray-600">
+        <p className="p2 mm-on-card-muted">
           Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
           start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
           about the next vote!").

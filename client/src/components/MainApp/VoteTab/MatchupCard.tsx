@@ -14,11 +14,11 @@ export const MatchupCard = ({ monster, onVote, isVoting, disabled }: MatchupCard
       {monster.imageUrl ? (
         <img src={monster.imageUrl} alt={monster.name} className="w-40 h-48 object-contain" />
       ) : (
-        <span aria-hidden="true" className="text-5xl text-gray-400">
+        <span aria-hidden="true" className="text-5xl mm-text-on-card-subtle">
           ?
         </span>
       )}
-      <h4 className="h4 text-center leading-tight">{monster.name || "unnamed"}</h4>
+      <h4 className="text-center leading-tight">{monster.name || "unnamed"}</h4>
       <button className="btn w-full" onClick={onVote} disabled={isVoting || disabled}>
         {isVoting ? "Voting…" : "Vote for this one"}
       </button>

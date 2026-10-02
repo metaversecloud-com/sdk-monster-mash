@@ -57,10 +57,10 @@ export const LeaderboardTab = ({ rows, callerRow, isAdmin, onAfterReset }: Leade
         ))}
         {callerRow && (
           <div className="flex items-center gap-2 p-2 rounded mm-border-1 mm-border-amber mm-bg-amber mt-2">
-            <span className="text-gray-500 w-6 text-sm">{callerRow.rank}</span>
+            <span className="mm-text-on-card-muted w-6 text-sm">{callerRow.rank}</span>
             <span className="flex-1 font-semibold truncate">{callerRow.displayName} (you)</span>
             <span className="w-8 text-right font-semibold">{callerRow.awardsWon}</span>
-            <span className="w-8 text-right text-gray-500">{callerRow.monstersContributedTo}</span>
+            <span className="w-8 text-right mm-text-on-card-muted">{callerRow.monstersContributedTo}</span>
           </div>
         )}
       </div>

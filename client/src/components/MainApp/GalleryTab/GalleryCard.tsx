@@ -70,7 +70,7 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
         {monster.imageUrl ? (
           <img src={monster.imageUrl} alt={monster.name || "monster"} className="w-40 h-44 object-contain" />
         ) : (
-          <span aria-hidden="true" className="text-5xl text-gray-400">
+          <span aria-hidden="true" className="text-5xl mm-text-on-card-subtle">
             ?
           </span>
         )}
@@ -79,9 +79,9 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
       <div className="flex flex-col items-center text-center gap-1 min-h-[90px]">
         <h4 className="leading-tight">{monster.name || "unnamed"}</h4>
         {monster.contributorDisplayNames.length > 0 && (
-          <p className="p2 text-gray-700 text-sm">{monster.contributorDisplayNames.join(" · ")}</p>
+          <p className="p2 mm-text-accent-dark text-sm">{monster.contributorDisplayNames.join(" · ")}</p>
         )}
-        {born && <p className="text-xs text-gray-500">Born {born}</p>}
+        {born && <p className="text-xs mm-text-on-card-muted">Born {born}</p>}
       </div>
 
       <div className="flex items-center justify-center gap-2">

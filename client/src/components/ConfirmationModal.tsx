@@ -78,7 +78,7 @@ export const ConfirmationModal = ({
           </a>
         </div>
         <p>{message}</p>
-        <div className="actions">
+        <div className="actions gap-2">
           <button id="close" className="btn btn-outline" onClick={onCancel} disabled={areButtonsDisabled}>
             {cancelLabel}
           </button>

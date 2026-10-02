@@ -150,7 +150,9 @@ export const VoteTab = () => {
                     })}!`
                   : "The next vote will open when this week's submission window closes."}
               </p>
-              <p className="text-xs text-gray-500 mt-1">(it opens the first time someone opens the app that day)</p>
+              <p className="text-xs mm-text-on-card-muted mt-1">
+                (it opens the first time someone opens the app that day)
+              </p>
             </div>
           )}
 

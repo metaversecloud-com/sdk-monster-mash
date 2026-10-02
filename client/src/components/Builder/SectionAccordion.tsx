@@ -39,7 +39,7 @@ export const SectionAccordion = ({
           {isExpandable && (
             <span aria-hidden="true" className="text-lg mm-text-done px-1">
               <img
-                className={isOpen ? "mm-flip-vertical" : ""}
+                className={`w-[12px] {isOpen ? "mm-flip-vertical" : ""}`}
                 src="https://sdk-style.s3.amazonaws.com/icons/chevronDown.svg"
               />
             </span>

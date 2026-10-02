@@ -53,84 +53,87 @@ export const SectionSlot = ({
   // either a submitted contribution or a currently-locked draft.
   const lockedIntoThisMonster = callerContributed || !!callerHasDraftHere;
 
-  if (status === "available" || status === "locked") {
+  if (mine && status === "locked") {
     return (
-      <div
-        className={`flex items-center gap-1 rounded-xl p-2 min-h-[102px] text-center ${
-          mine ? "border-l-4 mm-border-amber bg-white" : "border border-dashed border-gray-300"
-        }`}
-      >
-        <div className="flex flex-col gap-1 mx-auto px-4">
-          {status === "locked" && (
-            <span aria-hidden="true" className="text-2xl mm-text-on-card-subtle mx-auto">
-              🔒
-            </span>
-          )}
-          <p className="text-md mm-text-on-card pb-1">
-            {SECTION_LABELS[section]} - {status === "locked" ? "locked" : "AVAILABLE"}
+      <div className="flex items-center gap-1 rounded-xl p-2 px-3 min-h-[102px] mm-border-1 mm-border-amber bg-white">
+        <div className="h-full flex flex-col justify-between">
+          <p className="text-md mm-text-on-card">{SECTION_LABELS[section]} - being built by YOU</p>
+          <p className="mm-text-on-amber text-[9px] mb-1">
+            Your progress is saved! Your claim frees up after 30 min idle.
           </p>
-          {status === "available" && !mine ? (
-            lockedIntoThisMonster ? (
-              <p className="mm-text-xs mm-text-on-card-muted">You can only contribute one section per monster</p>
-            ) : (
-              <button className="btn mm-btn-sm mx-auto" onClick={onJoin} disabled={isBusy}>
-                Join
+          <div className="flex gap-2">
+            <button className="btn mm-btn-amber mm-btn-sm" onClick={onResume} disabled={isBusy}>
+              Resume
+            </button>
+            {onCancel && (
+              <button className="btn btn-outline mm-btn-sm" onClick={onCancel} disabled={isBusy}>
+                Cancel
               </button>
-            )
-          ) : status === "locked" && mine ? (
-            <div className="flex flex-wrap gap-1">
-              <button className="btn mm-btn-sm mx-auto" onClick={onResume} disabled={isBusy}>
-                Resume
-              </button>
-              {onCancel && (
-                <button className="btn btn-outline mm-btn-sm mx-auto" onClick={onCancel} disabled={isBusy}>
-                  Cancel
-                </button>
-              )}
-            </div>
-          ) : (
-            <p className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
-              {contributorName ?? "in progress"}
-            </p>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  // status === "done"
-  return (
-    <div className="flex items-center gap-1 rounded-xl p-2 h-[102px] w-full bg-white">
-      <div className="w-[100px] h-[100px] flex items-center justify-center rounded bg-white mr-2 overflow-hidden">
-        {mine && callerPicks ? (
-          <SectionLayeredImage
-            section={section}
-            picks={callerPicks}
-            containerClassName="w-[100px] h-[100px] overflow-hidden"
-            imgStyle={{
-              height: "140px",
-              marginTop: section === "head" ? "0px" : section === "torso" ? "-40px" : "-50px",
-            }}
-            ariaLabel={`your ${section}`}
-          />
-        ) : (
-          <SectionSilhouette section={section} variant="light" className="w-[80px] h-[80px] object-contain" />
-        )}
-      </div>
-      <div className="flex flex-col gap-1 my-auto">
-        <p className="text-md mm-text-on-card">
-          {SECTION_LABELS[section]} - done
-          <br />
-          {mine ? (
-            <span className="mm-text-xs mm-text-on-card-muted">Art is visible to you</span>
+  if (status === "done") {
+    return (
+      <div className="flex items-center gap-1 rounded-xl p-2 h-[102px] w-full bg-white">
+        <div className="w-[100px] h-[100px] flex items-center justify-center rounded bg-white mr-2 overflow-hidden">
+          {mine && callerPicks ? (
+            <SectionLayeredImage
+              section={section}
+              picks={callerPicks}
+              containerClassName="w-[100px] h-[100px] overflow-hidden"
+              imgStyle={{
+                height: "140px",
+                marginTop: section === "head" ? "0px" : section === "torso" ? "-40px" : "-50px",
+              }}
+              ariaLabel={`your ${section}`}
+            />
           ) : (
-            <span className="mm-text-xs mm-text-on-card-muted">hidden until you submit yours</span>
+            <SectionSilhouette section={section} variant="light" className="w-[80px] h-[80px] object-contain" />
           )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-md mm-text-on-card">{SECTION_LABELS[section]} - DONE</p>
+          {mine ? (
+            <p className="mm-text-xs mm-text-on-card-muted">Art is visible to you</p>
+          ) : (
+            <p className="mm-text-xs mm-text-on-card-muted">hidden until you submit yours</p>
+          )}
+          <p className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
+            {contributorName ?? "done"} ·{" "}
+            {slot?.submittedAt ? new Date(slot.submittedAt).toLocaleDateString() : "unknown date"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // status === available or locked but not mine
+  return (
+    <div className="flex items-center gap-1 rounded-xl p-2 min-h-[102px] text-center border border-dashed border-gray-300">
+      <div className="flex flex-col gap-1 mx-auto px-4">
+        <p className="text-md mm-text-on-card">
+          {SECTION_LABELS[section]} - <span className="uppercase">{status}</span>
         </p>
-        <span className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
-          {contributorName ?? "done"} ·{" "}
-          {slot?.submittedAt ? new Date(slot.submittedAt).toLocaleDateString() : "unknown date"}
-        </span>
+        {status === "available" ? (
+          <>
+            {lockedIntoThisMonster ? (
+              <p className="mm-text-xs mm-text-on-card-muted">You can only contribute one section per monster</p>
+            ) : (
+              <button className="btn mm-btn-sm mx-auto" onClick={onJoin} disabled={isBusy}>
+                Join
+              </button>
+            )}
+          </>
+        ) : (
+          <p className="mm-text-xs mm-text-on-card-muted truncate max-w-full" title={contributorName}>
+            {contributorName ?? "in progress"} ·{" "}
+            {slot?.lockedAt ? new Date(slot.lockedAt).toLocaleDateString() : "unknown date"}
+          </p>
+        )}
       </div>
     </div>
   );

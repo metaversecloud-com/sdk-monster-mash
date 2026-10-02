@@ -48,7 +48,7 @@
 }
 
 .mm-bg-done {
-  background-color: var(--mm-done);
+  background-color: var(--mm-dark);
 }
 
 .mm-bg-accent {
@@ -57,6 +57,10 @@
 
 .mm-bg-accent-lt {
   background-color: var(--mm-accent-lt);
+}
+
+.mm-bg-danger-lt {
+  border: var(--mm-danger-lt);
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -96,23 +100,27 @@
 }
 
 .mm-text-done {
-  color: var(--mm-done);
+  color: var(--mm-dark);
 }
 
 .mm-text-on-amber {
   color: var(--mm-on-amber);
 }
 
-.mm-text-on-pill {
-  color: var(--mm-on-pill);
-}
-
 .mm-text-accent {
   color: var(--mm-accent);
 }
 
+.mm-text-accent-dark {
+  color: var(--mm-accent-dark);
+}
+
 .mm-text-accent-lt {
   color: var(--mm-accent-lt);
+}
+
+.mm-text-danger {
+  color: var(--mm-danger);
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -140,7 +148,7 @@
 }
 
 .mm-border-done {
-  border-color: var(--mm-done);
+  border-color: var(--mm-dark);
 }
 
 .mm-border-section {
@@ -163,6 +171,10 @@
   border: 4px solid var(--mm-accent-lt);
 }
 
+.mm-border-danger {
+  border: var(--mm-danger);
+}
+
 /* Ring color helper (works with Tailwind's `ring-2` utility). */
 .mm-ring-amber {
   --tw-ring-color: var(--mm-amber);
@@ -172,11 +184,16 @@
  * Button utilities
  * ────────────────────────────────────────────────────────────────────*/
 
+.btn {
+  border-radius: 16px;
+}
+
 .mm-btn-primary {
   background-color: var(--mm-success);
   border: 1px solid var(--mm-success-dark);
-  color: var(--mm-section);
+  color: var(--mm-dark);
   min-height: 60px;
+  border-radius: 20px;
 }
 .mm-btn-primary:disabled {
   background-color: var(--mm-accent-dark);
@@ -190,10 +207,16 @@
   color: var(--mm-accent-lt);
 }
 
+.mm-btn-amber {
+  background-color: var(--mm-amber);
+  border: 1px solid var(--mm-amber);
+  color: var(--mm-dark);
+}
+
 .mm-btn-sm {
-  width: fit-content;
   height: 30px;
   font-size: 0.7rem;
+  border-radius: 10px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -310,4 +333,5 @@
 }
 .mm-text-xs {
   font-size: 10px;
+  line-height: 14px;
 }
