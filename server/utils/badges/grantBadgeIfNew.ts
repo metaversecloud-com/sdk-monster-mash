@@ -32,20 +32,21 @@ export const grantBadgeIfNew = async ({
     if (!owned) {
       await target.fetchInventoryItems().catch(() => {});
       owned = new Set();
-      for (const item of (target as any).inventoryItems ?? []) {
+      for (const item of target.inventoryItems ?? []) {
         if (item?.status === "ACTIVE" && item?.item?.type === "BADGE") owned.add(item.item.name);
       }
     }
     if (owned.has(badgeName)) return { granted: false, skippedReason: "already-owned" };
 
-    // Look up the badge id in the ecosystem catalog (memoized — this is the
+    // Look up the badge in the ecosystem catalog (memoized — this is the
     // same read that backs the Trophy grid).
     const catalog = await getBadgeCatalog(credentials);
-    const badgeId = catalog.find((b) => b.name === badgeName)?.id;
-    if (!badgeId) return { granted: false, skippedReason: "badge-not-in-ecosystem" };
+    const entry = catalog.find((b) => b.name === badgeName);
+    if (!entry) return { granted: false, skippedReason: "badge-not-in-ecosystem" };
 
     try {
-      await (target as any).grantInventoryItem?.({ inventoryItemId: badgeId, quantity: 1 });
+      // SDK contract: pass the inventory item instance + quantity.
+      await target.grantInventoryItem(entry.inventoryItem, 1);
     } catch (error) {
       return { granted: false, skippedReason: "grant-failed" };
     }

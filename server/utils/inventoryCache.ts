@@ -40,7 +40,7 @@ export const getCachedInventoryItems = async ({
     // until their category launches.
     inventoryCache = {
       items: ((ecosystem.inventoryItems as InventoryItemInterface[]) || []).filter(
-        (item) => (item as any)?.status !== "INACTIVE",
+        (item) => item.status !== "INACTIVE",
       ),
       timestamp: now,
     };

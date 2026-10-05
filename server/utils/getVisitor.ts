@@ -89,7 +89,7 @@ export const getVisitor = async (
       const fetchInventoryFn = visitor.fetchInventoryItems as unknown as (force?: boolean) => Promise<unknown>;
       await fetchInventoryFn.call(visitor, forceRefreshInventory);
       for (const visitorItem of visitor.inventoryItems ?? []) {
-        const { id, status, item } = visitorItem as any;
+        const { id, status, item } = visitorItem;
         const { name, type, image_url = "" } = item || {};
         if (status === "ACTIVE" && type === "BADGE") {
           visitorInventory[name] = { id, icon: image_url, name };

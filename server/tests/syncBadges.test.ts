@@ -69,8 +69,12 @@ const makeVisitor = () => {
   const granted: string[] = [];
   return {
     granted,
-    grantInventoryItem: jest.fn(async ({ inventoryItemId }: any) => {
-      granted.push(String(inventoryItemId).replace(/^mm-/, ""));
+    // SDK contract: grantInventoryItem(itemInstance, quantity). The real
+    // call passes the raw ecosystem inventory item (not an envelope with
+    // inventoryItemId) — mock mirrors that so the test exercises the same
+    // argument shape production hits.
+    grantInventoryItem: jest.fn(async (item: any, _quantity: number) => {
+      granted.push(String(item?.id ?? "").replace(/^mm-/, ""));
     }),
   } as any;
 };
@@ -232,9 +236,9 @@ describe("syncBadges", () => {
   test("one failing grant doesn't block the rest", async () => {
     setCatalog();
     const visitor = makeVisitor();
-    visitor.grantInventoryItem = jest.fn(async ({ inventoryItemId }: any) => {
-      if (inventoryItemId === "mm-I Voted!") throw new Error("boom");
-      visitor.granted.push(String(inventoryItemId).replace(/^mm-/, ""));
+    visitor.grantInventoryItem = jest.fn(async (item: any) => {
+      if (item?.id === "mm-I Voted!") throw new Error("boom");
+      visitor.granted.push(String(item?.id ?? "").replace(/^mm-/, ""));
     });
 
     const granted = await syncBadges({

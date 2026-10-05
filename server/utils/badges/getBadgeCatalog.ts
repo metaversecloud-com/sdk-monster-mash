@@ -3,10 +3,16 @@ import { Credentials } from "../../types/index.js";
 import { getCachedInventoryItems } from "../inventoryCache.js";
 
 export interface BadgeCatalogEntry extends BadgeDef {
-  /** Ecosystem inventory item id — what `grantInventoryItem` needs. */
+  /** Ecosystem inventory item id. */
   id: string;
   /** Catalog art, used for locked (unowned) tiles in the Trophy grid. */
   iconUrl: string;
+  /**
+   * The raw inventory item instance from the ecosystem cache. Passed to
+   * `visitor.grantInventoryItem(item, quantity)` — the SDK expects the
+   * full item, not just its id.
+   */
+  inventoryItem: any;
 }
 
 /**
@@ -33,11 +39,11 @@ export const getBadgeCatalog = async (
 
     const entries: BadgeCatalogEntry[] = [];
     for (const item of items) {
-      const { id, name, type, metadata, image_path } = item as any;
+      const { id, name, type, metadata, image_path } = item;
       if (type !== "BADGE" || !id || !name) continue;
       const def = parseBadgeDef(name, metadata);
       if (!def) continue;
-      entries.push({ ...def, id, iconUrl: image_path || "" });
+      entries.push({ ...def, id, iconUrl: image_path || "", inventoryItem: item });
     }
 
     return sortBadgeDefs(entries) as BadgeCatalogEntry[];

@@ -110,7 +110,7 @@ export const AdminView = () => {
         </p>
         <button
           type="button"
-          className="btn mm-btn-secondary"
+          className="btn w-fit mt-2"
           disabled={isBusy || !currentEnabled}
           onClick={() => setPendingStartNewCycle(true)}
         >

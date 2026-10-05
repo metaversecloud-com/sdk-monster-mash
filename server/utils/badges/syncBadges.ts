@@ -48,7 +48,10 @@ export const syncBadges = async ({
     const granted: string[] = [];
     for (const badge of toGrant) {
       try {
-        await (visitor as any).grantInventoryItem?.({ inventoryItemId: badge.id, quantity: 1 });
+        // SDK contract: pass the inventory item instance + quantity, NOT an
+        // object with inventoryItemId. The item comes straight from the
+        // ecosystem cache via `getBadgeCatalog` → `badge.inventoryItem`.
+        await visitor.grantInventoryItem(badge.inventoryItem, 1);
         granted.push(badge.name);
         ownedBadgeNames.add(badge.name);
       } catch (error) {

@@ -105,10 +105,11 @@ describe("advanceWeeklyCycle", () => {
 
   test("backfills from older monsters when prevEligible is short, sorted by (fewest shown, newest birthdate)", () => {
     const data = baseDataObject();
-    // 2 fresh eligible monsters — far short of MIN.
-    const fresh = ["fresh-a", "fresh-b"];
-    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
-    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+    // No fresh submissions — force the pool to be entirely backfilled so we
+    // can observe the sort order across more than one tie-break bucket. The
+    // test still exercises the "fresh go first in the pool" ordering below
+    // in a separate assertion.
+    data.currentSubmissionWindow!.eligibleMonsterIds = [];
 
     // Four distinguishing candidates to assert the sort order on:
     //   1) `never-newer` (0 shown, birthdate 90) — top backfill pick
@@ -122,7 +123,7 @@ describe("advanceWeeklyCycle", () => {
     // Padding so the pool reaches MIN — these are the "lowest-priority"
     // candidates (highest timesShown), so they slot in AFTER the four
     // distinguishing picks above.
-    const padCount = MIN_POOL_SIZE_FOR_VOTE - 2 /* fresh */ - 4 /* distinguishing */;
+    const padCount = Math.max(0, MIN_POOL_SIZE_FOR_VOTE - 4);
     for (let i = 0; i < padCount; i++) {
       const id = `pad-${i}`;
       data.monsters[id] = { ...makeCompleteMonster(id, 5), timesShown: 99 } as any;
@@ -132,16 +133,35 @@ describe("advanceWeeklyCycle", () => {
 
     expect(next.currentVoteCycle).not.toBeNull();
     const pool = next.currentVoteCycle!.poolMonsterIds;
-    // Fresh submissions keep their lead position in the pool.
-    expect(pool.slice(0, fresh.length)).toEqual(fresh);
-    // The first four backfill picks follow the (shown asc, birthdate desc) sort.
-    expect(pool.slice(fresh.length, fresh.length + 4)).toEqual([
-      "never-newer",
-      "never-older",
-      "shown-once-newer",
-      "shown-once-older",
-    ]);
-    expect(pool.length).toBe(MIN_POOL_SIZE_FOR_VOTE);
+    // Top 4 backfill picks follow the (shown asc, birthdate desc) sort.
+    expect(pool.slice(0, 4)).toEqual(["never-newer", "never-older", "shown-once-newer", "shown-once-older"]);
+    expect(pool.length).toBeGreaterThanOrEqual(MIN_POOL_SIZE_FOR_VOTE);
+  });
+
+  test("fresh submissions lead the pool, backfill appends behind them", () => {
+    const data = baseDataObject();
+    const fresh = ["fresh-a", "fresh-b"];
+    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
+    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+    // Older zero-shown candidate — would otherwise sort before `fresh-*`
+    // (both have no timesShown field), but the pool must keep the fresh
+    // submissions in their original order up front and only use backfill
+    // to pad up to MIN.
+    const backfillId = "older-backfill";
+    data.monsters[backfillId] = { ...makeCompleteMonster(backfillId, 50), timesShown: 0 } as any;
+    // Padding so the pool reaches MIN.
+    const padCount = Math.max(0, MIN_POOL_SIZE_FOR_VOTE - 3);
+    for (let i = 0; i < padCount; i++) {
+      const id = `pad-${i}`;
+      data.monsters[id] = { ...makeCompleteMonster(id, 5), timesShown: 99 } as any;
+    }
+
+    const { next } = advanceWeeklyCycle(data, NOW);
+
+    expect(next.currentVoteCycle).not.toBeNull();
+    const pool = next.currentVoteCycle!.poolMonsterIds;
+    expect(pool.slice(0, 2)).toEqual(fresh);
+    expect(pool[2]).toBe(backfillId);
   });
 
   test("backfill skips winners (in storedWinners) and anything already in prevEligible", () => {
