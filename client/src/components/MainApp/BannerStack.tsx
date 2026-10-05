@@ -61,6 +61,14 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
     dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "gallery" } });
   };
 
+  const openGalleryForMyWinners = () => {
+    dispatch?.({
+      type: SET_GALLERY_DEEP_LINK,
+      payload: { galleryDeepLink: { mine: true, winners: true, sort: "newest" } },
+    });
+    dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "gallery" } });
+  };
+
   if (!shownWin && !shownCompletion && !countdownActive) return null;
 
   return (
@@ -83,7 +91,7 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
             {VOTING_CATEGORY_BY_ID[shownWin.category]?.label ?? shownWin.category} in the vote that ended{" "}
             {fmtDate(shownWin.awardedAt)}!
           </p>
-          <a className="mm-text-done underline cursor-pointer" onClick={openGalleryForMyMonsters}>
+          <a className="mm-text-done underline cursor-pointer" onClick={openGalleryForMyWinners}>
             See Your Monster →
           </a>
         </div>

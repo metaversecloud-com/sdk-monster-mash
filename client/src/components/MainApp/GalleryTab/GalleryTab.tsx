@@ -35,7 +35,7 @@ export const GalleryTab = () => {
 
   const [sort, setSort] = useState<SortValue>(galleryDeepLink?.sort ?? "newest");
   const [mine, setMine] = useState(!!galleryDeepLink?.mine);
-  const [winners, setWinners] = useState(false);
+  const [winners, setWinners] = useState(!!galleryDeepLink?.winners);
   const [gallery, setGallery] = useState<GalleryResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<GalleryMonster | null>(null);
@@ -48,6 +48,7 @@ export const GalleryTab = () => {
     if (!galleryDeepLink) return;
     if (galleryDeepLink.sort) setSort(galleryDeepLink.sort);
     if (typeof galleryDeepLink.mine === "boolean") setMine(galleryDeepLink.mine);
+    if (typeof galleryDeepLink.winners === "boolean") setWinners(galleryDeepLink.winners);
     dispatch?.({ type: CLEAR_GALLERY_DEEP_LINK });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryDeepLink]);

@@ -132,7 +132,7 @@ export const VoteTab = () => {
             </>
           )}
 
-          {vote && (vote.callerVoteState.hitCycleCap || vote.callerVoteState.hitDailyCap) && (
+          {vote && (vote.callerVoteState.hitCycleCap || vote.callerVoteState.hitDailyCap) ? (
             <NotificationBox
               header="Maximum votes reached!"
               text={
@@ -143,6 +143,11 @@ export const VoteTab = () => {
                     : `You've voted ${vote.callerVoteState.votedToday} of ${vote.callerVoteState.dailyCap} times today. Winners appear the next time you open the app after voting closes.`
               }
             />
+          ) : (
+            <p className="p2 text-center mm-text-muted">
+              You've voted {vote.callerVoteState.votedToday} of {vote.callerVoteState.dailyCap} times today. Winners
+              appear the next time you open the app after voting closes.
+            </p>
           )}
 
           {vote.state === "not-enough-monsters" && (
