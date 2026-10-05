@@ -45,6 +45,16 @@ export interface MonsterIndexEntry {
   contributorNames?: string;
   latestAward?: AwardRibbon;
 
+  /**
+   * Lifetime count of matchups the monster has appeared in (sum of `shown`
+   * from every vote cycle it was ever pooled into — tallies get wiped at
+   * cycle close so we mirror the increment here on `handleCastVote`).
+   * Drives the `advanceWeeklyCycle` backfill: when the previous week's
+   * `eligibleMonsterIds` is short of `MIN_POOL_SIZE_FOR_VOTE`, we top up
+   * from older complete monsters picked by (least-shown, newest-birthdate).
+   */
+  timesShown?: number;
+
   // NOTE: picks/nameToken per section live on each contributor's visitor
   // dataObject (`contributedDrafts[monsterId][section]`) — the roster
   // intentionally holds only identity, so this per-instance key asset

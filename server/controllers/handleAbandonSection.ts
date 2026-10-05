@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { KeyAssetDataObject, MonsterMashVisitorData } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor, lockDataObject } from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
 
 /**
  * POST /api/monsters/:id/abandon
@@ -36,15 +36,6 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
     }
 
     if (releasedSection) {
-      // Fresh lockId per attempt (5s bucket) - `lockDataObject` never
-      // releases, so a constant key would 409 forever after the first use.
-      const lockId = `${keyAsset.id}-abandon-${monsterId}-${releasedSection}-${Math.round(Date.now() / 5000) * 5000}`;
-      try {
-        await lockDataObject(lockId, keyAsset);
-      } catch (error) {
-        return res.status(409).json({ success: false, message: "Try abandoning again in a moment." });
-      }
-
       await keyAsset.updateDataObject(
         {
           [`monsters.${monsterId}.sections`]: {
@@ -53,11 +44,13 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
           },
           [`monsters.${monsterId}.lastEditedAt`]: Date.now(),
         },
-        {},
+        {
+          lock: {
+            lockId: `${keyAsset.id}-abandon-${monsterId}-${releasedSection}-${Math.round(Date.now() / 5000) * 5000}`,
+            releaseLock: true,
+          },
+        },
       );
-      // `lockId` is unused after this point; keep the reference alive for
-      // future readers who might wonder why we don't release it explicitly.
-      void lockId;
     }
 
     // Always clear the visitor's activeDraft if it points here.

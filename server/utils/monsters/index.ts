@@ -3,6 +3,7 @@ export * from "./contributorDisplayNames.js";
 export * from "./dropMonsterAsset.js";
 export * from "./evictFinishedIfCapped.js";
 export * from "./evictInProgressIfCapped.js";
+export * from "./evictOrphanInProgress.js";
 export * from "./expireStaleLocks.js";
 export * from "./finalizeMonster.js";
 export * from "./getKeyAsset.js";

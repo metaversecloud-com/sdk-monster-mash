@@ -7,11 +7,9 @@ import { GlobalStateContext } from "@/context/GlobalContext";
 import { VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash";
 
 /**
- * Small single-line advisory rendered just below the tab bar (NOT a banner
- * card).
  * Only surfaces when weekly voting is on and a next-category schedule exists
  */
-export const NextCategoryLine = () => {
+export const NextCategoryLine = ({ showSubmissionCutoffLabel }: { showSubmissionCutoffLabel: boolean }) => {
   const { mainApp } = useContext(GlobalStateContext);
 
   const nextCategory = useMemo(() => {
@@ -36,9 +34,11 @@ export const NextCategoryLine = () => {
   if (!nextCategory) return null;
 
   return (
-    <p className="text-xs mm-text-muted text-center px-2 py-1">
-      Next week's voting category: <strong className="mm-text-white">{nextCategory}</strong> - FINISH your monsters by{" "}
-      {submissionCutoffLabel} to enter them in next week's vote!
+    <p className="text-xs mm-text-muted text-center">
+      Next week's voting category: <strong className="mm-text-white">{nextCategory}</strong>
+      {showSubmissionCutoffLabel &&
+        ` - FINISH your monsters by 
+      ${submissionCutoffLabel} to enter them in next week's vote!`}
     </p>
   );
 };

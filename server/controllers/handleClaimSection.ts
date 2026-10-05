@@ -6,7 +6,6 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
-  lockDataObject,
   transitionToDrawer,
 } from "@utils/index.js";
 
@@ -82,17 +81,19 @@ export const handleClaimSection = async (req: Request, res: Response) => {
           [`monsters.${monsterId}.sections`]: updatedSections,
           [`monsters.${monsterId}.lastEditedAt`]: now,
         },
-        {},
+        {
+          lock: {
+            lockId: `${keyAsset.id}-claim-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
+            releaseLock: true,
+          },
+        },
       );
 
       // Refresh caller lastActivityAt in the same visitor write.
       const visitorKey = `${urlSlug}-${sceneDropId}`;
       await visitor.updateDataObject(
         {
-          [visitorKey]: {
-            ...visitorData,
-            activeDraft: { ...currentDraft, lastActivityAt: now, joined: true },
-          },
+          [`${visitorKey}.activeDraft`]: { ...currentDraft, lastActivityAt: now, joined: true },
         },
         {},
       );
@@ -134,26 +135,10 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       });
     }
 
-    // Fold a 5-second-bucketed timestamp into the lockId so every fresh
-    // attempt gets a new key. `lockDataObject` never releases (the SDK's
-    // TTL cleans it up on its own); if we reused a constant lockId, the
-    // second-ever attempt would 409 forever until TTL. Matches the
-    // tic-tac-toe controller's turnCount+bucket pattern.
-    const lockBucket = Math.round(now / 5000) * 5000;
-    const lockId = `${keyAsset.id}-claim-${monsterId}-${section}-${lockBucket}`;
-    try {
-      await lockDataObject(lockId, keyAsset);
-    } catch (error) {
-      return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
-    }
-
-    // Re-verify under the lock (the pre-lock read may be stale).
+    // Re-verify section is available
     await keyAsset.fetchDataObject();
     const freshEntry = (keyAsset.dataObject as KeyAssetDataObject).monsters?.[monsterId];
     if (!freshEntry || freshEntry.sections?.[section]?.status !== "available") {
-      // We already hold `lockId` - don't try to release with the same id
-      // (the SDK treats that as a re-acquire → "data object busy"). Let it
-      // TTL-expire.
       return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
     }
 
@@ -171,9 +156,12 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       [`monsters.${monsterId}.lastEditedAt`]: now,
     };
 
-    // Plain update - we already hold `lockId`. Passing lock again would
-    // re-acquire → busy.
-    await keyAsset.updateDataObject(patch, {});
+    await keyAsset.updateDataObject(patch, {
+      lock: {
+        lockId: `${keyAsset.id}-claim-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
+        releaseLock: true,
+      },
+    });
 
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,

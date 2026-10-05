@@ -103,8 +103,8 @@
   color: var(--mm-dark);
 }
 
-.mm-text-on-amber {
-  color: var(--mm-on-amber);
+.mm-text-amber-dark {
+  color: var(--mm-amber-dark);
 }
 
 .mm-text-accent {
@@ -145,6 +145,10 @@
 
 .mm-border-amber {
   border-color: var(--mm-amber);
+}
+
+.mm-border-amber-dark {
+  border-color: var(--mm-amber-dark);
 }
 
 .mm-border-done {
@@ -273,7 +277,7 @@
 
 .mm-accent--amber {
   background-color: var(--mm-amber);
-  color: var(--mm-on-amber);
+  color: var(--mm-amber-dark);
 }
 
 /*
@@ -330,6 +334,9 @@
  * ────────────────────────────────────────────────────────────────────*/
 .mm-flip-vertical {
   transform: scaleY(-1);
+}
+.mm-flip-horizontal {
+  transform: scaleX(-1);
 }
 .mm-text-xs {
   font-size: 10px;

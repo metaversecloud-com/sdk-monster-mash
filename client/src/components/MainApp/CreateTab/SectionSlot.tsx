@@ -58,7 +58,7 @@ export const SectionSlot = ({
       <div className="flex items-center gap-1 rounded-xl p-2 px-3 min-h-[102px] mm-border-1 mm-border-amber bg-white">
         <div className="h-full flex flex-col justify-between">
           <p className="text-md mm-text-on-card">{SECTION_LABELS[section]} - being built by YOU</p>
-          <p className="mm-text-on-amber text-[9px] mb-1">
+          <p className="mm-text-amber-dark text-[9px] mb-1">
             Your progress is saved! Your claim frees up after 30 min idle.
           </p>
           <div className="flex gap-2">
@@ -77,19 +77,27 @@ export const SectionSlot = ({
   }
 
   if (status === "done") {
+    // Reveal rule: show the composed image whenever we HAVE picks for this
+    // slot. The caller's own section is always visible via `callerPicks`
+    // sourced from their own `contributedDrafts`. Peer sections become
+    // visible ONCE THE CALLER HAS CONTRIBUTED — the server bundles peer
+    // picks into the caller's drafts for monsters they're already on, so
+    // `callerPicks` is populated for peer slots too. Non-contributors fall
+    // through to the silhouette + "hidden until you submit yours" state.
+    const canShowArt = !!callerPicks;
     return (
       <div className="flex items-center gap-1 rounded-xl p-2 h-[102px] w-full bg-white">
         <div className="w-[100px] h-[100px] flex items-center justify-center rounded bg-white mr-2 overflow-hidden">
-          {mine && callerPicks ? (
+          {canShowArt ? (
             <SectionLayeredImage
               section={section}
-              picks={callerPicks}
+              picks={callerPicks!}
               containerClassName="w-[100px] h-[100px] overflow-hidden"
               imgStyle={{
                 height: "140px",
                 marginTop: section === "head" ? "0px" : section === "torso" ? "-40px" : "-50px",
               }}
-              ariaLabel={`your ${section}`}
+              ariaLabel={mine ? `your ${section}` : `${contributorName ?? "peer"}'s ${section}`}
             />
           ) : (
             <SectionSilhouette section={section} variant="light" className="w-[80px] h-[80px] object-contain" />
@@ -97,8 +105,10 @@ export const SectionSlot = ({
         </div>
         <div className="flex flex-col gap-1">
           <p className="text-md mm-text-on-card">{SECTION_LABELS[section]} - DONE</p>
-          {mine ? (
-            <p className="mm-text-xs mm-text-on-card-muted">Art is visible to you</p>
+          {canShowArt ? (
+            <p className="mm-text-xs mm-text-on-card-muted">
+              {mine ? "Art is visible to you" : "Visible because you contributed"}
+            </p>
           ) : (
             <p className="mm-text-xs mm-text-on-card-muted">hidden until you submit yours</p>
           )}

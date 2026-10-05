@@ -74,6 +74,17 @@ const windowIdFor = (etSundayY: number, etSundayMo: number, etSundayD: number): 
 /** Public helper: ET wallclock parts for a given epoch (for logging + display). */
 export const etPartsFor = (epochMs: number) => etPartsAt(epochMs);
 
+/**
+ * "YYYY-MM-DD" key for the ET calendar date containing `epochMs`. Used for
+ * per-day caps (vote limits, badge counters) so a "day" rolls over at
+ * midnight ET for every player regardless of their local timezone.
+ */
+export const etDateKey = (epochMs: number = Date.now()): string => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const parts = etPartsAt(epochMs);
+  return `${parts.y}-${pad(parts.mo)}-${pad(parts.d)}`;
+};
+
 /** Public helper: is `now` past `endAt` for cycle-close checks. */
 export const isPastEnd = (endAt: number, now: number = Date.now()): boolean => now >= endAt;
 

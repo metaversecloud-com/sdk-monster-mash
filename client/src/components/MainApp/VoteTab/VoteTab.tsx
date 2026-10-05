@@ -4,6 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { Countdown } from "./Countdown.js";
 import { LastWeeksWinners } from "./LastWeeksWinners.js";
 import { MatchupCard } from "./MatchupCard.js";
+import NotificationBox from "@/components/shared/NotificationBox.js";
 
 // context
 import { useBusy } from "@/context/BusyContext";
@@ -36,6 +37,17 @@ export const VoteTab = () => {
     fetchVote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasInteractiveParams]);
+
+  const startNew = () => {
+    if (isBusy) return;
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/start`);
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
+  };
 
   const fetchVote = () => {
     setIsLoading(true);
@@ -118,46 +130,57 @@ export const VoteTab = () => {
                 />
               </div>
               <p className="p2 text-center mm-text-muted">
-                {vote.callerVoteState.hitCap
-                  ? `You've hit your vote cap for this cycle (${vote.callerVoteState.cap}). Come back next week!`
-                  : `You've voted ${vote.callerVoteState.voted} of ${vote.callerVoteState.cap} times this cycle. Winners appear the next time you open the app after voting closes.`}
+                {vote.callerVoteState.hitCycleCap
+                  ? "You've reached your maximum votes for this week! Check back on Sunday to see the winners!"
+                  : vote.callerVoteState.hitDailyCap
+                    ? "You've reached your maximum votes for today! Come back tomorrow to vote again."
+                    : `You've voted ${vote.callerVoteState.votedToday} of ${vote.callerVoteState.dailyCap} times today. Winners appear the next time you open the app after voting closes.`}
               </p>
             </>
           )}
 
           {vote.state === "not-enough-monsters" && (
-            <div className="text-center py-12">
-              <h3 className="mm-text-white">Not enough monsters for a vote yet</h3>
-              <p className="p2 mt-2 mm-text-muted">
-                {vote.poolSize ?? 0} of the {vote.minPoolSize} monsters needed are in the pool.
-              </p>
-            </div>
+            <NotificationBox
+              header="Not enough monsters for a vote yet"
+              text={
+                <>
+                  {vote.poolSize ?? 0} of the {vote.minPoolSize} monsters needed are in the pool.
+                  <br />
+                  Finish {vote.minPoolSize - (vote.poolSize || 0)} more and the next vote can start!
+                </>
+              }
+            >
+              <button type="button" className="btn mm-btn-sm w-fit mx-auto" onClick={startNew} disabled={isBusy}>
+                Go build a monster →
+              </button>
+            </NotificationBox>
           )}
 
           {vote.state === "scheduled" && (
-            <div className="text-center py-12">
-              <h3 className="mm-text-white">No vote is running right now</h3>
-              <p className="p2 mt-2 mm-text-muted">
-                {vote.nextScheduledStartAt
-                  ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}!`
-                  : "The next vote will open when this week's submission window closes."}
-              </p>
-              <p className="text-xs mm-text-on-card-muted mt-1">
-                (it opens the first time someone opens the app that day)
-              </p>
-            </div>
+            <NotificationBox
+              header="No vote is running right now"
+              text={
+                <>
+                  {vote.nextScheduledStartAt
+                    ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}!`
+                    : "The next vote will open when this week's submission window closes."}
+                  <br />
+                  (it opens the first time someone opens the app that day)
+                </>
+              }
+            />
           )}
 
           {vote.state === "voting-off" && (
-            <div className="text-center py-12">
-              <h3 className="mm-text-white">No vote is running right now</h3>
-              <p className="p2 mt-2 mm-text-muted italic">Check in with your teacher about the next vote!</p>
-            </div>
+            <NotificationBox
+              header="No vote is running right now"
+              text="Check in with your teacher about the next vote!"
+            />
           )}
         </>
       )}

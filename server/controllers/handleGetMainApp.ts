@@ -1,18 +1,28 @@
 import { Request, Response } from "express";
 import { SECTION_LOCK_TTL_MS } from "@shared/content/monsterMash.js";
-import { KeyAssetDataObject, MainAppResponseData, MonsterMashVisitorData } from "@shared/types/index.js";
+import { Credentials } from "../types/index.js";
+import {
+  KeyAssetDataObject,
+  MainAppResponseData,
+  MonsterMashVisitorData,
+  Section,
+  SECTIONS,
+  VisitorDataObjectType,
+} from "@shared/types/index.js";
 import {
   advanceWeeklyCycle,
   buildClientPayload,
   computeLeaderboardForWinners,
   enqueueWinBannersByProfile,
   errorHandler,
+  evictOrphanInProgressMonsters,
   expireStaleLocks,
   getCredentials,
   getKeyAsset,
   getVisitor,
   refreshContent,
   syncBadges,
+  User,
 } from "@utils/index.js";
 
 /**
@@ -52,6 +62,16 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
     const expiry = expireStaleLocks(dataObject.monsters, now);
     let monsters = expiry.monsters;
     let monstersChanged = expiry.changed;
+
+    // Reap orphan in-progress monsters — all-slots-available, no contributors,
+    // idle past the section-lock TTL. Runs AFTER expireStaleLocks so slots
+    // that just aged out of `locked` factor in. Keeps the Create tab from
+    // filling up with ghosts after abandoned starts.
+    const orphanSweep = evictOrphanInProgressMonsters(monsters, now);
+    if (orphanSweep.changed) {
+      monsters = orphanSweep.monsters;
+      monstersChanged = true;
+    }
 
     // Stamp `latestAward` onto every freshly-crowned monster in the roster -
     // without this, the Gallery's "Show only award winners" filter and the
@@ -323,7 +343,21 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       })),
       pendingCompletionBanners,
       activeDraft: visitorData.activeDraft,
-      contributedDrafts: visitorData.contributedDrafts,
+      // Enrich the caller's own `contributedDrafts` with picks from PEER-
+      // owned done sections on in-progress monsters where the caller has
+      // already contributed. The client renders a layered preview for every
+      // slot that has picks, so stamping peer picks here lifts the mask on
+      // peer sections for contributors — matches the "once you've submitted,
+      // you see what's been built" UX. Non-contributors still see the
+      // masked placeholder (we only enrich monsters where the caller is in
+      // `contributorProfileIds`). Enrichment is response-only; nothing is
+      // written back to the caller's visitor data.
+      contributedDrafts: await enrichDraftsWithPeerPicks({
+        callerDrafts: visitorData.contributedDrafts,
+        callerProfileId: credentials.profileId,
+        credentials,
+        monsters,
+      }),
       content: (() => {
         const c = buildClientPayload();
         return {
@@ -348,4 +382,91 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       res,
     });
   }
+};
+
+/**
+ * For each in-progress monster where the caller contributes AND a PEER has
+ * also done a section, fetch the peer's `contributedDrafts[monsterId][section]`
+ * and merge it into the caller's drafts in-memory. The client reads these as
+ * if they were the caller's own, which lets `SectionLayeredImage` render for
+ * every done slot once the caller has submitted their part.
+ *
+ * Scope guard: only touches in-progress monsters the caller is a contributor
+ * on. Complete monsters have no `contributedDrafts` anywhere (they're
+ * cleaned up at finalize), and non-contributor callers see the masked view
+ * exactly like before.
+ *
+ * Cost: one `User.create + fetchDataObject` per UNIQUE peer we need picks
+ * from, fired in parallel. A peer who contributed to multiple in-progress
+ * monsters (same person on two of the caller's monsters) is still fetched
+ * exactly once — we collect every peerId needed up front, dedupe via a
+ * `Set`, and `Promise.all` the fetches before the merge pass.
+ */
+const enrichDraftsWithPeerPicks = async ({
+  callerDrafts,
+  callerProfileId,
+  credentials,
+  monsters,
+}: {
+  callerDrafts: MonsterMashVisitorData["contributedDrafts"];
+  callerProfileId: string;
+  credentials: Credentials;
+  monsters: KeyAssetDataObject["monsters"];
+}): Promise<MonsterMashVisitorData["contributedDrafts"]> => {
+  const drafts: NonNullable<MonsterMashVisitorData["contributedDrafts"]> = { ...(callerDrafts ?? {}) };
+  const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+
+  // Pass 1 — walk the roster once and record every (monsterId, section,
+  // peerProfileId) tuple we need picks for. Also build the unique set of
+  // peer ids so we fetch each peer's visitor data exactly once.
+  type NeededPick = { monsterId: string; section: Section; peerProfileId: string };
+  const needed: NeededPick[] = [];
+  const uniquePeerIds = new Set<string>();
+  for (const [monsterId, entry] of Object.entries(monsters ?? {})) {
+    if (!entry || entry.state !== "in-progress") continue;
+    if (!(entry.contributorProfileIds ?? []).includes(callerProfileId)) continue;
+    for (const section of SECTIONS) {
+      const slot = entry.sections?.[section];
+      if (!slot || slot.status !== "done") continue;
+      if (!slot.contributorProfileId || slot.contributorProfileId === callerProfileId) continue;
+      // Already have picks for this slot in the caller's drafts (unusual but
+      // possible from a race) — don't clobber.
+      if (drafts[monsterId]?.[section]?.picks) continue;
+      needed.push({ monsterId, section, peerProfileId: slot.contributorProfileId });
+      uniquePeerIds.add(slot.contributorProfileId);
+    }
+  }
+  if (uniquePeerIds.size === 0) return drafts;
+
+  // Pass 2 — fetch every unique peer in PARALLEL (one SDK round trip per
+  // peer, all in flight at once instead of serialized).
+  const peerFetches = await Promise.all(
+    [...uniquePeerIds].map(async (peerProfileId) => {
+      try {
+        const peerUser = User.create({
+          profileId: peerProfileId,
+          credentials: { ...credentials, profileId: peerProfileId },
+        });
+        const raw = ((await peerUser.fetchDataObject()) || {}) as VisitorDataObjectType;
+        const scoped = (raw[scopedKey] as MonsterMashVisitorData | undefined) ?? null;
+        return [peerProfileId, scoped] as const;
+      } catch (error) {
+        console.warn(`enrichDraftsWithPeerPicks: could not fetch peer ${peerProfileId}`, error);
+        return [peerProfileId, null] as const;
+      }
+    }),
+  );
+  const peerCache = new Map(peerFetches);
+
+  // Pass 3 — merge each needed tuple's picks into the caller's drafts.
+  for (const { monsterId, section, peerProfileId } of needed) {
+    const peerDraft = peerCache.get(peerProfileId)?.contributedDrafts?.[monsterId]?.[section];
+    if (!peerDraft?.picks) continue;
+    drafts[monsterId] = {
+      ...(drafts[monsterId] ?? {}),
+      [section]: { picks: peerDraft.picks, nameToken: peerDraft.nameToken ?? "" },
+    };
+  }
+
+  return drafts;
 };

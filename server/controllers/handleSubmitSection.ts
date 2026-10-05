@@ -7,7 +7,6 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
-  lockDataObject,
   validatePicks,
 } from "@utils/index.js";
 
@@ -52,17 +51,6 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     const { visitor, visitorData } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
 
     const now = Date.now();
-
-    // Fresh lockId per attempt (5s bucket) — `lockDataObject` never
-    // releases, so a constant key would 409 every retry after the first
-    // use. Old bucket keys TTL-expire on the SDK side.
-    const lockBucket = Math.round(now / 5000) * 5000;
-    const lockId = `${keyAsset.id}-submit-${monsterId}-${section}-${lockBucket}`;
-    try {
-      await lockDataObject(lockId, keyAsset);
-    } catch (error) {
-      return res.status(409).json({ success: false, message: "Submit collision — please retry." });
-    }
 
     // Re-read under the lock.
     await keyAsset.fetchDataObject();
@@ -155,10 +143,11 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
       }
     }
 
-    // Single keyAsset write. We already hold `lockId` (from lockDataObject
-    // above); plain update matches tic-tac-toe's pattern — re-passing lock
-    // triggers "data object busy".
     await keyAsset.updateDataObject(patch, {
+      lock: {
+        lockId: `${keyAsset.id}-submit-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
+        releaseLock: true,
+      },
       analytics: [
         { analyticName: "section_submitted", profileId, urlSlug, uniqueKey: profileId },
         ...(nowDone ? [{ analyticName: "monster_completed", profileId, urlSlug, uniqueKey: monsterId }] : []),

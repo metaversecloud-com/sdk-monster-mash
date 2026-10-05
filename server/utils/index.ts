@@ -10,7 +10,6 @@ export * from "./getVisitor.js";
 export * from "./inventoryCache.js";
 export * from "./iframes/index.js";
 export * from "./images/index.js";
-export * from "./lockDataObject.js";
 export * from "./monsters/index.js";
 export * from "./standardizeError.js";
 export * from "./topiaInit.js";

@@ -1,5 +1,6 @@
 export * from "./handleAbandonSection.js";
 export * from "./handleAcknowledgeBanners.js";
+export * from "./handleAdminStartNewCycle.js";
 export * from "./handleCastVote.js";
 export * from "./handleClaimSection.js";
 export * from "./handleDeleteMonster.js";

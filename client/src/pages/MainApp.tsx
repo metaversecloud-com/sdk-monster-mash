@@ -34,7 +34,8 @@ export const MainApp = ({ isLoading }: MainAppProps) => {
           <BannerStack activeTab={activeTab} />
 
           <TabBar />
-          <NextCategoryLine />
+
+          <NextCategoryLine showSubmissionCutoffLabel={true} />
 
           <div>
             {activeTab === "create" && <CreateTab />}

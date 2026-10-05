@@ -6,6 +6,7 @@ import {
   LayeredPreview,
   Logo,
   NameTokenPicker,
+  NextCategoryLine,
   NoFeetModal,
   PageContainer,
   PartGrid,
@@ -248,6 +249,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
         <div className="flex flex-col gap-2 items-center">
           <Logo className="h-10 w-auto" />
           <BuildingPill section={section} stepIndex={stepIndex} />
+          <NextCategoryLine showSubmissionCutoffLabel={false} />
         </div>
         <div className="w-full flex flex-col gap-2 mt-4">
           <div className="flex gap-1 items-start">
@@ -255,39 +257,42 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
               <LayeredPreview section={section} picks={picks} peerDoneSections={peerDoneSections} />
             </aside>
 
-            <div className="mm-section flex flex-col items-center gap-3 p-2">
-              <div className="w-full flex items-baseline justify-between gap-3">
-                <p className="flex-stretch font-semibold mm-text-white">
-                  {categories[0]?.section === section && `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
-                </p>
-                <span className="p2 mm-text-accent-lt">
-                  {chosenCount} of {categories.length}
-                </span>
-              </div>
+            <div className="grid gap-2">
+              <div className="mm-section flex flex-col items-center gap-3 p-2">
+                <div className="w-full flex items-baseline justify-between gap-3">
+                  <p className="flex-stretch font-semibold mm-text-white">
+                    {categories[0]?.section === section &&
+                      `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
+                  </p>
+                  <span className="p2 mm-text-accent-lt">
+                    {chosenCount} of {categories.length}
+                  </span>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                {categories.map((cat) => (
-                  <SectionAccordion
-                    key={cat.id}
-                    catId={cat.id}
-                    label={cat.label}
-                    chosen={!!picks[cat.id]}
-                    isExpandable={true}
-                    isOpen={openAccordion === cat.id}
-                    onToggle={() => setOpenAccordion(openAccordion === cat.id ? null : cat.id)}
-                  >
-                    <PartGrid
-                      category={cat}
-                      value={picks[cat.id]}
-                      onChange={(id) => handleCategoryChange(cat.id, id)}
-                      disabledIds={cat.id === "feet" ? disabledFeetIds : undefined}
-                    />
-                  </SectionAccordion>
-                ))}
+                <div className="flex flex-col gap-2">
+                  {categories.map((cat) => (
+                    <SectionAccordion
+                      key={cat.id}
+                      catId={cat.id}
+                      label={cat.label}
+                      chosen={!!picks[cat.id]}
+                      isExpandable={true}
+                      isOpen={openAccordion === cat.id}
+                      onToggle={() => setOpenAccordion(openAccordion === cat.id ? null : cat.id)}
+                    >
+                      <PartGrid
+                        category={cat}
+                        value={picks[cat.id]}
+                        onChange={(id) => handleCategoryChange(cat.id, id)}
+                        disabledIds={cat.id === "feet" ? disabledFeetIds : undefined}
+                      />
+                    </SectionAccordion>
+                  ))}
+                </div>
               </div>
+              <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
             </div>
           </div>
-          <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
 
           <div className="border-t pt-3 mt-2 flex flex-col gap-2">
             <button

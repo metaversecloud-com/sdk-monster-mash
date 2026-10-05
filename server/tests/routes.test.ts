@@ -41,6 +41,7 @@ const emptyVisitorData = {
   daysAppOpened: [],
   weeksVotedIn: [],
   votesCastThisWeek: { windowId: "", count: 0 },
+  votesCastToday: { dateEt: "", count: 0 },
   totalVotesCast: 0,
 };
 
@@ -96,7 +97,6 @@ jest.mock("@utils/index.js", () => {
     // hardcoded list (see docs/claude/inventory-zip-format.md). The @rtsdk
     // mock has no ecosystem, so stand in a catalog shaped like real metadata.
     getBadgeCatalog: jest.fn().mockImplementation(async () => fakeBadgeCatalog()),
-    lockDataObject: jest.fn().mockResolvedValue(undefined),
     // Compositor + finalize surfaces: mocked so tests don't reach S3 or spin
     // up Jimp. Individual tests can override return values. Section image
     // upload was removed — only the full monster composes on finalize.
@@ -454,7 +454,6 @@ describe("routes", () => {
       visitorData: emptyVisitorData,
       visitorInventory: {},
     });
-    (mockUtils.lockDataObject as jest.Mock).mockResolvedValueOnce(undefined);
 
     const app = makeApp();
     let res = await request(app)
@@ -470,8 +469,15 @@ describe("routes", () => {
     expect(claimScoped.activeDraft).toMatchObject({ monsterId, section: "torso", joined: true });
     expect(claimScoped.contributedMonsters).toEqual({});
 
-    // Second caller (Bob): tries same torso, lock throws → 409.
-    const bobKeyAsset = makeKeyAsset(buildData());
+    // Second caller (Bob): tries same torso AFTER Alice has already locked it.
+    // Simulate the state the shared key asset would be in post-Alice-claim.
+    const bobData = buildData();
+    (bobData.monsters as any)[monsterId].sections.torso = {
+      status: "locked",
+      contributorProfileId: baseCreds.profileId,
+      lockedAt: Date.now(),
+    };
+    const bobKeyAsset = makeKeyAsset(bobData);
     mockUtils.getCredentials.mockReturnValueOnce(bobCreds);
     mockUtils.getKeyAsset.mockResolvedValueOnce(bobKeyAsset);
     mockUtils.getVisitor.mockResolvedValueOnce({
@@ -480,7 +486,6 @@ describe("routes", () => {
       visitorData: emptyVisitorData,
       visitorInventory: {},
     });
-    (mockUtils.lockDataObject as jest.Mock).mockRejectedValueOnce(new Error("lock contested"));
 
     res = await request(app)
       .post(`/api/monsters/${monsterId}/claim`)

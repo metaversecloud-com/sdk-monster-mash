@@ -7,10 +7,6 @@
  * `docs/claude/inventory-zip-format.md`); each BADGE item carries its rule in
  * `metadata`. The server reads the catalog at request time via
  * `getBadgeCatalog` and feeds it to `evaluateBadges`.
- *
- * The 38 badges and their rules come from "Monster Mash Design Spec 1.2" →
- * Badges (38). Badges for voting categories that aren't live yet ship as
- * INACTIVE and are filtered out by `getBadgeCatalog`.
  */
 
 import { Section } from "../types/SharedTypes.js";

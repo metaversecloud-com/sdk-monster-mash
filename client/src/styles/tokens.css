@@ -26,7 +26,8 @@
   --mm-success: #39be90;
   --mm-success-lt: #adf3da;
   --mm-amber: #f8a702;
-  --mm-amber-lt: #f6e0b5;
+  --mm-amber-dark: #7d5504;
+  --mm-amber-lt: #fdefd5;
   --mm-dark: #1a2538;
   --mm-accent-dark: #495576;
   --mm-accent: #42578c;
@@ -42,7 +43,6 @@
   --mm-on-card-muted: rgba(26, 37, 56, 0.7);
   --mm-on-card-subtle: rgba(26, 37, 56, 0.55);
   --mm-on-pill: #ffffff;
-  --mm-on-amber: #7d5504; /* text sitting on an amber button/chip */
 }
 
 /* Re-add the box-sizing reset that Tailwind's preflight used to provide. */

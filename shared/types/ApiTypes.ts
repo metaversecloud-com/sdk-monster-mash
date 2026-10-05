@@ -150,11 +150,24 @@ export interface VoteResponseData {
   weeklyVotingEnabled: boolean;
   matchup: VoteMatchupPayload | null;
   lastWinners: StoredWinnerPayload[];
-  callerVoteState: {
-    voted: number; // this cycle
-    cap: number;
-    hitCap: boolean;
-  };
+  callerVoteState: CallerVoteState;
+}
+
+/**
+ * Vote-cap accounting for the caller. Two independent caps per spec:
+ *   - Daily: `pool size × 1`, resets at midnight ET.
+ *   - Cycle: `pool size × 2`, resets when a new cycle opens.
+ * `hitCap === hitDailyCap || hitCycleCap` — the client disables the matchup
+ * on either and picks a different message for each.
+ */
+export interface CallerVoteState {
+  votedToday: number;
+  dailyCap: number;
+  hitDailyCap: boolean;
+  votedCycle: number;
+  cycleCap: number;
+  hitCycleCap: boolean;
+  hitCap: boolean;
 }
 
 export interface CastVoteResponseData {
@@ -165,7 +178,7 @@ export interface CastVoteResponseData {
     shown: number;
   };
   next: VoteMatchupPayload | null;
-  callerVoteState: { voted: number; cap: number; hitCap: boolean };
+  callerVoteState: CallerVoteState;
 }
 
 export interface SectionRecordSummary {

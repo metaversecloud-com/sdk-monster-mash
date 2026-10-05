@@ -36,6 +36,7 @@ export const createEmptyVisitorData = (): MonsterMashVisitorData => ({
   daysAppOpened: [],
   weeksVotedIn: [],
   votesCastThisWeek: { windowId: "", count: 0 },
+  votesCastToday: { dateEt: "", count: 0 },
   totalVotesCast: 0,
   monstersStarted: 0,
   weeksStartedMonsterIn: [],

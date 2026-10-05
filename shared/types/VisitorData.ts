@@ -86,6 +86,13 @@ export interface MonsterMashVisitorData {
   daysAppOpened: string[];
   weeksVotedIn: string[];
   votesCastThisWeek: { windowId: string; count: number };
+  /**
+   * Per-day vote tally for the DAILY cap (spec: `pool size` votes/day,
+   * `2 × pool size` votes/cycle). Keyed by the ET calendar date (`YYYY-MM-DD`)
+   * so a "day" rolls over at midnight ET for every player; count resets to 0
+   * on the first vote of a new ET date.
+   */
+  votesCastToday: { dateEt: string; count: number };
   totalVotesCast: number;
 
   /**

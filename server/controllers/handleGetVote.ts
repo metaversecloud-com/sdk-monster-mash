@@ -12,13 +12,16 @@ import {
 import {
   contributorDisplayNamesFromEntry,
   errorHandler,
+  etDateKey,
   getCredentials,
   getKeyAsset,
   getVisitor,
   pickMatchup,
 } from "@utils/index.js";
 
-const VOTE_CAP_MULTIPLIER = 2;
+/** Vote limits: `pool size × 1` per day, `pool size × 2` per cycle. */
+const DAILY_CAP_MULTIPLIER = 1;
+const CYCLE_CAP_MULTIPLIER = 2;
 
 /**
  * GET /api/vote
@@ -37,11 +40,20 @@ export const handleGetVote = async (req: Request, res: Response) => {
     const cycle = dataObject.currentVoteCycle;
     const window = dataObject.currentSubmissionWindow;
 
-    // Vote-cap accounting: caller can vote 2 × pool.size across the cycle.
+    // Vote-cap accounting: TWO independent caps per spec — daily (pool×1,
+    // resets midnight ET) and cycle (pool×2, resets when cycle rolls over).
+    // Hitting either stops the matchup; the client picks a different message
+    // for each.
     const cycleId = cycle?.cycleId ?? "";
-    const voted = visitorData.votesCastThisWeek?.windowId === cycleId ? visitorData.votesCastThisWeek.count : 0;
-    const cap = cycle ? Math.max(0, cycle.poolMonsterIds.length * VOTE_CAP_MULTIPLIER) : 0;
-    const hitCap = cap > 0 && voted >= cap;
+    const poolSizeNum = cycle ? cycle.poolMonsterIds.length : 0;
+    const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
+    const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
+    const todayKey = etDateKey(Date.now());
+    const votedToday = visitorData.votesCastToday?.dateEt === todayKey ? visitorData.votesCastToday.count : 0;
+    const votedCycle = visitorData.votesCastThisWeek?.windowId === cycleId ? visitorData.votesCastThisWeek.count : 0;
+    const hitDailyCap = dailyCap > 0 && votedToday >= dailyCap;
+    const hitCycleCap = cycleCap > 0 && votedCycle >= cycleCap;
+    const hitCap = hitDailyCap || hitCycleCap;
 
     // Last winners row (for the top-right column in the mockup).
     const lastWinners = collectLastWinners(dataObject);
@@ -91,7 +103,7 @@ export const handleGetVote = async (req: Request, res: Response) => {
       weeklyVotingEnabled: dataObject.weeklyVotingEnabled,
       matchup,
       lastWinners,
-      callerVoteState: { voted, cap, hitCap },
+      callerVoteState: { votedToday, dailyCap, hitDailyCap, votedCycle, cycleCap, hitCycleCap, hitCap },
     };
 
     return res.json({ success: true, data: payload });

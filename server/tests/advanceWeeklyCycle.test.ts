@@ -102,4 +102,88 @@ describe("advanceWeeklyCycle", () => {
 
     expect(next.currentSubmissionWindow.eligibleMonsterIds).toEqual(kept);
   });
+
+  test("backfills from older monsters when prevEligible is short, sorted by (fewest shown, newest birthdate)", () => {
+    const data = baseDataObject();
+    // 2 fresh eligible monsters — far short of MIN.
+    const fresh = ["fresh-a", "fresh-b"];
+    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
+    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+
+    // Four distinguishing candidates to assert the sort order on:
+    //   1) `never-newer` (0 shown, birthdate 90) — top backfill pick
+    //   2) `never-older` (0 shown, birthdate 10)
+    //   3) `shown-once-newer` (1 shown, 80)
+    //   4) `shown-once-older` (1 shown, 20)
+    data.monsters["never-older"] = { ...makeCompleteMonster("never-older", 10), timesShown: 0 } as any;
+    data.monsters["never-newer"] = { ...makeCompleteMonster("never-newer", 90), timesShown: 0 } as any;
+    data.monsters["shown-once-older"] = { ...makeCompleteMonster("shown-once-older", 20), timesShown: 1 } as any;
+    data.monsters["shown-once-newer"] = { ...makeCompleteMonster("shown-once-newer", 80), timesShown: 1 } as any;
+    // Padding so the pool reaches MIN — these are the "lowest-priority"
+    // candidates (highest timesShown), so they slot in AFTER the four
+    // distinguishing picks above.
+    const padCount = MIN_POOL_SIZE_FOR_VOTE - 2 /* fresh */ - 4 /* distinguishing */;
+    for (let i = 0; i < padCount; i++) {
+      const id = `pad-${i}`;
+      data.monsters[id] = { ...makeCompleteMonster(id, 5), timesShown: 99 } as any;
+    }
+
+    const { next } = advanceWeeklyCycle(data, NOW);
+
+    expect(next.currentVoteCycle).not.toBeNull();
+    const pool = next.currentVoteCycle!.poolMonsterIds;
+    // Fresh submissions keep their lead position in the pool.
+    expect(pool.slice(0, fresh.length)).toEqual(fresh);
+    // The first four backfill picks follow the (shown asc, birthdate desc) sort.
+    expect(pool.slice(fresh.length, fresh.length + 4)).toEqual([
+      "never-newer",
+      "never-older",
+      "shown-once-newer",
+      "shown-once-older",
+    ]);
+    expect(pool.length).toBe(MIN_POOL_SIZE_FOR_VOTE);
+  });
+
+  test("backfill skips winners (in storedWinners) and anything already in prevEligible", () => {
+    const data = baseDataObject();
+    const fresh = ["f1", "f2"];
+    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
+    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+
+    const winner = "old-winner";
+    data.monsters[winner] = { ...makeCompleteMonster(winner, 50), timesShown: 0 } as any;
+    data.storedWinners = [
+      { monsterId: winner, category: "silliest", place: 1, awardedAt: 1, contributorProfileIds: ["p1"] },
+    ];
+
+    // Enough non-winner backfill candidates to reach MIN comfortably.
+    for (let i = 0; i < MIN_POOL_SIZE_FOR_VOTE; i++) {
+      const id = `backfill-${i}`;
+      data.monsters[id] = { ...makeCompleteMonster(id, i), timesShown: 0 } as any;
+    }
+
+    const { next } = advanceWeeklyCycle(data, NOW);
+
+    const pool = next.currentVoteCycle!.poolMonsterIds;
+    expect(pool).not.toContain(winner);
+    // Fresh submissions kept, winner excluded, backfilled filler topped it off.
+    expect(pool.slice(0, 2)).toEqual(fresh);
+    expect(pool.length).toBe(MIN_POOL_SIZE_FOR_VOTE);
+  });
+
+  test("no cycle opens when even the backfilled pool is still short of MIN", () => {
+    const data = baseDataObject();
+    const fresh = ["f1", "f2"];
+    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
+    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+    // Only one extra candidate — total 3, still below MIN.
+    data.monsters["older"] = { ...makeCompleteMonster("older", 50), timesShown: 0 } as any;
+
+    const { next } = advanceWeeklyCycle(data, NOW);
+
+    expect(next.currentVoteCycle).toBeNull();
+    // Fresh submissions carry forward; the backfill candidate stays on the
+    // roster for next week's attempt without being shoved into the window.
+    expect(next.currentSubmissionWindow.eligibleMonsterIds).toEqual(fresh);
+  });
 });

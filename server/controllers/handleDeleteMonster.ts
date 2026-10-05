@@ -78,6 +78,10 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     }
 
     await keyAsset.updateDataObject(nextPatch, {
+      lock: {
+        lockId: `${keyAsset.id}-delete-${monsterId}-${Math.round(Date.now() / 5000) * 5000}`,
+        releaseLock: true,
+      },
       analytics: [
         {
           analyticName: "monster_deleted",

@@ -29,6 +29,7 @@ export const AdminView = () => {
   const hasActiveCycle = !!mainApp?.currentVoteCycle;
 
   const [pendingOff, setPendingOff] = useState(false);
+  const [pendingStartNewCycle, setPendingStartNewCycle] = useState(false);
 
   const refreshMainApp = () =>
     backendAPI
@@ -63,6 +64,17 @@ export const AdminView = () => {
     await applyToggle(false);
   };
 
+  const confirmStartNewCycle = () =>
+    run(async () => {
+      try {
+        setPendingStartNewCycle(false);
+        await backendAPI.post("/admin/vote/start-new-cycle");
+        await refreshMainApp();
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
+
   return (
     <div className="flex flex-col items-center gap-2 text-center">
       <Logo className="h-8 w-auto mx-auto" />
@@ -96,6 +108,18 @@ export const AdminView = () => {
           start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
           about the next vote!").
         </p>
+        <button
+          type="button"
+          className="btn mm-btn-secondary"
+          disabled={isBusy || !currentEnabled}
+          onClick={() => setPendingStartNewCycle(true)}
+        >
+          Start New Vote Cycle
+        </button>
+        <p className="p2 mm-on-card-muted">
+          Immediately closes the current cycle (crowning winners if there is one running) and opens a new cycle ending
+          this coming Saturday 11:59 PM ET. Uses the next category in the rotation.
+        </p>
       </div>
 
       {pendingOff && (
@@ -106,6 +130,21 @@ export const AdminView = () => {
           cancelLabel="Keep Voting On"
           handleOnConfirm={confirmEndVoteAndTurnOff}
           handleToggleShowConfirmationModal={() => setPendingOff(false)}
+        />
+      )}
+
+      {pendingStartNewCycle && (
+        <ConfirmationModal
+          title="Start a new vote cycle now?"
+          message={
+            hasActiveCycle
+              ? "The current vote cycle will close immediately — top-3 winners will be crowned and awards granted. A new cycle will open with the next category, ending this coming Saturday 11:59 PM ET."
+              : "A new cycle will open with the next category, ending this coming Saturday 11:59 PM ET."
+          }
+          confirmLabel="Start New Cycle"
+          cancelLabel="Cancel"
+          handleOnConfirm={confirmStartNewCycle}
+          handleToggleShowConfirmationModal={() => setPendingStartNewCycle(false)}
         />
       )}
     </div>

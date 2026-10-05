@@ -11,14 +11,16 @@ import {
 import {
   contributorDisplayNamesFromEntry,
   errorHandler,
+  etDateKey,
   getCredentials,
   getKeyAsset,
   getVisitor,
-  lockDataObject,
   pickMatchup,
 } from "@utils/index.js";
 
-const VOTE_CAP_MULTIPLIER = 2;
+/** Vote limits: `pool size × 1` per day, `pool size × 2` per cycle. */
+const DAILY_CAP_MULTIPLIER = 1;
+const CYCLE_CAP_MULTIPLIER = 2;
 
 /**
  * POST /api/vote/cast
@@ -32,6 +34,8 @@ export const handleCastVote = async (req: Request, res: Response) => {
   try {
     const source = req.body && req.body.interactiveNonce ? req.body : req.query;
     const credentials = getCredentials(source);
+    const { profileId, urlSlug, sceneDropId } = credentials;
+
     const winnerMonsterId = req.body?.winnerMonsterId as string;
     const loserMonsterId = req.body?.loserMonsterId as string;
     if (!winnerMonsterId || !loserMonsterId) {
@@ -48,27 +52,35 @@ export const handleCastVote = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Monster not in the current pool." });
     }
 
-    // Vote-cap accounting.
-    const cap = Math.max(0, cycle.poolMonsterIds.length * VOTE_CAP_MULTIPLIER);
-    const voted = visitorData.votesCastThisWeek?.windowId === cycle.cycleId ? visitorData.votesCastThisWeek.count : 0;
-    if (cap > 0 && voted >= cap) {
-      return res.status(429).json({ success: false, message: "You've hit your vote cap for this cycle." });
+    // Vote-cap accounting — two independent caps per spec. Daily resets at
+    // midnight ET; cycle resets when the window rolls over. Hitting either
+    // blocks the vote with a cap-specific error so the client can show the
+    // right message.
+    const poolSizeNum = cycle.poolMonsterIds.length;
+    const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
+    const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
+    const todayKey = etDateKey(Date.now());
+    const votedToday = visitorData.votesCastToday?.dateEt === todayKey ? visitorData.votesCastToday.count : 0;
+    const votedCycle =
+      visitorData.votesCastThisWeek?.windowId === cycle.cycleId ? visitorData.votesCastThisWeek.count : 0;
+    if (cycleCap > 0 && votedCycle >= cycleCap) {
+      return res.status(429).json({
+        success: false,
+        message: "You've reached your maximum votes for this cycle.",
+        reason: "cycle-cap",
+      });
     }
-
-    // Fresh lockId per attempt (3s bucket) - `lockDataObject` never
-    // releases, so a constant key would 409 forever after the first use.
-    const lockBucket = Math.round(Date.now() / 3000) * 3000;
-    const lockId = `${keyAsset.id}-vote-${cycle.cycleId}-${lockBucket}`;
-    try {
-      await lockDataObject(lockId, keyAsset);
-    } catch (error) {
-      return res.status(409).json({ success: false, message: "Vote collision - retry." });
+    if (dailyCap > 0 && votedToday >= dailyCap) {
+      return res.status(429).json({
+        success: false,
+        message: "You've reached your maximum votes for today.",
+        reason: "daily-cap",
+      });
     }
 
     await keyAsset.fetchDataObject();
     const freshCycle = (keyAsset.dataObject as KeyAssetDataObject).currentVoteCycle;
     if (!freshCycle || freshCycle.cycleId !== cycle.cycleId) {
-      // We already hold `lockId`; don't re-acquire to release. TTL clears it.
       return res.status(409).json({ success: false, message: "The cycle just closed." });
     }
 
@@ -81,45 +93,67 @@ export const handleCastVote = async (req: Request, res: Response) => {
     loserRow.shown += 1;
     tallies[loserMonsterId] = loserRow;
 
+    // Mirror the per-cycle `shown` bump into each monster's LIFETIME
+    // `timesShown`. Tallies get wiped when a cycle closes, so without this
+    // mirror we'd lose the "how often has this monster been seen" signal
+    // that `advanceWeeklyCycle`'s short-pool backfill ranks on.
+    const freshMonsters = (keyAsset.dataObject as KeyAssetDataObject).monsters ?? {};
+    const winnerTimesShown = (freshMonsters[winnerMonsterId]?.timesShown ?? 0) + 1;
+    const loserTimesShown = (freshMonsters[loserMonsterId]?.timesShown ?? 0) + 1;
+
     const nextCycle = {
       ...freshCycle,
       tallies,
       totalMatchupsServed: (freshCycle.totalMatchupsServed ?? 0) + 1,
     };
 
-    // We already hold `lockId`. Plain update matches tic-tac-toe's pattern.
     await keyAsset.updateDataObject(
-      { currentVoteCycle: nextCycle },
       {
+        [`currentVoteCycle.tallies.${winnerMonsterId}`]: winnerRow,
+        [`currentVoteCycle.tallies.${loserMonsterId}`]: loserRow,
+        [`monsters.${winnerMonsterId}.timesShown`]: winnerTimesShown,
+        [`monsters.${loserMonsterId}.timesShown`]: loserTimesShown,
+        totalMatchupsServed: (freshCycle.totalMatchupsServed ?? 0) + 1,
+      },
+      {
+        lock: {
+          lockId: `${keyAsset.id}-vote-${cycle.cycleId}-${winnerMonsterId}-${loserMonsterId}-${Math.round(Date.now() / 5000) * 5000}`,
+          releaseLock: true,
+        },
         analytics: [
           {
             analyticName: "vote_cast",
-            profileId: credentials.profileId,
-            urlSlug: credentials.urlSlug,
-            uniqueKey: `${credentials.profileId}-${cycle.cycleId}-${voted + 1}`,
+            profileId,
+            urlSlug,
+            uniqueKey: `${profileId}-${cycle.cycleId}-${votedCycle + 1}`,
           },
         ],
       },
     );
 
-    // Visitor tally. `votesByWeek` keeps the per-cycle counts that
-    // `votesCastThisWeek` throws away each week — Monster Judge and
-    // Obsessed Voter need the player's best single week, and Still Voting
-    // needs how many weeks cleared a minimum.
+    // Visitor tally. Both counters increment on every vote; `votesCastToday`
+    // reseeds on the first vote of a new ET date, `votesCastThisWeek` on
+    // every new cycleId. `votesByWeek` keeps the per-cycle counts that
+    // `votesCastThisWeek` throws away each week — Monster Judge and Obsessed
+    // Voter need the player's best single week, and Still Voting needs how
+    // many weeks cleared a minimum.
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
-      votesCastThisWeek: { windowId: cycle.cycleId, count: voted + 1 },
-      votesByWeek: { ...(visitorData.votesByWeek ?? {}), [cycle.cycleId]: voted + 1 },
+      votesCastThisWeek: { windowId: cycle.cycleId, count: votedCycle + 1 },
+      votesCastToday: { dateEt: todayKey, count: votedToday + 1 },
+      votesByWeek: { ...(visitorData.votesByWeek ?? {}), [cycle.cycleId]: votedCycle + 1 },
       totalVotesCast: (visitorData.totalVotesCast ?? 0) + 1,
       weeksVotedIn: dedupPush(visitorData.weeksVotedIn ?? [], cycle.cycleId),
     };
-    const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+    const scopedKey = `${urlSlug}-${sceneDropId}`;
     await visitor.updateDataObject({ [scopedKey]: nextVisitorData }, {});
 
-    // Next matchup (respects the newly-incremented cap).
-    const newCap = cap;
-    const newVoted = voted + 1;
-    const hitCap = newCap > 0 && newVoted >= newCap;
+    // Next matchup (respects the newly-incremented caps).
+    const newVotedToday = votedToday + 1;
+    const newVotedCycle = votedCycle + 1;
+    const hitDailyCap = dailyCap > 0 && newVotedToday >= dailyCap;
+    const hitCycleCap = cycleCap > 0 && newVotedCycle >= cycleCap;
+    const hitCap = hitDailyCap || hitCycleCap;
     let next: VoteMatchupPayload | null = null;
     if (!hitCap) {
       const raw = pickMatchup(nextCycle);
@@ -139,7 +173,15 @@ export const handleCastVote = async (req: Request, res: Response) => {
       ok: true,
       monster: { monsterId: winnerMonsterId, wins: winnerRow.wins, shown: winnerRow.shown },
       next,
-      callerVoteState: { voted: newVoted, cap: newCap, hitCap },
+      callerVoteState: {
+        votedToday: newVotedToday,
+        dailyCap,
+        hitDailyCap,
+        votedCycle: newVotedCycle,
+        cycleCap,
+        hitCycleCap,
+        hitCap,
+      },
     };
     return res.json({ success: true, data: payload });
   } catch (error) {

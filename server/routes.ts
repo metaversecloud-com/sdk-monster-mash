@@ -2,6 +2,7 @@ import express from "express";
 import {
   handleAbandonSection,
   handleAcknowledgeBanners,
+  handleAdminStartNewCycle,
   handleCastVote,
   handleClaimSection,
   handleDeleteMonster,
@@ -62,6 +63,7 @@ router.post("/monsters/:id/open", handleOpenMonsterDrawer);
 // Vote
 router.get("/vote", handleGetVote);
 router.post("/vote/cast", handleCastVote);
+router.post("/admin/vote/start-new-cycle", handleAdminStartNewCycle);
 
 // Banner queues
 router.post("/banners/acknowledge", handleAcknowledgeBanners);
