@@ -1,14 +1,23 @@
 import { Request, Response } from "express";
 import { LEADERBOARD_CAP } from "@shared/content/monsterMash.js";
-import { BADGES } from "@shared/content/badges.js";
 import { KeyAssetDataObject, TrophyBadgeRow, TrophyLeaderboardRow, TrophyResponseData } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor, parseLeaderboardRow } from "@utils/index.js";
+import {
+  errorHandler,
+  getBadgeCatalog,
+  getCredentials,
+  getKeyAsset,
+  getVisitor,
+  parseLeaderboardRow,
+  syncBadges,
+} from "@utils/index.js";
 
 /**
  * GET /api/trophy
  *
  * Returns the leaderboard (top 25 + caller's row if outside top 25) + the
- * badge grid (four groups × 38 badges with owned flags).
+ * badge grid (four groups, with owned flags). The badge catalog comes from
+ * the ecosystem inventory — art, grouping and order all live on each BADGE
+ * item's metadata, so adding badges is an inventory import, not a deploy.
  */
 export const handleGetTrophy = async (req: Request, res: Response) => {
   try {
@@ -17,7 +26,7 @@ export const handleGetTrophy = async (req: Request, res: Response) => {
 
     const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
-    const { isAdmin, visitorInventory } = await getVisitor(credentials, {
+    const { visitor, isAdmin, visitorData, visitorInventory } = await getVisitor(credentials, {
       shouldGetVisitorDetails: true,
       includeInventory: true,
       forceRefreshInventory,
@@ -46,13 +55,21 @@ export const handleGetTrophy = async (req: Request, res: Response) => {
     const top = ranked.slice(0, LEADERBOARD_CAP);
     const callerRow = ranked.find((r) => r.isCaller && r.rank > LEADERBOARD_CAP);
 
-    // Badges: mark owned by name lookup against ecosystem visitor inventory.
+    // Grant anything newly earned before building the grid, so opening the
+    // Trophy drawer shows the badge you just qualified for rather than one
+    // open behind. `syncBadges` adds the granted names to `ownedNames`.
     const ownedNames = new Set(Object.keys(visitorInventory ?? {}));
-    const badges: TrophyBadgeRow[] = BADGES.map((b) => ({
-      name: b.name,
+    await syncBadges({ credentials, visitor, visitorData, ownedBadgeNames: ownedNames, forceRefreshInventory });
+
+    // Badges: the ecosystem catalog is the full grid; the visitor's own
+    // inventory only says which of them are owned. Prefer the visitor's copy
+    // of the art when present, else fall back to the catalog art.
+    const catalog = await getBadgeCatalog(credentials, { forceRefresh: forceRefreshInventory });
+    const badges: TrophyBadgeRow[] = catalog.map((b) => ({
+      name: b.displayName,
       group: b.group,
       owned: ownedNames.has(b.name),
-      iconUrl: visitorInventory?.[b.name]?.icon,
+      iconUrl: visitorInventory?.[b.name]?.icon || b.iconUrl || undefined,
     }));
 
     const payload: TrophyResponseData = {

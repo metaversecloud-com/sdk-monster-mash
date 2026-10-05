@@ -95,7 +95,10 @@ const buildLayerMap = (allPicks: readonly SectionSourcePicks[]): Map<string, str
 };
 
 /** Compose one section's picks into a PNG buffer. */
-export const composeSectionBuffer = async (section: Section, picks: { [categoryId: string]: string }): Promise<Buffer> => {
+export const composeSectionBuffer = async (
+  section: Section,
+  picks: { [categoryId: string]: string },
+): Promise<Buffer> => {
   const sectionLayerKeys = CATEGORIES.filter((c) => c.section === section).map((c) => c.layerKey);
   return composeLayers(sectionLayerKeys, buildLayerMap([{ section, picks }]));
 };

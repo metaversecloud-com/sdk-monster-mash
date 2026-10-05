@@ -55,9 +55,9 @@ export const handleCastVote = async (req: Request, res: Response) => {
       return res.status(429).json({ success: false, message: "You've hit your vote cap for this cycle." });
     }
 
-    // Fresh lockId per attempt (5s bucket) - `lockDataObject` never
+    // Fresh lockId per attempt (3s bucket) - `lockDataObject` never
     // releases, so a constant key would 409 forever after the first use.
-    const lockBucket = Math.round(Date.now() / 5000) * 5000;
+    const lockBucket = Math.round(Date.now() / 3000) * 3000;
     const lockId = `${keyAsset.id}-vote-${cycle.cycleId}-${lockBucket}`;
     try {
       await lockDataObject(lockId, keyAsset);
@@ -102,10 +102,14 @@ export const handleCastVote = async (req: Request, res: Response) => {
       },
     );
 
-    // Visitor tally.
+    // Visitor tally. `votesByWeek` keeps the per-cycle counts that
+    // `votesCastThisWeek` throws away each week — Monster Judge and
+    // Obsessed Voter need the player's best single week, and Still Voting
+    // needs how many weeks cleared a minimum.
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
       votesCastThisWeek: { windowId: cycle.cycleId, count: voted + 1 },
+      votesByWeek: { ...(visitorData.votesByWeek ?? {}), [cycle.cycleId]: voted + 1 },
       totalVotesCast: (visitorData.totalVotesCast ?? 0) + 1,
       weeksVotedIn: dedupPush(visitorData.weeksVotedIn ?? [], cycle.cycleId),
     };

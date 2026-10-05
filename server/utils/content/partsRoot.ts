@@ -32,9 +32,7 @@ export const resolvePartsRoot = (): string => {
       return cached;
     }
   }
-  throw new Error(
-    `resolvePartsRoot: no parts directory found. Tried:\n  - ${candidates().join("\n  - ")}`,
-  );
+  throw new Error(`resolvePartsRoot: no parts directory found. Tried:\n  - ${candidates().join("\n  - ")}`);
 };
 
 /** Test-only: reset the memoized path between suites. */

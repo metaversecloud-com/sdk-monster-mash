@@ -19,9 +19,7 @@ export interface EvictFinishedResult {
  * The corresponding dropped asset in the world is left alone — eviction is
  * only a roster / display-cap concern.
  */
-export const evictFinishedIfCapped = (
-  monsters: KeyAssetDataObject["monsters"] | undefined,
-): EvictFinishedResult => {
+export const evictFinishedIfCapped = (monsters: KeyAssetDataObject["monsters"] | undefined): EvictFinishedResult => {
   const evictedIds: string[] = [];
   if (!monsters) return { monsters: {}, changed: false, evictedIds };
 

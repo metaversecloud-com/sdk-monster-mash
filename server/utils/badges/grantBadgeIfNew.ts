@@ -1,6 +1,6 @@
 import { UserInterface, VisitorInterface } from "@rtsdk/topia";
 import { Credentials } from "../../types/index.js";
-import { Ecosystem } from "../topiaInit.js";
+import { getBadgeCatalog } from "./getBadgeCatalog.js";
 
 export interface GrantBadgeIfNewInput {
   target: VisitorInterface | UserInterface;
@@ -20,8 +20,6 @@ export interface GrantBadgeResult {
  * it. Skips silently when the badge lookup fails or the ecosystem doesn't
  * expose the named badge (spec: ecosystem is the source of truth for badge
  * catalog art + presence — we only look up by name).
- *
- * Follows the sdk-tictactoe `grantBadgeIfNew` pattern.
  */
 export const grantBadgeIfNew = async ({
   target,
@@ -40,21 +38,10 @@ export const grantBadgeIfNew = async ({
     }
     if (owned.has(badgeName)) return { granted: false, skippedReason: "already-owned" };
 
-    // Look up the badge id via ecosystem.
-    const ecosystem = (Ecosystem as any).create?.({ credentials }) ?? Ecosystem;
-    let badgeId: string | undefined;
-    try {
-      const items = await (ecosystem as any).fetchInventoryItems?.().catch(() => []);
-      const list = Array.isArray(items) ? items : items?.inventoryItems ?? [];
-      for (const item of list) {
-        if (item?.item?.type === "BADGE" && item?.item?.name === badgeName) {
-          badgeId = item?.item?.id ?? item?.id;
-          break;
-        }
-      }
-    } catch (error) {
-      // Non-fatal — the ecosystem may not be reachable in tests / dev.
-    }
+    // Look up the badge id in the ecosystem catalog (memoized — this is the
+    // same read that backs the Trophy grid).
+    const catalog = await getBadgeCatalog(credentials);
+    const badgeId = catalog.find((b) => b.name === badgeName)?.id;
     if (!badgeId) return { granted: false, skippedReason: "badge-not-in-ecosystem" };
 
     try {

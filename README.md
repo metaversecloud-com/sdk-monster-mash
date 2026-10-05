@@ -15,7 +15,6 @@ Each Sun→Sat ET week runs one voting category (silliest, cutest, best-dressed�
 ### Canvas elements & interactions
 
 - **Monster Mash key asset** (`clickType: link` → this app iframe as a wide modal): opens the main app modal with three tabs - Create, Gallery, Vote.
-- **Info sign** (`clickType: link` → drawer): opens a static how-to image explaining the game to new visitors.
 - **Trophy** (`clickType: link` → drawer): opens the two-tab Leaderboard + Badges surface.
 - **Finished-monster assets** (dropped by the app at completion, `clickType: link` → drawer): opens the Single Monster View for that monster, with Download PNG and (for admins) a Delete confirm.
 

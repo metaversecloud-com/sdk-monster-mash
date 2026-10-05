@@ -7,6 +7,7 @@ export * from "./getBaseUrl.js";
 export * from "./getCredentials.js";
 export * from "./getVersion.js";
 export * from "./getVisitor.js";
+export * from "./inventoryCache.js";
 export * from "./iframes/index.js";
 export * from "./images/index.js";
 export * from "./lockDataObject.js";

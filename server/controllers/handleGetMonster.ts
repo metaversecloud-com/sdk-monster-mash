@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
+import { GalleryMonster, KeyAssetDataObject, SingleMonsterResponseData } from "@shared/types/index.js";
 import {
-  GalleryMonster,
-  KeyAssetDataObject,
-  SingleMonsterResponseData,
-} from "@shared/types/index.js";
-import { contributorDisplayNamesFromEntry, errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+  contributorDisplayNamesFromEntry,
+  errorHandler,
+  getCredentials,
+  getKeyAsset,
+  getVisitor,
+} from "@utils/index.js";
 
 /**
  * GET /api/monsters/:id
@@ -73,4 +75,3 @@ export const handleGetMonster = async (req: Request, res: Response) => {
     });
   }
 };
-

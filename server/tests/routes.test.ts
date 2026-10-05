@@ -92,6 +92,10 @@ jest.mock("@utils/index.js", () => {
     getCredentials: jest.fn(),
     getKeyAsset: jest.fn(),
     getVisitor: jest.fn(),
+    // The badge catalog now comes from the ecosystem inventory rather than a
+    // hardcoded list (see docs/claude/inventory-zip-format.md). The @rtsdk
+    // mock has no ecosystem, so stand in a catalog shaped like real metadata.
+    getBadgeCatalog: jest.fn().mockImplementation(async () => fakeBadgeCatalog()),
     lockDataObject: jest.fn().mockResolvedValue(undefined),
     // Compositor + finalize surfaces: mocked so tests don't reach S3 or spin
     // up Jimp. Individual tests can override return values. Section image
@@ -152,6 +156,51 @@ jest.mock("@utils/index.js", () => {
     }),
   };
 });
+
+/**
+ * A representative slice of the real ecosystem badge catalog (Design Spec 1.2
+ * → Badges (38)), in sortOrder: one entry per group, plus each rule shape
+ * that takes a qualifier — `winCategory`, `submitSection`, `weeksWithMinVotes`.
+ *
+ * Only ACTIVE badges reach here: `getBadgeCatalog` filters INACTIVE ones out,
+ * which is how the eight not-yet-live voting categories stay off the grid.
+ */
+function fakeBadgeCatalog() {
+  const entry = (
+    id: string,
+    name: string,
+    group: string,
+    sortOrder: number,
+    thresholdKind: string | null,
+    threshold: number | null,
+    extra: { categoryId?: string; sectionId?: string; minVotesPerWeek?: number } = {},
+  ) => ({
+    id,
+    name,
+    displayName: name,
+    group,
+    sortOrder,
+    thresholdKind,
+    threshold,
+    categoryId: extra.categoryId ?? null,
+    sectionId: extra.sectionId ?? null,
+    minVotesPerWeek: extra.minVotesPerWeek ?? null,
+    iconUrl: `https://cdn.example.com/${id}.png`,
+  });
+
+  return [
+    entry("mm-badge-silliest", "Winner: Silliest Monster", "winning", 0, "winCategory", 1, {
+      categoryId: "silliest",
+    }),
+    entry("mm-badge-halloffame", "Monster Hall of Fame", "winning", 15, "awardsWon", 5),
+    entry("mm-badge-ivoted", "I Voted!", "voting", 16, "vote", 1),
+    entry("mm-badge-stillvoting", "Still Voting", "voting", 20, "weeksWithMinVotes", 5, { minVotesPerWeek: 10 }),
+    entry("mm-badge-newmasher", "New Masher", "visiting", 24, "visitAppOpens", 2),
+    entry("mm-badge-madscientist", "Mad Scientist", "building", 27, "monstersStarted", 1),
+    entry("mm-badge-brainstormer", "Brainstormer", "building", 30, "submitSection", 1, { sectionId: "head" }),
+    entry("mm-badge-masterbuilder", "Master Builder", "building", 37, "completeAsThird", 50),
+  ];
+}
 
 function fakeContent() {
   const rawParts = [
@@ -324,6 +373,11 @@ describe("routes", () => {
     const visitorPayload = visitor.updateDataObject.mock.calls[0][0];
     const scoped = visitorPayload[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
     expect(scoped.activeDraft).toMatchObject({ monsterId, section });
+    // Starting is the only signal for the Mad Scientist ladder.
+    expect(scoped.monstersStarted).toBe(1);
+    expect(scoped.weeksStartedMonsterIn).toHaveLength(1);
+    // Starting is not joining — Lab Partner must not fire off a /start.
+    expect(scoped.activeDraft.joined).toBeUndefined();
   });
 
   test("POST /monsters/start refuses when the caller already has an activeDraft", async () => {
@@ -391,10 +445,11 @@ describe("routes", () => {
 
     // First caller (Alice): claims torso → 200.
     const aliceKeyAsset = makeKeyAsset(buildData());
+    const aliceVisitor = makeVisitor();
     mockUtils.getCredentials.mockReturnValueOnce(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValueOnce(aliceKeyAsset);
     mockUtils.getVisitor.mockResolvedValueOnce({
-      visitor: makeVisitor(),
+      visitor: aliceVisitor,
       isAdmin: false,
       visitorData: emptyVisitorData,
       visitorInventory: {},
@@ -408,6 +463,12 @@ describe("routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.section).toBe("torso");
+
+    // Claiming marks the draft as a join, which is what carries Lab Partner
+    // through to submit. Claiming alone must not award it.
+    const claimScoped = aliceVisitor.updateDataObject.mock.calls[0][0][`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(claimScoped.activeDraft).toMatchObject({ monsterId, section: "torso", joined: true });
+    expect(claimScoped.contributedMonsters).toEqual({});
 
     // Second caller (Bob): tries same torso, lock throws → 409.
     const bobKeyAsset = makeKeyAsset(buildData());
@@ -531,6 +592,10 @@ describe("routes", () => {
     expect(scoped.contributedMonsters[monsterId]).toMatchObject({
       section: "legs",
       completedAt: expect.any(Number),
+      // The submit that completes the monster is the It's Alive! → Master
+      // Builder signal. `completedAt` can't stand in for it — finalize gives
+      // that to every contributor, not just the third.
+      wasThirdSection: true,
     });
   });
 
@@ -1163,6 +1228,15 @@ describe("routes", () => {
     expect(keyAsset.dataObject.currentVoteCycle.tallies.m1).toEqual({ wins: 1, shown: 1 });
     expect(keyAsset.dataObject.currentVoteCycle.tallies.m2).toEqual({ wins: 0, shown: 1 });
 
+    // Per-week vote counts are kept alongside the running total.
+    // `votesCastThisWeek` is reset each cycle, so it can't answer Monster
+    // Judge / Obsessed Voter (best week) or Still Voting (weeks over a
+    // minimum) — `votesByWeek` is what those read.
+    const voteScoped = visitor.updateDataObject.mock.calls[0][0][`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(voteScoped.votesByWeek).toEqual({ c1: 1 });
+    expect(voteScoped.totalVotesCast).toBe(1);
+    expect(voteScoped.weeksVotedIn).toEqual(["c1"]);
+
     // Now bump the visitor's count above cap and try again.
     const capped = { ...emptyVisitorData, votesCastThisWeek: { windowId: "c1", count: 999 } };
     mockUtils.getVisitor.mockResolvedValue({
@@ -1233,10 +1307,24 @@ describe("routes", () => {
     expect(res.body.data.leaderboard[0].displayName).toBe("Alpha");
     expect(res.body.data.leaderboard[0].awardsWon).toBe(5);
     expect(res.body.data.isAdmin).toBe(true);
-    // The 38-badge catalog surfaces; "I Voted!" is owned.
-    expect(res.body.data.totalBadges).toBeGreaterThanOrEqual(21);
+
+    // The grid is the ecosystem catalog, in sortOrder, across all four groups.
+    expect(res.body.data.totalBadges).toBe(fakeBadgeCatalog().length);
+    expect(res.body.data.badges.map((b: any) => b.name)).toEqual(fakeBadgeCatalog().map((b) => b.displayName));
+    expect(new Set(res.body.data.badges.map((b: any) => b.group))).toEqual(
+      new Set(["building", "voting", "visiting", "winning"]),
+    );
+
+    // Owned flags come from the visitor's own inventory, not the catalog.
     const iVoted = res.body.data.badges.find((b: any) => b.name === "I Voted!");
     expect(iVoted?.owned).toBe(true);
+    expect(iVoted?.iconUrl).toBe("https://x/y.png"); // visitor art wins
+    expect(res.body.data.ownedBadgesCount).toBe(1);
+
+    // Unowned badges still render, falling back to the catalog art.
+    const silliest = res.body.data.badges.find((b: any) => b.name === "Winner: Silliest Monster");
+    expect(silliest?.owned).toBe(false);
+    expect(silliest?.iconUrl).toBe("https://cdn.example.com/mm-badge-silliest.png");
   });
 
   test("POST /leaderboard/reset admin-only + wipes leaderboard", async () => {

@@ -91,7 +91,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
         {
           [visitorKey]: {
             ...visitorData,
-            activeDraft: { ...currentDraft, lastActivityAt: now },
+            activeDraft: { ...currentDraft, lastActivityAt: now, joined: true },
           },
         },
         {},
@@ -183,6 +183,10 @@ export const handleClaimSection = async (req: Request, res: Response) => {
         lockedAt: now,
         lastActivityAt: now,
         picks: {},
+        // Claiming is how you join a monster someone else started. Carried
+        // onto contributedMonsters at submit so Lab Partner only counts
+        // joins that were finished, not claim-then-abandon.
+        joined: true,
       },
     };
     const visitorKey = `${urlSlug}-${sceneDropId}`;

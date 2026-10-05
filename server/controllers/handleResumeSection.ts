@@ -1,12 +1,6 @@
 import { Request, Response } from "express";
 import { KeyAssetDataObject, Section, SECTIONS } from "@shared/types/index.js";
-import {
-  errorHandler,
-  getCredentials,
-  getKeyAsset,
-  getVisitor,
-  transitionToDrawer,
-} from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, transitionToDrawer } from "@utils/index.js";
 
 /**
  * POST /api/monsters/:id/resume

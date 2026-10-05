@@ -12,6 +12,7 @@ import {
   getKeyAsset,
   getVisitor,
   refreshContent,
+  syncBadges,
 } from "@utils/index.js";
 
 /**
@@ -149,10 +150,12 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
         }
       : { ...dataObject, monsters };
 
-    const { currentSubmissionWindow, currentVoteCycle, storedWinners, weeklyVotingEnabled } = effectiveDataObject;
+    const { currentSubmissionWindow, currentVoteCycle, storedWinners, weeklyVotingEnabled, categorySchedule } =
+      effectiveDataObject;
 
-    const { visitor, isAdmin, visitorData } = await getVisitor(credentials, {
+    const { visitor, isAdmin, visitorData, visitorInventory } = await getVisitor(credentials, {
       shouldGetVisitorDetails: true,
+      includeInventory: true,
       forceRefreshInventory,
     });
 
@@ -262,6 +265,20 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       if (activeDraftShouldClear) delete visitorData.activeDraft;
     }
 
+    // Badge grant pass. Runs after the visitor write above so this open's
+    // own `daysAppOpened` bump and any freshly-stamped award ribbons are
+    // already counted. Everything the rules read lives on the caller's own
+    // visitor dataObject, so each contributor picks up their badges on
+    // their next open — matching the spec's "first time a player opens the
+    // app after their monster won" model, with no cross-profile fanout.
+    await syncBadges({
+      credentials,
+      visitor,
+      visitorData,
+      ownedBadgeNames: new Set(Object.keys(visitorInventory ?? {})),
+      forceRefreshInventory,
+    });
+
     const rosterEntries = Object.values(monsters ?? {});
     const pendingWinBanners = visitorData.pendingWinBanners ?? [];
     const pendingCompletionBanners = visitorData.pendingCompletionBanners ?? [];
@@ -282,6 +299,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       currentSubmissionWindow,
       currentVoteCycle,
       storedWinners: storedWinners ?? [],
+      categorySchedule: categorySchedule ?? { orderIds: [], nextIndex: 0 },
       banners: {
         win: winTop
           ? {

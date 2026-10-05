@@ -37,8 +37,27 @@ export class DroppedAssetFactory {
   }
 }
 
+/**
+ * Ecosystem inventory the mock serves to `getCachedInventoryItems`. Tests
+ * set this via `__mock.setEcosystemInventory([...])`; the cache layer is
+ * what strips INACTIVE rows, so put raw rows here (INACTIVE included).
+ */
+export let ecosystemInventoryItems: any[] = [];
+
+export const ecosystemFetchInventorySpy = jest.fn();
+
 export class EcosystemFactory {
   constructor(_topia: any) {}
+  create(_opts: any) {
+    return {
+      fetchInventoryItems: async () => {
+        ecosystemFetchInventorySpy(_opts);
+      },
+      get inventoryItems() {
+        return ecosystemInventoryItems;
+      },
+    };
+  }
 }
 
 export class UserFactory {
@@ -85,7 +104,13 @@ export const __mock = {
   droppedMonsterAssetSpy,
   worldDeleteDroppedAssetsSpy,
   lastWorldCreateArgs: null as any,
+  ecosystemFetchInventorySpy,
+  setEcosystemInventory(items: any[]) {
+    ecosystemInventoryItems = items;
+  },
   reset() {
+    ecosystemInventoryItems = [];
+    ecosystemFetchInventorySpy.mockClear();
     fireToast.mockClear();
     triggerParticle.mockClear();
     droppedMonsterAssetSpy.mockClear();

@@ -172,10 +172,16 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     //   3. Save this section's picks/nameToken into contributedDrafts so the
     //      client can render a layered preview until finalize (or clean the
     //      whole monster out of contributedDrafts if we just finalized)
+    // Badge counters are stamped here, at the only moment we know both
+    // facts: whether this submit came from joining someone else's monster
+    // (carried on the draft since /claim) and whether it's the one that
+    // completed the build. `completedAt` can't stand in for the latter —
+    // finalize gives it to every contributor, not just the third.
     const contribEntry: MonsterMashVisitorData["contributedMonsters"][string] = {
       section,
       submittedAt: now,
-      ...(nowDone ? { completedAt: now } : {}),
+      ...(nowDone ? { completedAt: now, wasThirdSection: true } : {}),
+      ...(visitorData.activeDraft?.monsterId === monsterId && visitorData.activeDraft.joined ? { joined: true } : {}),
     };
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,

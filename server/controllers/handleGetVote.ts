@@ -39,9 +39,7 @@ export const handleGetVote = async (req: Request, res: Response) => {
 
     // Vote-cap accounting: caller can vote 2 × pool.size across the cycle.
     const cycleId = cycle?.cycleId ?? "";
-    const voted = visitorData.votesCastThisWeek?.windowId === cycleId
-      ? visitorData.votesCastThisWeek.count
-      : 0;
+    const voted = visitorData.votesCastThisWeek?.windowId === cycleId ? visitorData.votesCastThisWeek.count : 0;
     const cap = cycle ? Math.max(0, cycle.poolMonsterIds.length * VOTE_CAP_MULTIPLIER) : 0;
     const hitCap = cap > 0 && voted >= cap;
 

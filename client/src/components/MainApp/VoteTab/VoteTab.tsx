@@ -92,9 +92,6 @@ export const VoteTab = () => {
               <div className="p-2 rounded-2xl mm-border-2 mm-border-amber mm-bg-amber flex-1 min-w-[280px]">
                 <Countdown targetMs={vote.cycleEndsAt} />
                 <p className="p2 mt-1">left to vote on last week's monsters!</p>
-                <p className="text-xs mm-text-on-amber mt-1">
-                  Times are a guide - the window opens and closes the next time someone opens the app.
-                </p>
               </div>
             ) : (
               <div />

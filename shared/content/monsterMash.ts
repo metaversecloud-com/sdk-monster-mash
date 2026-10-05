@@ -258,17 +258,25 @@ export interface VotingCategoryDef {
   question: string; // fills "Which one is the ___?"
 }
 
+/**
+ * Each id must match the `categoryId` on a `winCategory` badge in the
+ * ecosystem inventory — that's what lets a category win grant its badge.
+ * Adding a category here without an ACTIVE badge carrying that `categoryId`
+ * means the win is never rewarded.
+ *
+ * The spec's eight "Possible for future" categories (Best Teamwork,
+ * Scariest, Roundest, Most Realistic, Most Colorful, Sneakiest, Wiggliest,
+ * Most Mysterious) already have badge art in the inventory, shipped as
+ * INACTIVE. To launch one: add it here and flip its badge to ACTIVE.
+ */
 export const VOTING_CATEGORIES: readonly VotingCategoryDef[] = [
+  { id: "homework", label: "Eats Homework", question: "Most Likely to Eat Your Homework" },
   { id: "silliest", label: "Silliest", question: "Silliest" },
   { id: "best-dressed", label: "Best Dressed", question: "Best Dressed" },
   { id: "cutest", label: "Cutest", question: "Cutest" },
-  { id: "grumpiest", label: "Grumpiest", question: "Grumpiest" },
-  { id: "spookiest", label: "Spookiest", question: "Spookiest" },
+  { id: "strangest", label: "Strangest", question: "Strangest" },
   { id: "friendliest", label: "Friendliest", question: "Friendliest" },
-  { id: "sneakiest", label: "Sneakiest", question: "Sneakiest" },
-  { id: "wisest", label: "Wisest", question: "Wisest" },
-  { id: "bravest", label: "Bravest", question: "Bravest" },
-  { id: "weirdest", label: "Weirdest", question: "Weirdest" },
+  { id: "grumpiest", label: "Grumpiest", question: "Grumpiest" },
 ] as const;
 
 export const VOTING_CATEGORY_BY_ID: Record<string, VotingCategoryDef> = VOTING_CATEGORIES.reduce(

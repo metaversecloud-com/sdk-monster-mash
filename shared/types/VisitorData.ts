@@ -20,6 +20,16 @@ export interface MonsterMashVisitorData {
       submittedAt: number;
       completedAt?: number;
       awards?: AwardRibbon[];
+      /**
+       * Badge counters, stamped at submit time (see `buildBadgeCounters`).
+       * `joined` — the caller claimed into a monster someone else started,
+       * rather than starting it themselves (drives Lab Partner).
+       * `wasThirdSection` — this submit was the one that completed the
+       * monster (drives It's Alive! → Master Builder). Distinct from
+       * `completedAt`, which every contributor receives on finalize.
+       */
+      joined?: boolean;
+      wasThirdSection?: boolean;
       /** Set on finalize — persists across roster eviction. */
       monsterAssetId?: string;
       name?: string;
@@ -38,6 +48,13 @@ export interface MonsterMashVisitorData {
     lastActivityAt: number;
     picks: { [categoryId: string]: string };
     nameToken?: string;
+    /**
+     * True when this draft came from claiming into a monster someone else
+     * started (`/claim`) rather than starting one (`/start`). Carried onto
+     * `contributedMonsters[id].joined` at submit so Lab Partner only counts
+     * joins that were actually finished, not claim-then-abandon.
+     */
+    joined?: boolean;
   };
 
   /**
@@ -70,6 +87,26 @@ export interface MonsterMashVisitorData {
   weeksVotedIn: string[];
   votesCastThisWeek: { windowId: string; count: number };
   totalVotesCast: number;
+
+  /**
+   * Monsters this profile started via `/monsters/start` (drives Mad
+   * Scientist), and the submission-window ids of the weeks they did it in
+   * (drives Really / Extremely Mad Scientist).
+   */
+  monstersStarted?: number;
+  weeksStartedMonsterIn?: string[];
+
+  /**
+   * Votes cast per submission window, `{ windowId: count }`. Drives
+   * Monster Judge + Obsessed Voter (best single week) and Still Voting
+   * (weeks clearing a per-week minimum) — `votesCastThisWeek` only ever
+   * holds the current week, which can't answer either.
+   *
+   * Added after launch: for profiles that voted before this shipped it
+   * backfills from `votesCastThisWeek` only, so their earlier weeks are
+   * not represented.
+   */
+  votesByWeek?: { [windowId: string]: number };
 }
 
 /**

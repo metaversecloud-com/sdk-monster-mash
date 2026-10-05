@@ -15,7 +15,8 @@ interface BadgesTabProps {
 }
 
 /**
- * Trophy Badges tab. Four groups × 38 badges:
+ * Trophy Badges tab. Four groups; the badges themselves come from the
+ * ecosystem inventory catalog, already in sortOrder from the server:
  *   - Earned → gold circle + name, yellow tile.
  *   - Locked → padlock icon, dim tile.
  */
@@ -54,7 +55,7 @@ export const BadgesTab = ({ badges, ownedCount, totalCount }: BadgesTabProps) =>
                   ) : (
                     <span className="w-24 h-24 rounded-full bg-yellow-400 inline-block" style={style} aria-hidden />
                   )}
-                  <p className="text-xs mm-text-accent-lt pb-2">{badge.name}</p>
+                  <p className="text-xs mm-text-accent-lt">{badge.name}</p>
                 </div>
               );
             })}

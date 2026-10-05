@@ -9,6 +9,7 @@ import {
   SECTIONS,
 } from "@shared/types/index.js";
 import {
+  currentSubmissionWindow,
   errorHandler,
   evictInProgressIfCapped,
   expireStaleLocks,
@@ -106,9 +107,15 @@ export const handleStartMonster = async (req: Request, res: Response) => {
       });
     }
 
-    // Write the caller's activeDraft.
+    // Write the caller's activeDraft + the Mad Scientist counters. Starting
+    // a monster is the only signal for those badges — nothing downstream
+    // records who opened a build, so it's counted here.
+    const startWindowId = currentSubmissionWindow(now).windowId;
+    const weeksStarted = visitorData.weeksStartedMonsterIn ?? [];
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
+      monstersStarted: (visitorData.monstersStarted ?? 0) + 1,
+      weeksStartedMonsterIn: weeksStarted.includes(startWindowId) ? weeksStarted : [...weeksStarted, startWindowId],
       activeDraft: {
         monsterId,
         section,

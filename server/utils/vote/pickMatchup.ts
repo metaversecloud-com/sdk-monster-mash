@@ -29,7 +29,7 @@ export const pickMatchup = (
     return { id, shown: t.shown };
   });
   // Under-shown first, then random tiebreak.
-  scored.sort((a, b) => a.shown - b.shown || (random() - 0.5));
+  scored.sort((a, b) => a.shown - b.shown || random() - 0.5);
 
   const halfWindow = Math.max(2, Math.min(scored.length, Math.floor(scored.length / 2)));
   const bucket = scored.slice(0, halfWindow);

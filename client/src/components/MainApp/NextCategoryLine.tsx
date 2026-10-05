@@ -16,7 +16,7 @@ export const NextCategoryLine = () => {
 
   const nextCategory = useMemo(() => {
     if (!mainApp?.weeklyVotingEnabled) return null;
-    const schedule = (mainApp as any)?.categorySchedule as { orderIds: string[]; nextIndex: number } | undefined;
+    const schedule = mainApp.categorySchedule;
     if (!schedule?.orderIds?.length) return null;
     const id = schedule.orderIds[schedule.nextIndex % schedule.orderIds.length];
     return VOTING_CATEGORY_BY_ID[id]?.label ?? id;

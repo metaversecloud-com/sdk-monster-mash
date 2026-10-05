@@ -285,10 +285,9 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
                   </SectionAccordion>
                 ))}
               </div>
-
-              <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
             </div>
           </div>
+          <NameTokenPicker section={section} value={nameToken} onChange={setNameToken} />
 
           <div className="border-t pt-3 mt-2 flex flex-col gap-2">
             <button

@@ -1,6 +1,6 @@
 import { CategoryDef, PartDef } from "../content/monsterMash.js";
 import { AwardRibbon, Place, Section } from "./SharedTypes.js";
-import { MonsterIndexEntry, StoredWinner, SubmissionWindow, VoteCycle } from "./KeyAssetData.js";
+import { CategorySchedule, MonsterIndexEntry, StoredWinner, SubmissionWindow, VoteCycle } from "./KeyAssetData.js";
 
 /**
  * Runtime content the server builds from the S3 parts catalog and ships to
@@ -183,6 +183,8 @@ export interface MainAppResponseData {
   currentSubmissionWindow: SubmissionWindow;
   currentVoteCycle: VoteCycle | null;
   storedWinners: StoredWinner[];
+  /** Drives the "Next week's voting category:" advisory under the tab bar. */
+  categorySchedule: CategorySchedule;
   banners: BannerBundle;
   /** Pending win banners (all of them, oldest first) — used for analytics + backup surface. */
   pendingWinBanners: Array<WinBannerPayload>;
