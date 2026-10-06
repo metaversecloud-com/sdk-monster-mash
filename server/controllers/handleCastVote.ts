@@ -9,7 +9,7 @@ import {
   GalleryMonster,
 } from "@shared/types/index.js";
 import {
-  computeCallerVoteCounts,
+  computeVotedToday,
   contributorDisplayNamesFromEntry,
   errorHandler,
   etDateKey,
@@ -19,17 +19,15 @@ import {
   pickMatchup,
 } from "@utils/index.js";
 
-/** Vote limits: `pool size × 1` per day, `pool size × 2` per cycle. */
+/** Vote limit: `pool size × 1` per day (ET). No cycle cap. */
 const DAILY_CAP_MULTIPLIER = 1;
-const CYCLE_CAP_MULTIPLIER = 2;
 
 /**
  * POST /api/vote/cast
  * Body: { winnerMonsterId, matchupId, loserMonsterId }
  *
  * Increments the winner's `wins` + both monsters' `shown`, updates the
- * caller's per-cycle vote count, and returns the next matchup for the
- * same session.
+ * caller's vote counters, and returns the next matchup for the same session.
  */
 export const handleCastVote = async (req: Request, res: Response) => {
   try {
@@ -53,22 +51,13 @@ export const handleCastVote = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Monster not in the current pool." });
     }
 
-    // Vote-cap accounting — two independent caps per spec. BOTH reset on a
-    // new cycleId (admin force-start or Sunday rollover); daily also resets
-    // on its own at midnight ET. Hitting either blocks the vote with a
-    // cap-specific error so the client can show the right message.
+    // Vote-cap accounting — ONE cap per day (pool×1). Resets at
+    // midnight ET on its own, and also when the cycleId changes so admin
+    // force-start gives a clean slate.
     const poolSizeNum = cycle.poolMonsterIds.length;
     const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
-    const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
     const todayKey = etDateKey(Date.now());
-    const { votedToday, votedCycle } = computeCallerVoteCounts(visitorData, cycle.cycleId);
-    if (cycleCap > 0 && votedCycle >= cycleCap) {
-      return res.status(429).json({
-        success: false,
-        message: "You've reached your maximum votes for this cycle.",
-        reason: "cycle-cap",
-      });
-    }
+    const votedToday = computeVotedToday(visitorData, cycle.cycleId);
     if (dailyCap > 0 && votedToday >= dailyCap) {
       return res.status(429).json({
         success: false,
@@ -128,29 +117,27 @@ export const handleCastVote = async (req: Request, res: Response) => {
       },
     );
 
-    // Visitor tally. Both counters increment on every vote; `votesCastToday`
-    // reseeds on the first vote of a new ET date, `votesCastThisWeek` on
-    // every new cycleId. `votesByWeek` keeps the per-cycle counts that
-    // `votesCastThisWeek` throws away each week — Monster Judge and Obsessed
-    // Voter need the player's best single week, and Still Voting needs how
-    // many weeks cleared a minimum.
+    // Visitor tally. `votesCastToday` reseeds on a new ET date / new cycle.
+    // `votesCastThisWeek` + `votesByWeek` still track per-cycle counts even
+    // though there's no cycle cap any more — the badge rules (Monster Judge,
+    // Obsessed Voter, Still Voting) key on best-single-week numbers.
+    const priorCycleCount =
+      visitorData.votesCastThisWeek?.windowId === cycle.cycleId ? visitorData.votesCastThisWeek?.count ?? 0 : 0;
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
-      votesCastThisWeek: { windowId: cycle.cycleId, count: votedCycle + 1 },
+      votesCastThisWeek: { windowId: cycle.cycleId, count: priorCycleCount + 1 },
       votesCastToday: { dateEt: todayKey, count: votedToday + 1 },
-      votesByWeek: { ...(visitorData.votesByWeek ?? {}), [cycle.cycleId]: votedCycle + 1 },
+      votesByWeek: { ...(visitorData.votesByWeek ?? {}), [cycle.cycleId]: priorCycleCount + 1 },
       totalVotesCast: (visitorData.totalVotesCast ?? 0) + 1,
       weeksVotedIn: dedupPush(visitorData.weeksVotedIn ?? [], cycle.cycleId),
     };
     const scopedKey = `${urlSlug}-${sceneDropId}`;
     await visitor.updateDataObject({ [scopedKey]: nextVisitorData }, {});
 
-    // Next matchup (respects the newly-incremented caps).
+    // Next matchup (respects the newly-incremented daily cap).
     const newVotedToday = votedToday + 1;
-    const newVotedCycle = votedCycle + 1;
     const hitDailyCap = dailyCap > 0 && newVotedToday >= dailyCap;
-    const hitCycleCap = cycleCap > 0 && newVotedCycle >= cycleCap;
-    const hitCap = hitDailyCap || hitCycleCap;
+    const hitCap = hitDailyCap;
     let next: VoteMatchupPayload | null = null;
     if (!hitCap) {
       const raw = pickMatchup(nextCycle);
@@ -174,9 +161,6 @@ export const handleCastVote = async (req: Request, res: Response) => {
         votedToday: newVotedToday,
         dailyCap,
         hitDailyCap,
-        votedCycle: newVotedCycle,
-        cycleCap,
-        hitCycleCap,
         hitCap,
       },
     };

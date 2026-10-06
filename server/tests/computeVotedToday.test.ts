@@ -1,5 +1,5 @@
 import { MonsterMashVisitorData } from "@shared/types/index.js";
-import { computeCallerVoteCounts } from "../utils/vote/computeCallerVoteCounts";
+import { computeVotedToday } from "../utils/vote/computeCallerVoteCounts";
 import { etDateKey } from "../utils/vote/computeWindows";
 
 const NOW = Date.UTC(2026, 9, 6, 20, 0, 0); // 2026-10-06 16:00 ET
@@ -20,9 +20,9 @@ const base = (over: Partial<MonsterMashVisitorData> = {}): MonsterMashVisitorDat
     ...over,
   }) as MonsterMashVisitorData;
 
-describe("computeCallerVoteCounts", () => {
-  test("same cycle + today → counts carry forward", () => {
-    const r = computeCallerVoteCounts(
+describe("computeVotedToday", () => {
+  test("same cycle + today → count carries forward", () => {
+    const r = computeVotedToday(
       base({
         votesCastThisWeek: { windowId: "cycle-A", count: 5 },
         votesCastToday: { dateEt: TODAY_KEY, count: 3 },
@@ -30,11 +30,11 @@ describe("computeCallerVoteCounts", () => {
       "cycle-A",
       NOW,
     );
-    expect(r).toEqual({ votedToday: 3, votedCycle: 5 });
+    expect(r).toBe(3);
   });
 
-  test("daily resets at midnight ET (cycle unchanged)", () => {
-    const r = computeCallerVoteCounts(
+  test("resets at midnight ET (cycle unchanged)", () => {
+    const r = computeVotedToday(
       base({
         votesCastThisWeek: { windowId: "cycle-A", count: 5 },
         votesCastToday: { dateEt: "2026-10-05", count: 7 },
@@ -42,25 +42,25 @@ describe("computeCallerVoteCounts", () => {
       "cycle-A",
       NOW,
     );
-    expect(r).toEqual({ votedToday: 0, votedCycle: 5 });
+    expect(r).toBe(0);
   });
 
-  test("new cycleId resets BOTH counters, even on the same ET day", () => {
-    const r = computeCallerVoteCounts(
+  test("resets on new cycleId even on the same ET day", () => {
+    const r = computeVotedToday(
       base({
         votesCastThisWeek: { windowId: "cycle-A", count: 5 },
-        // User maxed daily cap earlier today under cycle-A — the admin
-        // force-starts cycle-B, so both counters should zero out.
+        // User maxed daily cap earlier today under cycle-A — admin
+        // force-starts cycle-B, so today's counter zeros out.
         votesCastToday: { dateEt: TODAY_KEY, count: 10 },
       }),
       "cycle-B",
       NOW,
     );
-    expect(r).toEqual({ votedToday: 0, votedCycle: 0 });
+    expect(r).toBe(0);
   });
 
-  test("empty cycleId is treated like any other change (no active vote)", () => {
-    const r = computeCallerVoteCounts(
+  test("empty cycleId (no active vote) resets today's count", () => {
+    const r = computeVotedToday(
       base({
         votesCastThisWeek: { windowId: "cycle-A", count: 5 },
         votesCastToday: { dateEt: TODAY_KEY, count: 3 },
@@ -68,11 +68,11 @@ describe("computeCallerVoteCounts", () => {
       "",
       NOW,
     );
-    expect(r).toEqual({ votedToday: 0, votedCycle: 0 });
+    expect(r).toBe(0);
   });
 
   test("missing counters default to 0 safely", () => {
-    const r = computeCallerVoteCounts(base({ votesCastThisWeek: undefined, votesCastToday: undefined } as any), "cycle-A", NOW);
-    expect(r).toEqual({ votedToday: 0, votedCycle: 0 });
+    const r = computeVotedToday(base({ votesCastThisWeek: undefined, votesCastToday: undefined } as any), "cycle-A", NOW);
+    expect(r).toBe(0);
   });
 });

@@ -10,7 +10,7 @@ import {
   VoteTabState,
 } from "@shared/types/index.js";
 import {
-  computeCallerVoteCounts,
+  computeVotedToday,
   contributorDisplayNamesFromEntry,
   errorHandler,
   getCredentials,
@@ -19,9 +19,8 @@ import {
   pickMatchup,
 } from "@utils/index.js";
 
-/** Vote limits: `pool size × 1` per day, `pool size × 2` per cycle. */
+/** Vote limit: `pool size × 1` per day (ET). No cycle cap. */
 const DAILY_CAP_MULTIPLIER = 1;
-const CYCLE_CAP_MULTIPLIER = 2;
 
 /**
  * GET /api/vote
@@ -40,19 +39,16 @@ export const handleGetVote = async (req: Request, res: Response) => {
     const cycle = dataObject.currentVoteCycle;
     const window = dataObject.currentSubmissionWindow;
 
-    // Vote-cap accounting: TWO independent caps per spec — daily (pool×1)
-    // and cycle (pool×2). BOTH reset on a new cycleId (admin force-start or
-    // Sunday rollover), so a user who hit the daily cap in the old cycle
-    // gets a fresh set to cast when the new one opens. Daily also resets
-    // on its own at midnight ET even if the cycle didn't change.
+    // Vote-cap accounting: ONE cap day (pool×1). Resets at
+    // midnight ET on its own, and also on a new cycleId (admin force-start
+    // or Sunday rollover) so a user who maxed out gets a fresh set when
+    // the new cycle opens.
     const cycleId = cycle?.cycleId ?? "";
     const poolSizeNum = cycle ? cycle.poolMonsterIds.length : 0;
     const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
-    const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
-    const { votedToday, votedCycle } = computeCallerVoteCounts(visitorData, cycleId);
+    const votedToday = computeVotedToday(visitorData, cycleId);
     const hitDailyCap = dailyCap > 0 && votedToday >= dailyCap;
-    const hitCycleCap = cycleCap > 0 && votedCycle >= cycleCap;
-    const hitCap = hitDailyCap || hitCycleCap;
+    const hitCap = hitDailyCap;
 
     // Last winners row (for the top-right column in the mockup).
     const lastWinners = collectLastWinners(dataObject);
@@ -102,7 +98,7 @@ export const handleGetVote = async (req: Request, res: Response) => {
       weeklyVotingEnabled: dataObject.weeklyVotingEnabled,
       matchup,
       lastWinners,
-      callerVoteState: { votedToday, dailyCap, hitDailyCap, votedCycle, cycleCap, hitCycleCap, hitCap },
+      callerVoteState: { votedToday, dailyCap, hitDailyCap, hitCap },
     };
 
     return res.json({ success: true, data: payload });

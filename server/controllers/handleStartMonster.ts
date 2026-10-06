@@ -98,7 +98,6 @@ export const handleStartMonster = async (req: Request, res: Response) => {
         {
           lock: { lockId, releaseLock: true },
           // Starting a monster locks the FIRST section — fires `section_claimed_1`
-          // per spec ("Player claims an available section (or starts a new monster)").
           // Dedup per profile per monster so a retry can't double-count.
           analytics: [{ analyticName: "section_claimed_1", profileId, urlSlug, uniqueKey: profileId }],
         },

@@ -155,19 +155,15 @@ export interface VoteResponseData {
 }
 
 /**
- * Vote-cap accounting for the caller. Two independent caps per spec:
- *   - Daily: `pool size × 1`, resets at midnight ET.
- *   - Cycle: `pool size × 2`, resets when a new cycle opens.
- * `hitCap === hitDailyCap || hitCycleCap` — the client disables the matchup
- * on either and picks a different message for each.
+ * Vote-cap accounting for the caller. One cap:
+ *   - Daily: `pool size × 1`, resets at midnight ET (and also resets when
+ *     a new cycle opens so an admin force-start gives a clean slate).
+ * `hitCap === hitDailyCap` — the client disables the matchup when hit.
  */
 export interface CallerVoteState {
   votedToday: number;
   dailyCap: number;
   hitDailyCap: boolean;
-  votedCycle: number;
-  cycleCap: number;
-  hitCycleCap: boolean;
   hitCap: boolean;
 }
 

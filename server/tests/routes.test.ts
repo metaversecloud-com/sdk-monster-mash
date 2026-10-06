@@ -1231,16 +1231,22 @@ describe("routes", () => {
     expect(keyAsset.dataObject.currentVoteCycle.tallies.m2).toEqual({ wins: 0, shown: 1 });
 
     // Per-week vote counts are kept alongside the running total.
-    // `votesCastThisWeek` is reset each cycle, so it can't answer Monster
-    // Judge / Obsessed Voter (best week) or Still Voting (weeks over a
-    // minimum) — `votesByWeek` is what those read.
+    // `votesCastThisWeek` tracks the current cycle's count — not a cap any
+    // more, but still used so Monster Judge / Obsessed Voter / Still Voting
+    // badges can score the player's best week via `votesByWeek`.
     const voteScoped = visitor.updateDataObject.mock.calls[0][0][`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
     expect(voteScoped.votesByWeek).toEqual({ c1: 1 });
     expect(voteScoped.totalVotesCast).toBe(1);
     expect(voteScoped.weeksVotedIn).toEqual(["c1"]);
 
-    // Now bump the visitor's count above cap and try again.
-    const capped = { ...emptyVisitorData, votesCastThisWeek: { windowId: "c1", count: 999 } };
+    // Now bump the visitor's TODAY count above the daily cap (poolSize × 1
+    // = 2 for this fixture) and try again — should 429 with daily-cap.
+    const todayKey = require("@utils/vote/computeWindows").etDateKey(Date.now());
+    const capped = {
+      ...emptyVisitorData,
+      votesCastThisWeek: { windowId: "c1", count: 999 },
+      votesCastToday: { dateEt: todayKey, count: 999 },
+    };
     mockUtils.getVisitor.mockResolvedValue({
       visitor: makeVisitor(),
       isAdmin: false,
@@ -1255,6 +1261,7 @@ describe("routes", () => {
         loserMonsterId: "m2",
       });
     expect(res2.status).toBe(429);
+    expect(res2.body.reason).toBe("daily-cap");
   });
 
   test("POST /banners/acknowledge clears both pending queues", async () => {
