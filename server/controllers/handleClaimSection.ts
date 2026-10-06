@@ -178,10 +178,27 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       },
     };
     const visitorKey = `${urlSlug}-${sceneDropId}`;
+    // Count how many sections are now on-board for THIS monster (locked +
+    // done). The claim we just wrote is included, so the count becomes the
+    // 1/2/3 ordinal: 1 = this is the first section anyone's holding (rare
+    // — only after an abandon chain), 2 = joined a monster that already had
+    // one section in play, 3 = the final section landing. Clamp defensively
+    // so a roster shape mismatch can't send a stray `section_claimed_0`.
+    const sectionsOnBoard = Object.values(updatedSections).filter(
+      (s) => s.status === "locked" || s.status === "done",
+    ).length;
+    const claimOrder = Math.min(3, Math.max(1, sectionsOnBoard));
     await visitor.updateDataObject(
       { [visitorKey]: nextVisitorData },
       {
-        analytics: [{ analyticName: "section_claimed", profileId, urlSlug, uniqueKey: profileId }],
+        analytics: [
+          {
+            analyticName: `section_claimed_${claimOrder}`,
+            profileId,
+            urlSlug,
+            uniqueKey: profileId,
+          },
+        ],
       },
     );
 

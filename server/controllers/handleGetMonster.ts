@@ -18,12 +18,13 @@ import {
 export const handleGetMonster = async (req: Request, res: Response) => {
   try {
     const credentials = getCredentials(req.query);
+    const { profileId, urlSlug } = credentials;
     const monsterId = req.params.id;
     if (!monsterId) return res.status(400).json({ success: false, message: "monsterId required" });
 
     const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
-    const { visitorData, isAdmin } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
+    const { visitor, visitorData, isAdmin } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
 
     const entry = dataObject.monsters?.[monsterId];
     const contribEntry = visitorData.contributedMonsters?.[monsterId];
@@ -58,6 +59,28 @@ export const handleGetMonster = async (req: Request, res: Response) => {
           callerContributed,
           fromCallerHistory: true,
         };
+
+    // Fire the view analytic classified by caller contribution. Both the
+    // in-world click (iframe → `/monsters/:id` directly) and the gallery
+    // card click (`/monsters/:id/open` → iframe → `/monsters/:id`) funnel
+    // through here, so firing once at this layer avoids double-counting.
+    // Dedup per (profile, monster) — a user viewing the same monster
+    // multiple times only counts once.
+    await visitor
+      .updateDataObject(
+        {},
+        {
+          analytics: [
+            {
+              analyticName: callerContributed ? "monster_viewed_own" : "monster_viewed_other",
+              profileId,
+              urlSlug,
+              uniqueKey: profileId,
+            },
+          ],
+        },
+      )
+      .catch(() => {});
 
     const payload: SingleMonsterResponseData = {
       monster,

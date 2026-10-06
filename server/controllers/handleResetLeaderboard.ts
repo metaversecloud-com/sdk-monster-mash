@@ -24,7 +24,7 @@ export const handleResetLeaderboard = async (req: Request, res: Response) => {
             analyticName: "leaderboard_reset",
             profileId,
             urlSlug,
-            uniqueKey: `${profileId}-${Date.now()}`,
+            uniqueKey: profileId,
           },
         ],
       },

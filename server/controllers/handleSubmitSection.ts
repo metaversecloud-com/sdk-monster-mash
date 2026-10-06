@@ -143,14 +143,24 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
       }
     }
 
+    // Count DONE sections (this submit included) so the per-contributor
+    // analytic reflects WHICH submit in the trio this was: 1 = first,
+    // 2 = second, 3 = final (replaces the old `monster_completed` signal —
+    // _3 is the one that corresponds to a completed monster).
+    const sectionsDone = Object.values(updatedSections).filter((s) => s.status === "done").length;
+    const submitOrder = Math.min(3, Math.max(1, sectionsDone));
     await keyAsset.updateDataObject(patch, {
       lock: {
         lockId: `${keyAsset.id}-submit-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
         releaseLock: true,
       },
       analytics: [
-        { analyticName: "section_submitted", profileId, urlSlug, uniqueKey: profileId },
-        ...(nowDone ? [{ analyticName: "monster_completed", profileId, urlSlug, uniqueKey: monsterId }] : []),
+        {
+          analyticName: `section_submitted_${submitOrder}`,
+          profileId,
+          urlSlug,
+          uniqueKey: profileId,
+        },
       ],
     });
 

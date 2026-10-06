@@ -15,6 +15,8 @@ interface SectionSubmittedProps {
   picks?: { [categoryId: string]: string };
   /** How many sections still need a contributor to finish this monster. Used in the "not complete" copy. */
   sectionsRemaining?: number;
+  /** Passed through to DownloadBtn so the download fires `monster_downloaded_own`. */
+  monsterId?: string;
   onBackToMonsterMash: () => void;
 }
 
@@ -34,6 +36,7 @@ export const SectionSubmitted = ({
   imageUrl,
   picks,
   sectionsRemaining,
+  monsterId,
   onBackToMonsterMash,
 }: SectionSubmittedProps) => {
   const { isBusy } = useBusy();
@@ -82,7 +85,7 @@ export const SectionSubmitted = ({
           </li>
         </ul>
 
-        {imageUrl && <DownloadBtn className="btn-outline" imageUrl={imageUrl} />}
+        {imageUrl && <DownloadBtn className="btn-outline" imageUrl={imageUrl} monsterId={monsterId} />}
         <button className="btn btn-outline w-full" onClick={onBackToMonsterMash} disabled={isBusy}>
           Back to Monster Mash
         </button>

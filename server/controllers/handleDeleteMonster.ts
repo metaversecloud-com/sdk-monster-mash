@@ -23,7 +23,8 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
   try {
     const source = req.body && req.body.interactiveNonce ? req.body : req.query;
     const credentials = getCredentials(source);
-    const { urlSlug } = credentials;
+    const { assetId, profileId, sceneDropId, urlSlug } = credentials;
+
     const monsterId = req.params.id;
     if (!monsterId) return res.status(400).json({ success: false, message: "monsterId required" });
 
@@ -42,9 +43,9 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
     const monsterAssetId = entry.monsterAssetId;
     const isComplete = entry.state === "complete";
 
-    if (shouldCloseIframe && credentials.assetId) {
+    if (shouldCloseIframe && assetId) {
       try {
-        await visitor.closeIframe(credentials.assetId);
+        await visitor.closeIframe(assetId);
       } catch (error) {
         console.warn("handleDeleteMonster: closeIframe failed (non-fatal)", error);
       }
@@ -85,9 +86,9 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
       analytics: [
         {
           analyticName: "monster_deleted",
-          profileId: credentials.profileId,
+          profileId,
           urlSlug,
-          uniqueKey: `${credentials.profileId}-${monsterId}`,
+          uniqueKey: profileId,
         },
       ],
     });
@@ -117,7 +118,7 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
       try {
         const user: UserInterface = await User.create({ profileId, credentials: { ...credentials, profileId } });
         const raw = ((await user.fetchDataObject()) || {}) as VisitorDataObjectType;
-        const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+        const scopedKey = `${urlSlug}-${sceneDropId}`;
         const scoped = raw[scopedKey] as MonsterMashVisitorData | undefined;
         if (!scoped) continue;
         const nextContrib = { ...scoped.contributedMonsters };

@@ -104,7 +104,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
                 {born && <p className="text-xs mm-text-accent-lt">Born {born}</p>}
               </div>
               <div className="w-full grid gap-2">
-                <DownloadBtn className="btn-outline" imageUrl={monster.imageUrl} />
+                <DownloadBtn className="btn-outline" imageUrl={monster.imageUrl} monsterId={monster.monsterId} />
 
                 <button className="btn btn-outline" onClick={returnToMainApp} disabled={isBusy}>
                   Back to Monster Mash

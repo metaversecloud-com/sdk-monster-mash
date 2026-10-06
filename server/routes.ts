@@ -6,6 +6,7 @@ import {
   handleCastVote,
   handleClaimSection,
   handleDeleteMonster,
+  handleDownloadMonster,
   handleGetGallery,
   handleGetMainApp,
   handleGetMonster,
@@ -17,6 +18,7 @@ import {
   handleReturnToMainApp,
   handleStartMonster,
   handleSubmitSection,
+  handleTabView,
   handleUpdateAdminSettings,
   handleUpdateDraft,
 } from "./controllers/index.js";
@@ -59,6 +61,10 @@ router.delete("/monsters/:id", handleDeleteMonster);
 router.get("/gallery", handleGetGallery);
 router.get("/monsters/:id", handleGetMonster);
 router.post("/monsters/:id/open", handleOpenMonsterDrawer);
+router.post("/monsters/:id/download", handleDownloadMonster);
+
+// Analytics
+router.post("/tab-view", handleTabView);
 
 // Vote
 router.get("/vote", handleGetVote);

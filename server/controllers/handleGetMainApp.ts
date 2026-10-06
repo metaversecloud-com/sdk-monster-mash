@@ -43,6 +43,8 @@ import {
 export const handleGetMainApp = async (req: Request, res: Response) => {
   try {
     const credentials = getCredentials(req.query);
+    const { displayName, profileId, sceneDropId, urlSlug, visitorId } = credentials;
+
     const forceRefreshInventory = req.query.forceRefreshInventory === "true";
     const forceRefreshContent = req.query.forceRefreshContent === "true";
 
@@ -137,7 +139,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
         awardedAt: w.awardedAt,
       };
       for (const profileId of w.contributorProfileIds ?? []) {
-        if (profileId === credentials.profileId) {
+        if (profileId === profileId) {
           callerWinBanners.push(bannerEntry);
         } else {
           const bucket = bannersByPeer.get(profileId) ?? [];
@@ -213,7 +215,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       const monsterCompleted = draftMonster?.state === "complete";
       const sectionDone = slot?.status === "done";
       const sectionLockedByOther =
-        slot?.status === "locked" && !!slot.contributorProfileId && slot.contributorProfileId !== credentials.profileId;
+        slot?.status === "locked" && !!slot.contributorProfileId && slot.contributorProfileId !== profileId;
       const draftAgeMs = now - (draft.lockedAt ?? 0);
       const sectionAvailableAndDraftAged = slot?.status === "available" && draftAgeMs >= SECTION_LOCK_TTL_MS;
       if (monsterGone || monsterCompleted || sectionDone || sectionLockedByOther || sectionAvailableAndDraftAged) {
@@ -257,23 +259,31 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       };
       if (activeDraftShouldClear) delete nextScoped.activeDraft;
 
-      const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+      const scopedKey = `${urlSlug}-${sceneDropId}`;
+      // Combine every analytic that lives on this write: today's `app_opened`
+      // (when crossing an ET-day) and one `award_won` per freshly-crowned
+      // winner the CALLER contributed to. Peers' award_won fire inside
+      // enqueueWinBannersByProfile above, so this covers the one path that
+      // doesn't go through that util.
+      const analytics: Array<{ analyticName: string; profileId: string; urlSlug: string; uniqueKey: string }> = [];
+      if (daysChanged) {
+        analytics.push({
+          analyticName: "app_opened",
+          profileId,
+          urlSlug,
+          uniqueKey: profileId,
+        });
+      }
+      for (const b of callerWinBanners) {
+        analytics.push({
+          analyticName: "award_won",
+          profileId,
+          urlSlug,
+          uniqueKey: profileId,
+        });
+      }
       await visitor
-        .updateDataObject(
-          { [scopedKey]: nextScoped },
-          daysChanged
-            ? {
-                analytics: [
-                  {
-                    analyticName: "app_opened",
-                    profileId: credentials.profileId,
-                    urlSlug: credentials.urlSlug,
-                    uniqueKey: `${credentials.profileId}-${today}`,
-                  },
-                ],
-              }
-            : {},
-        )
+        .updateDataObject({ [scopedKey]: nextScoped }, analytics.length > 0 ? { analytics } : {})
         .catch((error) =>
           errorHandler({ error, functionName: "handleGetMainApp", message: "Non-fatal: caller-visitor bump failed" }),
         );
@@ -309,9 +319,9 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
 
     const payload: MainAppResponseData = {
       visitor: {
-        visitorId: credentials.visitorId,
-        profileId: credentials.profileId,
-        displayName: credentials.displayName,
+        visitorId,
+        profileId,
+        displayName,
         isAdmin,
       },
       weeklyVotingEnabled,
@@ -354,7 +364,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       // written back to the caller's visitor data.
       contributedDrafts: await enrichDraftsWithPeerPicks({
         callerDrafts: visitorData.contributedDrafts,
-        callerProfileId: credentials.profileId,
+        callerProfileId: profileId,
         credentials,
         monsters,
       }),

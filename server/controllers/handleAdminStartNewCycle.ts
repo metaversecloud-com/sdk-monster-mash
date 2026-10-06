@@ -30,6 +30,8 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
   try {
     const source = req.body && req.body.interactiveNonce ? req.body : req.query;
     const credentials = getCredentials(source);
+    const { profileId, sceneDropId, urlSlug } = credentials;
+
     const keyAsset = await getKeyAsset(credentials);
     const { visitor, isAdmin, visitorData } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
     if (!isAdmin) return res.status(403).json({ success: false, message: "Admin only." });
@@ -81,9 +83,9 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
       analytics: [
         {
           analyticName: "admin_force_new_cycle",
-          profileId: credentials.profileId,
-          urlSlug: credentials.urlSlug,
-          uniqueKey: `${credentials.profileId}-${now}`,
+          profileId,
+          urlSlug,
+          uniqueKey: profileId,
         },
       ],
     });
@@ -99,7 +101,7 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
     for (const w of advance.freshlyCrownedWinners) {
       const entry = { monsterId: w.monsterId, category: w.category, place: w.place, awardedAt: w.awardedAt };
       for (const profileId of w.contributorProfileIds ?? []) {
-        if (profileId === credentials.profileId) {
+        if (profileId === profileId) {
           callerWinBanners.push(entry);
         } else {
           const bucket = bannersByPeer.get(profileId) ?? [];
@@ -118,7 +120,7 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
       );
     }
     if (callerWinBanners.length > 0) {
-      const scopedKey = `${credentials.urlSlug}-${credentials.sceneDropId}`;
+      const scopedKey = `${urlSlug}-${sceneDropId}`;
       const nextContributed = { ...(visitorData.contributedMonsters ?? {}) };
       for (const b of callerWinBanners) {
         const existing = nextContributed[b.monsterId];
@@ -136,7 +138,13 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
         pendingWinBanners: [...(visitorData.pendingWinBanners ?? []), ...callerWinBanners],
         contributedMonsters: nextContributed,
       };
-      await visitor.updateDataObject({ [scopedKey]: nextScoped }, {}).catch((error) =>
+      const analytics = callerWinBanners.map((b) => ({
+        analyticName: "award_won",
+        profileId,
+        urlSlug,
+        uniqueKey: profileId,
+      }));
+      await visitor.updateDataObject({ [scopedKey]: nextScoped }, { analytics }).catch((error) =>
         errorHandler({
           error,
           functionName: "handleAdminStartNewCycle",

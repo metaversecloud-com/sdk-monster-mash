@@ -34,12 +34,13 @@ const patchQueues = async (
   target: VisitorInterface | UserInterface,
   credentials: Credentials,
   patch: (data: MonsterMashVisitorData) => MonsterMashVisitorData,
+  analytics?: unknown[],
 ) => {
   const raw = ((await target.fetchDataObject()) || {}) as VisitorDataObjectType;
   const key = scopedKey(credentials);
   const scoped = (raw[key] as MonsterMashVisitorData | undefined) ?? createEmptyVisitorData();
   const next = patch(scoped);
-  await target.updateDataObject({ [key]: next }, {});
+  await target.updateDataObject({ [key]: next }, analytics && analytics.length > 0 ? { analytics } : {});
 };
 
 /**
@@ -66,28 +67,40 @@ export const enqueueWinBannersByProfile = async (
       const target = isCaller
         ? (callerVisitor as VisitorInterface)
         : await User.create({ profileId, credentials: { ...credentials, profileId } });
-      await patchQueues(target, credentials, (scoped) => {
-        const nextContributed = { ...(scoped.contributedMonsters ?? {}) };
-        for (const b of banners) {
-          const existing = nextContributed[b.monsterId];
-          if (!existing) continue; // profile didn't contribute to this monster — nothing to stamp.
-          const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
-          // De-dupe: skip if the same award (same monster + category + place)
-          // is already present. advanceWeeklyCycle normally only fires once
-          // per monster, but a second main-app open mid-fanout could re-enter.
-          const alreadyAwarded = (existing.awards ?? []).some(
-            (a) => a.category === award.category && a.place === award.place,
-          );
-          nextContributed[b.monsterId] = alreadyAwarded
-            ? existing
-            : { ...existing, awards: [...(existing.awards ?? []), award] };
-        }
-        return {
-          ...scoped,
-          contributedMonsters: nextContributed,
-          pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
-        };
-      });
+      // One `award_won` analytic per contributor per winning monster
+      const analytics = banners.map((b) => ({
+        analyticName: "award_won",
+        profileId,
+        urlSlug: credentials.urlSlug,
+        uniqueKey: profileId,
+      }));
+      await patchQueues(
+        target,
+        credentials,
+        (scoped) => {
+          const nextContributed = { ...(scoped.contributedMonsters ?? {}) };
+          for (const b of banners) {
+            const existing = nextContributed[b.monsterId];
+            if (!existing) continue; // profile didn't contribute to this monster — nothing to stamp.
+            const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
+            // De-dupe: skip if the same award (same monster + category + place)
+            // is already present. advanceWeeklyCycle normally only fires once
+            // per monster, but a second main-app open mid-fanout could re-enter.
+            const alreadyAwarded = (existing.awards ?? []).some(
+              (a) => a.category === award.category && a.place === award.place,
+            );
+            nextContributed[b.monsterId] = alreadyAwarded
+              ? existing
+              : { ...existing, awards: [...(existing.awards ?? []), award] };
+          }
+          return {
+            ...scoped,
+            contributedMonsters: nextContributed,
+            pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
+          };
+        },
+        analytics,
+      );
     } catch (error) {
       console.warn(`enqueueWinBannersByProfile: could not enqueue for ${profileId}`, error);
     }

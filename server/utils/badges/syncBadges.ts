@@ -22,13 +22,9 @@ export interface SyncBadgesInput {
  * action, because:
  *   - it needs the caller's owned-badge set, which costs an inventory
  *     fetch; doing that on every vote would be an API call per vote
- *   - the spec already frames rewards as "the first time a player opens
- *     the app after …", so the open is the natural moment
  *   - every counter lives on the player's own visitor dataObject, so each
  *     player picks up their badges on their own next open with no
  *     cross-profile fanout
- *
- * Never throws — a badge grant must not fail the request that triggered it.
  */
 export const syncBadges = async ({
   credentials,
@@ -38,6 +34,8 @@ export const syncBadges = async ({
   forceRefreshInventory = false,
 }: SyncBadgesInput): Promise<string[]> => {
   try {
+    const { profileId, urlSlug } = credentials;
+
     const catalog = await getBadgeCatalog(credentials, { forceRefresh: forceRefreshInventory });
     // An empty catalog means "ecosystem unreachable", not "no badges".
     if (catalog.length === 0) return [];
@@ -48,9 +46,6 @@ export const syncBadges = async ({
     const granted: string[] = [];
     for (const badge of toGrant) {
       try {
-        // SDK contract: pass the inventory item instance + quantity, NOT an
-        // object with inventoryItemId. The item comes straight from the
-        // ecosystem cache via `getBadgeCatalog` → `badge.inventoryItem`.
         await visitor.grantInventoryItem(badge.inventoryItem, 1);
         granted.push(badge.name);
         ownedBadgeNames.add(badge.name);
@@ -60,7 +55,27 @@ export const syncBadges = async ({
     }
 
     if (granted.length > 0) {
-      console.log(`syncBadges: granted ${granted.length} badge(s) to ${credentials.profileId}: ${granted.join(", ")}`);
+      console.log(`syncBadges: granted ${granted.length} badge(s) to ${profileId}: ${granted.join(", ")}`);
+      // One `badge_earned` analytic per newly-granted badge, batched into a
+      // single no-op visitor write so we don't fan out one request per
+      // grant. Dedup per (profile, badge name) — grants are already gated
+      // on `ownedBadgeNames` so a second grant can't fire anyway, but the
+      // uniqueKey keeps the analytic layer safe if the ecosystem re-grants.
+      try {
+        await visitor.updateDataObject(
+          {},
+          {
+            analytics: granted.map((name) => ({
+              analyticName: "badge_earned",
+              profileId,
+              urlSlug,
+              uniqueKey: profileId,
+            })),
+          },
+        );
+      } catch (error) {
+        console.warn("syncBadges: badge_earned analytic write failed", error);
+      }
     }
     return granted;
   } catch (error) {

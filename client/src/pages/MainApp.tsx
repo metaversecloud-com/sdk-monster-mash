@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 
 // components
 import {
@@ -15,12 +15,24 @@ import {
 // context
 import { GlobalStateContext } from "@/context/GlobalContext";
 
+// utils
+import { backendAPI } from "@/utils";
+
 interface MainAppProps {
   isLoading: boolean;
 }
 
 export const MainApp = ({ isLoading }: MainAppProps) => {
-  const { activeTab } = useContext(GlobalStateContext);
+  const { activeTab, hasInteractiveParams } = useContext(GlobalStateContext);
+
+  // Fire `{create|gallery|vote}Tab_viewed` whenever the active tab changes
+  // (and on first mount for the default tab). Fire-and-forget — server
+  // dedups per profile per tab per day so a session flipping tabs rapidly
+  // still only counts one view per tab per day.
+  useEffect(() => {
+    if (!hasInteractiveParams) return;
+    backendAPI.post("/tab-view", { tab: activeTab }).catch(() => {});
+  }, [activeTab, hasInteractiveParams]);
 
   return (
     <div className="p-2 mm-app min-h-screen">

@@ -125,7 +125,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
             analyticName: "vote_cast",
             profileId,
             urlSlug,
-            uniqueKey: `${profileId}-${cycle.cycleId}-${votedCycle + 1}`,
+            uniqueKey: profileId,
           },
         ],
       },

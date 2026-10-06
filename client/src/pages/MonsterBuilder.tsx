@@ -236,6 +236,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
             nameToken={nameToken}
             picks={picks}
             sectionsRemaining={Math.max(0, 3 - stepIndex)}
+            monsterId={monsterId}
             onBackToMonsterMash={returnToMainApp}
           />
         </PageContainer>

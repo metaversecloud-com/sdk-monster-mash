@@ -67,14 +67,24 @@ const setCatalog = (extra: any[] = []) =>
 
 const makeVisitor = () => {
   const granted: string[] = [];
+  const analyticsFired: Array<{ analyticName: string; uniqueKey?: string }> = [];
   return {
     granted,
+    analyticsFired,
     // SDK contract: grantInventoryItem(itemInstance, quantity). The real
     // call passes the raw ecosystem inventory item (not an envelope with
     // inventoryItemId) — mock mirrors that so the test exercises the same
     // argument shape production hits.
     grantInventoryItem: jest.fn(async (item: any, _quantity: number) => {
       granted.push(String(item?.id ?? "").replace(/^mm-/, ""));
+    }),
+    // syncBadges fires one batched `badge_earned` analytic after a run that
+    // granted anything — the mock collects them so tests can assert the
+    // analytic path is wired without caring about the no-op data payload.
+    updateDataObject: jest.fn(async (_patch: any, options: any) => {
+      for (const a of options?.analytics ?? []) {
+        analyticsFired.push({ analyticName: a.analyticName, uniqueKey: a.uniqueKey });
+      }
     }),
   } as any;
 };
@@ -183,6 +193,38 @@ describe("syncBadges", () => {
       ownedBadgeNames: new Set(["I Voted!"]),
     });
     expect(granted).toEqual(["New Masher"]);
+  });
+
+  test("fires one `badge_earned` analytic per newly-granted badge in a single write", async () => {
+    setCatalog();
+    const visitor = makeVisitor();
+    await syncBadges({
+      credentials,
+      // Minimum profile that still earns a couple of badges: 1 vote + 2 opens
+      // → "I Voted!" + "New Masher".
+      visitorData: data({ totalVotesCast: 1, daysAppOpened: ["a", "b"] }),
+      visitor,
+      ownedBadgeNames: new Set(),
+    });
+    // Exactly one updateDataObject call carrying both analytics (batched).
+    expect(visitor.updateDataObject).toHaveBeenCalledTimes(1);
+    expect(visitor.analyticsFired.map((a: any) => a.analyticName).sort()).toEqual(["badge_earned", "badge_earned"]);
+    expect(visitor.analyticsFired.map((a: any) => a.uniqueKey).sort()).toEqual(
+      ["profile-1-badge-I Voted!", "profile-1-badge-New Masher"].sort(),
+    );
+  });
+
+  test("does not fire `badge_earned` when nothing new was granted", async () => {
+    setCatalog();
+    const visitor = makeVisitor();
+    await syncBadges({
+      credentials,
+      visitor,
+      visitorData: createEmptyVisitorData(),
+      ownedBadgeNames: new Set(),
+    });
+    expect(visitor.updateDataObject).not.toHaveBeenCalled();
+    expect(visitor.analyticsFired).toEqual([]);
   });
 
   test("an INACTIVE winner badge is never granted, even after winning that category", async () => {

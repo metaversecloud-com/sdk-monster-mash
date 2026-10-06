@@ -85,7 +85,13 @@ export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCa
       </div>
 
       <div className="flex items-center justify-center gap-2">
-        <DownloadBtn className="content-center" imageUrl={monster.imageUrl} label="Download" showCaption={false} />
+        <DownloadBtn
+          className="content-center"
+          imageUrl={monster.imageUrl}
+          label="Download"
+          showCaption={false}
+          monsterId={monster.monsterId}
+        />
         {callerIsAdmin && onAdminDelete && (
           <button
             type="button"

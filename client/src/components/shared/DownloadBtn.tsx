@@ -1,8 +1,18 @@
+import { backendAPI } from "@/utils";
+
 interface DownloadBtnProps {
   imageUrl: string | null;
   label?: string;
   showCaption?: boolean;
   className?: string;
+  /**
+   * When supplied, clicking the button fires a fire-and-forget
+   * `/monsters/:id/download` call so the server can emit
+   * `monster_downloaded_own` or `_other` based on whether the caller
+   * contributed to this monster. Omit for contexts where the ID isn't
+   * meaningful (e.g. the mid-build preview of a section not yet finalized).
+   */
+  monsterId?: string;
 }
 
 /**
@@ -13,7 +23,13 @@ interface DownloadBtnProps {
  * Falls back to a disabled placeholder when the image URL is null (e.g. a
  * finalize step that hasn't landed).
  */
-export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = true, className }: DownloadBtnProps) => {
+export const DownloadBtn = ({
+  imageUrl,
+  label = "Download PNG",
+  showCaption = true,
+  className,
+  monsterId,
+}: DownloadBtnProps) => {
   if (!imageUrl) {
     return (
       <button className={`btn btn-outline ${className ?? ""}`} disabled aria-label={`${label} - pending`}>
@@ -21,6 +37,10 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
       </button>
     );
   }
+  const trackDownload = () => {
+    if (!monsterId) return;
+    backendAPI.post(`/monsters/${monsterId}/download`).catch(() => {});
+  };
   return (
     <>
       <a
@@ -29,6 +49,7 @@ export const DownloadBtn = ({ imageUrl, label = "Download PNG", showCaption = tr
         target="_blank"
         rel="noreferrer noopener"
         aria-label={`Open the PNG in a new browser tab`}
+        onClick={trackDownload}
       >
         {label}
         {showCaption && <p className="mm-text-xs mm-text-amber mb-2">opens the image in a new browser tab to save</p>}
