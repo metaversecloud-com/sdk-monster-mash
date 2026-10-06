@@ -41,13 +41,22 @@ export const BadgesTab = ({ badges, ownedCount, totalCount }: BadgesTabProps) =>
               }
               return (
                 <div className="tooltip" key={badge.name}>
-                  <span className="p3 tooltip-content" style={{ width: "115px" }}>
+                  <span
+                    className="p3 tooltip-content mm-bg-accent-lt mm-text-done"
+                    style={{ width: "115px", opacity: 0.9 }}
+                  >
                     {badge.description}
                   </span>
                   {badge.iconUrl ? (
                     <img src={badge.iconUrl} alt={badge.name} style={style} />
                   ) : (
-                    <span className="w-24 h-24 rounded-full bg-yellow-400 inline-block" style={style} aria-hidden />
+                    <span
+                      className="flex items-center justify-center w-24 h-24 rounded mm-bg-accent-lt inline-block text-4xl mm-text-accent-dark"
+                      style={style}
+                      aria-hidden
+                    >
+                      ?
+                    </span>
                   )}
                   <p className="text-xs mm-text-accent-lt">{badge.name}</p>
                 </div>
