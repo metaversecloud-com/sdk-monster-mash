@@ -39,9 +39,9 @@ export const getBadgeCatalog = async (
 
     const entries: BadgeCatalogEntry[] = [];
     for (const item of items) {
-      const { id, name, type, metadata, image_path } = item;
+      const { id, name, description, type, metadata, image_path } = item;
       if (type !== "BADGE" || !id || !name) continue;
-      const def = parseBadgeDef(name, metadata);
+      const def = parseBadgeDef(name, metadata, description);
       if (!def) continue;
       entries.push({ ...def, id, iconUrl: image_path || "", inventoryItem: item });
     }

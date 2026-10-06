@@ -106,6 +106,7 @@ export interface TrophyLeaderboardRow {
 
 export interface TrophyBadgeRow {
   name: string;
+  description: string;
   group: "building" | "voting" | "visiting" | "winning";
   owned: boolean;
   iconUrl?: string;

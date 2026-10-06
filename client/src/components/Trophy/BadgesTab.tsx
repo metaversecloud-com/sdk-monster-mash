@@ -14,12 +14,6 @@ interface BadgesTabProps {
   totalCount: number;
 }
 
-/**
- * Trophy Badges tab. Four groups; the badges themselves come from the
- * ecosystem inventory catalog, already in sortOrder from the server:
- *   - Earned → gold circle + name, yellow tile.
- *   - Locked → padlock icon, dim tile.
- */
 export const BadgesTab = ({ badges, ownedCount, totalCount }: BadgesTabProps) => {
   const byGroup = GROUP_ORDER.map((group) => ({
     group,
@@ -48,7 +42,7 @@ export const BadgesTab = ({ badges, ownedCount, totalCount }: BadgesTabProps) =>
               return (
                 <div className="tooltip" key={badge.name}>
                   <span className="p3 tooltip-content" style={{ width: "115px" }}>
-                    {badge.name}
+                    {badge.description}
                   </span>
                   {badge.iconUrl ? (
                     <img src={badge.iconUrl} alt={badge.name} style={style} />

@@ -81,6 +81,7 @@ export interface BadgeDef {
   /** Ecosystem item name — the key everything else joins on. */
   name: string;
   displayName: string;
+  description: string;
   group: BadgeGroup;
   sortOrder: number;
   /** Null when the badge has no grant rule yet; `evaluateBadges` skips it. */
@@ -107,7 +108,7 @@ const isSection = (value: unknown): value is Section => SECTION_IDS.includes(val
  * `thresholdKind` degrades to null rather than dropping the badge, so bad
  * metadata costs a grant rule, not the badge itself.
  */
-export const parseBadgeDef = (name: string, metadata: unknown): BadgeDef | null => {
+export const parseBadgeDef = (name: string, metadata: unknown, description?: string): BadgeDef | null => {
   if (!name) return null;
   const meta = (metadata ?? {}) as BadgeMetadata;
   if (!isBadgeGroup(meta.group)) return null;
@@ -115,6 +116,7 @@ export const parseBadgeDef = (name: string, metadata: unknown): BadgeDef | null 
   return {
     name,
     displayName: meta.displayName || name,
+    description: description || name,
     group: meta.group,
     sortOrder: typeof meta.sortOrder === "number" ? meta.sortOrder : Number.MAX_SAFE_INTEGER,
     thresholdKind: isThresholdKind(meta.thresholdKind) ? meta.thresholdKind : null,

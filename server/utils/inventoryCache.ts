@@ -34,10 +34,7 @@ export const getCachedInventoryItems = async ({
 
     // INACTIVE items are stripped at the cache layer so every downstream
     // consumer (badges, drops, etc.) gets a clean list — they shouldn't
-    // render, unlock, or reward an item the ecosystem has retired. Monster
-    // Mash ships the eight not-yet-live voting-category winner badges as
-    // INACTIVE; this is what keeps them off the Trophy grid and un-awardable
-    // until their category launches.
+    // render, unlock, or reward an item the ecosystem has retired.
     inventoryCache = {
       items: ((ecosystem.inventoryItems as InventoryItemInterface[]) || []).filter(
         (item) => item.status !== "INACTIVE",

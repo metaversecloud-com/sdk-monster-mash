@@ -67,6 +67,7 @@ export const handleGetTrophy = async (req: Request, res: Response) => {
     const catalog = await getBadgeCatalog(credentials, { forceRefresh: forceRefreshInventory });
     const badges: TrophyBadgeRow[] = catalog.map((b) => ({
       name: b.displayName,
+      description: b.description,
       group: b.group,
       owned: ownedNames.has(b.name),
       iconUrl: visitorInventory?.[b.name]?.icon || b.iconUrl || undefined,
