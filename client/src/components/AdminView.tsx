@@ -30,6 +30,11 @@ export const AdminView = () => {
 
   const [pendingOff, setPendingOff] = useState(false);
   const [pendingStartNewCycle, setPendingStartNewCycle] = useState(false);
+  // Latches on the first successful "Start New Vote Cycle" so the button
+  // locks + the surrounding paragraph flips to a success note — guards
+  // against an admin double-clicking and closing their fresh cycle a
+  // second time by accident.
+  const [cycleJustStarted, setCycleJustStarted] = useState(false);
 
   const refreshMainApp = () =>
     backendAPI
@@ -70,6 +75,7 @@ export const AdminView = () => {
         setPendingStartNewCycle(false);
         await backendAPI.post("/admin/vote/start-new-cycle");
         await refreshMainApp();
+        setCycleJustStarted(true);
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
       }
@@ -111,15 +117,21 @@ export const AdminView = () => {
         <button
           type="button"
           className="btn w-fit mt-2"
-          disabled={isBusy || !currentEnabled}
+          disabled={isBusy || !currentEnabled || cycleJustStarted}
           onClick={() => setPendingStartNewCycle(true)}
         >
           Start New Vote Cycle
         </button>
-        <p className="p2 mm-on-card-muted">
-          Immediately closes the current cycle (crowning winners if there is one running) and opens a new cycle ending
-          this coming Saturday 11:59 PM ET. Uses the next category in the rotation.
-        </p>
+        {cycleJustStarted ? (
+          <p className="p2 mm-text-success">
+            New vote cycle started! It ends this coming Saturday 11:59 PM ET.
+          </p>
+        ) : (
+          <p className="p2 mm-on-card-muted">
+            Immediately closes the current cycle (crowning winners if there is one running) and opens a new cycle ending
+            this coming Saturday 11:59 PM ET. Uses the next category in the rotation.
+          </p>
+        )}
       </div>
 
       {pendingOff && (

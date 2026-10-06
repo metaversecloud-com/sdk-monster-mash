@@ -10,9 +10,9 @@ import {
   VoteTabState,
 } from "@shared/types/index.js";
 import {
+  computeCallerVoteCounts,
   contributorDisplayNamesFromEntry,
   errorHandler,
-  etDateKey,
   getCredentials,
   getKeyAsset,
   getVisitor,
@@ -40,17 +40,16 @@ export const handleGetVote = async (req: Request, res: Response) => {
     const cycle = dataObject.currentVoteCycle;
     const window = dataObject.currentSubmissionWindow;
 
-    // Vote-cap accounting: TWO independent caps per spec — daily (pool×1,
-    // resets midnight ET) and cycle (pool×2, resets when cycle rolls over).
-    // Hitting either stops the matchup; the client picks a different message
-    // for each.
+    // Vote-cap accounting: TWO independent caps per spec — daily (pool×1)
+    // and cycle (pool×2). BOTH reset on a new cycleId (admin force-start or
+    // Sunday rollover), so a user who hit the daily cap in the old cycle
+    // gets a fresh set to cast when the new one opens. Daily also resets
+    // on its own at midnight ET even if the cycle didn't change.
     const cycleId = cycle?.cycleId ?? "";
     const poolSizeNum = cycle ? cycle.poolMonsterIds.length : 0;
     const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
     const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
-    const todayKey = etDateKey(Date.now());
-    const votedToday = visitorData.votesCastToday?.dateEt === todayKey ? visitorData.votesCastToday.count : 0;
-    const votedCycle = visitorData.votesCastThisWeek?.windowId === cycleId ? visitorData.votesCastThisWeek.count : 0;
+    const { votedToday, votedCycle } = computeCallerVoteCounts(visitorData, cycleId);
     const hitDailyCap = dailyCap > 0 && votedToday >= dailyCap;
     const hitCycleCap = cycleCap > 0 && votedCycle >= cycleCap;
     const hitCap = hitDailyCap || hitCycleCap;

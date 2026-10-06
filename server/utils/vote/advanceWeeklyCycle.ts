@@ -159,7 +159,6 @@ export const advanceWeeklyCycle = (
           endAt: nowWindow.endAt,
           poolMonsterIds: pool,
           tallies: {},
-          totalMatchupsServed: 0,
         };
         nextCategoryIndex = (nextCategoryIndex + 1) % categoryOrder.length;
       }
@@ -315,7 +314,6 @@ export const forceStartNewVoteCycle = (
           endAt: activeWindow.endAt,
           poolMonsterIds: pool,
           tallies: {},
-          totalMatchupsServed: 0,
         };
         nextCategoryIndex = (nextCategoryIndex + 1) % categoryOrder.length;
       }

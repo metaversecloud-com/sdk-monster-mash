@@ -814,7 +814,6 @@ describe("routes", () => {
       endAt: 2,
       poolMonsterIds: [monsterId, "other-monster"],
       tallies: { [monsterId]: { shown: 4, wins: 2 }, "other-monster": { shown: 3, wins: 1 } },
-      totalMatchupsServed: 7,
     };
 
     const keyAsset = makeKeyAsset(keyAssetData);
@@ -1145,7 +1144,6 @@ describe("routes", () => {
       endAt: Date.now() + 86400_000 * 3,
       poolMonsterIds: pool,
       tallies: {},
-      totalMatchupsServed: 0,
     };
     keyAssetData.storedWinners = [
       {
@@ -1187,7 +1185,6 @@ describe("routes", () => {
       endAt: Date.now() + 86400_000 * 3,
       poolMonsterIds: ["m1", "m2"],
       tallies: {},
-      totalMatchupsServed: 0,
     };
     const keyAssetData = defaultKeyAssetDataObject();
     keyAssetData.currentVoteCycle = cycle;
@@ -1393,7 +1390,6 @@ describe("routes", () => {
       endAt: 2,
       poolMonsterIds: [],
       tallies: {},
-      totalMatchupsServed: 0,
     };
     const adminKey = makeKeyAsset(runningKeyAssetData);
     mockUtils.getKeyAsset.mockResolvedValue(adminKey);

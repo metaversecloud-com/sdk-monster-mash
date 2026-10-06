@@ -5,6 +5,13 @@ interface SectionAccordionProps {
   catId: string;
   label: string;
   chosen: boolean;
+  /**
+   * Required = category has no NONE option, so submit stays blocked until
+   * the user picks something. Non-required rows show no "Required" chip
+   * (and no SuccessIcon until the user actively picks — including picking
+   * NONE, which is recorded as a real pick).
+   */
+  required: boolean;
   isExpandable: boolean;
   isOpen: boolean;
   onToggle?: () => void;
@@ -13,13 +20,15 @@ interface SectionAccordionProps {
 
 /**
  * Collapsible category row inside the Builder. Header shows the category
- * label + a state chip (`chosen ✓` green ring or `Required` red text).
+ * label + a state chip (`chosen ✓` green ring, `Required` red text for
+ * required categories, nothing for optional ones until the user picks).
  * Only one is expanded at a time; content lives in `children` (PartGrid).
  */
 export const SectionAccordion = ({
   catId,
   label,
   chosen,
+  required,
   isExpandable,
   isOpen,
   onToggle,
@@ -35,7 +44,11 @@ export const SectionAccordion = ({
       >
         <p className="font-semibold flex-1 p-1 text-sm mm-text-done">{label}</p>
         <span className="flex gap-1 flex-shrink-0">
-          {chosen ? <SuccessIcon /> : <span className="mm-text-xs mm-text-amber pt-2">Required</span>}
+          {chosen ? (
+            <SuccessIcon />
+          ) : required ? (
+            <span className="mm-text-xs mm-text-amber pt-2">Required</span>
+          ) : null}
           {isExpandable && (
             <span aria-hidden="true" className="text-lg mm-text-done px-1">
               <img

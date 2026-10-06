@@ -99,15 +99,26 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
     return () => clearTimeout(timeout);
   }, [picks, nameToken, monsterId, section, phase]);
 
-  // Open the first not-yet-chosen accordion on mount (best-guess UX).
+  // Open the first unpicked REQUIRED accordion on mount (best-guess UX).
+  // Optional (`allowsNone`) categories don't auto-open — they stay closed
+  // until the user wants to customize, so a "nothing happened" default is
+  // the same as implicitly picking NONE at submit time.
   useEffect(() => {
     if (openAccordion) return;
-    const first = categories.find((c) => !picks[c.id]);
+    const first = categories.find((c) => !c.allowsNone && !picks[c.id]);
     if (first) setOpenAccordion(first.id);
   }, [categories, picks, openAccordion]);
 
-  const chosenCount = categories.reduce((n, c) => (picks[c.id] ? n + 1 : n), 0);
-  const allChosen = chosenCount === categories.length && !!nameToken;
+  // Only non-NONE categories gate the Submit button. Optional categories
+  // (`allowsNone: true`) default to NONE on submit if the user left them
+  // blank, so they don't need an explicit pick to unlock the button — the
+  // red "Required" chip in SectionAccordion is also hidden for them.
+  const requiredCategories = useMemo(() => categories.filter((c) => !c.allowsNone), [categories]);
+  const requiredChosenCount = requiredCategories.reduce((n, c) => (picks[c.id] ? n + 1 : n), 0);
+  const requiredRemaining = requiredCategories.length - requiredChosenCount;
+  const totalRequired = requiredCategories.length + 1; // + nameToken
+  const totalLeft = requiredRemaining + (nameToken ? 0 : 1);
+  const allChosen = requiredRemaining === 0 && !!nameToken;
   const stepIndex = useMemo(() => {
     if (!monster) return 1;
     const doneCount = SECTIONS.filter((s) => monster.sections?.[s]?.status === "done").length;
@@ -152,9 +163,20 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
   const submitSection = () => {
     return run(async () => {
       try {
+        // Server-side validatePicks requires every category to be present.
+        // Optional categories (`allowsNone`) are backfilled with "NONE" at
+        // submit so the user doesn't have to click NONE just to proceed.
+        // We DON'T merge these back into local `picks` state — the UI uses
+        // the user's actual picks to decide SuccessIcon visibility (an
+        // auto-NONE for an untouched optional category would wrongly flip
+        // the icon on).
+        const submittedPicks: { [k: string]: string } = { ...picks };
+        for (const cat of categories) {
+          if (cat.allowsNone && !submittedPicks[cat.id]) submittedPicks[cat.id] = NONE_ID;
+        }
         const response = await backendAPI.post(`/monsters/${monsterId}/section`, {
           section,
-          picks,
+          picks: submittedPicks,
           nameToken,
         });
         if (response?.data?.success) {
@@ -266,7 +288,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
                       `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
                   </p>
                   <span className="p2 mm-text-accent-lt">
-                    {chosenCount} of {categories.length}
+                    {requiredChosenCount} of {requiredCategories.length} required
                   </span>
                 </div>
 
@@ -277,6 +299,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
                       catId={cat.id}
                       label={cat.label}
                       chosen={!!picks[cat.id]}
+                      required={!cat.allowsNone}
                       isExpandable={true}
                       isOpen={openAccordion === cat.id}
                       onToggle={() => setOpenAccordion(openAccordion === cat.id ? null : cat.id)}
@@ -308,8 +331,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
                   <p className="text-xs mm-text-done">Ready to submit!</p>
                 ) : (
                   <p className="text-xs mm-text-done">
-                    choose all {categories.length + 1} - {categories.length + 1 - chosenCount - (nameToken ? 1 : 0)}{" "}
-                    left
+                    choose all {totalRequired} - {totalLeft} left
                   </p>
                 )}
               </div>

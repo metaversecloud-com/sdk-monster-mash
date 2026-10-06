@@ -101,7 +101,7 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
     for (const w of advance.freshlyCrownedWinners) {
       const entry = { monsterId: w.monsterId, category: w.category, place: w.place, awardedAt: w.awardedAt };
       for (const profileId of w.contributorProfileIds ?? []) {
-        if (profileId === profileId) {
+        if (profileId === credentials.profileId) {
           callerWinBanners.push(entry);
         } else {
           const bucket = bannersByPeer.get(profileId) ?? [];

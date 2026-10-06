@@ -77,7 +77,6 @@ export interface VoteCycle {
   tallies: {
     [monsterId: string]: { shown: number; wins: number };
   };
-  totalMatchupsServed: number;
   computedWinners?: Array<{ monsterId: string; place: Place }>;
 }
 

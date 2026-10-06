@@ -209,9 +209,9 @@ describe("syncBadges", () => {
     // Exactly one updateDataObject call carrying both analytics (batched).
     expect(visitor.updateDataObject).toHaveBeenCalledTimes(1);
     expect(visitor.analyticsFired.map((a: any) => a.analyticName).sort()).toEqual(["badge_earned", "badge_earned"]);
-    expect(visitor.analyticsFired.map((a: any) => a.uniqueKey).sort()).toEqual(
-      ["profile-1-badge-I Voted!", "profile-1-badge-New Masher"].sort(),
-    );
+    // uniqueKey is the profileId — dedup kicks in at the analytics layer, so
+    // repeat grants on the same profile don't double-count.
+    expect(visitor.analyticsFired.every((a: any) => a.uniqueKey === "profile-1")).toBe(true);
   });
 
   test("does not fire `badge_earned` when nothing new was granted", async () => {

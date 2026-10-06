@@ -44,7 +44,7 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
                 {w.contributorDisplayNames.join(" · ")}
               </p>
             )}
-            {w.deleted && <p className="text-[9px] mm-text-danger text-center">removed by an admin - place is kept</p>}
+            {w.deleted && <p className="text-[9px] mm-text-danger text-center">removed by an admin</p>}
           </div>
         ))}
       </div>

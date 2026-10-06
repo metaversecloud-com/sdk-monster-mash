@@ -139,7 +139,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
         awardedAt: w.awardedAt,
       };
       for (const profileId of w.contributorProfileIds ?? []) {
-        if (profileId === profileId) {
+        if (profileId === credentials.profileId) {
           callerWinBanners.push(bannerEntry);
         } else {
           const bucket = bannersByPeer.get(profileId) ?? [];

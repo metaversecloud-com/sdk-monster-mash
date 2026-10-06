@@ -9,6 +9,7 @@ import {
   GalleryMonster,
 } from "@shared/types/index.js";
 import {
+  computeCallerVoteCounts,
   contributorDisplayNamesFromEntry,
   errorHandler,
   etDateKey,
@@ -27,8 +28,8 @@ const CYCLE_CAP_MULTIPLIER = 2;
  * Body: { winnerMonsterId, matchupId, loserMonsterId }
  *
  * Increments the winner's `wins` + both monsters' `shown`, updates the
- * caller's per-cycle vote count, bumps `totalMatchupsServed`, and returns
- * the next matchup for the same session.
+ * caller's per-cycle vote count, and returns the next matchup for the
+ * same session.
  */
 export const handleCastVote = async (req: Request, res: Response) => {
   try {
@@ -52,17 +53,15 @@ export const handleCastVote = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Monster not in the current pool." });
     }
 
-    // Vote-cap accounting — two independent caps per spec. Daily resets at
-    // midnight ET; cycle resets when the window rolls over. Hitting either
-    // blocks the vote with a cap-specific error so the client can show the
-    // right message.
+    // Vote-cap accounting — two independent caps per spec. BOTH reset on a
+    // new cycleId (admin force-start or Sunday rollover); daily also resets
+    // on its own at midnight ET. Hitting either blocks the vote with a
+    // cap-specific error so the client can show the right message.
     const poolSizeNum = cycle.poolMonsterIds.length;
     const dailyCap = Math.max(0, poolSizeNum * DAILY_CAP_MULTIPLIER);
     const cycleCap = Math.max(0, poolSizeNum * CYCLE_CAP_MULTIPLIER);
     const todayKey = etDateKey(Date.now());
-    const votedToday = visitorData.votesCastToday?.dateEt === todayKey ? visitorData.votesCastToday.count : 0;
-    const votedCycle =
-      visitorData.votesCastThisWeek?.windowId === cycle.cycleId ? visitorData.votesCastThisWeek.count : 0;
+    const { votedToday, votedCycle } = computeCallerVoteCounts(visitorData, cycle.cycleId);
     if (cycleCap > 0 && votedCycle >= cycleCap) {
       return res.status(429).json({
         success: false,
@@ -104,7 +103,6 @@ export const handleCastVote = async (req: Request, res: Response) => {
     const nextCycle = {
       ...freshCycle,
       tallies,
-      totalMatchupsServed: (freshCycle.totalMatchupsServed ?? 0) + 1,
     };
 
     await keyAsset.updateDataObject(
@@ -113,7 +111,6 @@ export const handleCastVote = async (req: Request, res: Response) => {
         [`currentVoteCycle.tallies.${loserMonsterId}`]: loserRow,
         [`monsters.${winnerMonsterId}.timesShown`]: winnerTimesShown,
         [`monsters.${loserMonsterId}.timesShown`]: loserTimesShown,
-        totalMatchupsServed: (freshCycle.totalMatchupsServed ?? 0) + 1,
       },
       {
         lock: {
