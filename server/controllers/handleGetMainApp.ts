@@ -84,7 +84,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       nextPatch.currentSubmissionWindow = advance.next.currentSubmissionWindow;
       nextPatch.currentVoteCycle = advance.next.currentVoteCycle;
       nextPatch.storedWinners = advance.next.storedWinners;
-      nextPatch.categorySchedule = advance.next.categorySchedule;
+      nextPatch.categoryNextIndex = advance.next.categoryNextIndex;
     }
     if (monstersChanged) {
       nextPatch.monsters = monsters;
@@ -152,12 +152,12 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
           currentSubmissionWindow: advance.next.currentSubmissionWindow,
           currentVoteCycle: advance.next.currentVoteCycle,
           storedWinners: advance.next.storedWinners,
-          categorySchedule: advance.next.categorySchedule,
+          categoryNextIndex: advance.next.categoryNextIndex,
           monsters,
         }
       : { ...dataObject, monsters };
 
-    const { currentSubmissionWindow, currentVoteCycle, weeklyVotingEnabled, categorySchedule } = effectiveDataObject;
+    const { currentSubmissionWindow, currentVoteCycle, weeklyVotingEnabled, categoryNextIndex } = effectiveDataObject;
 
     const { visitor, isAdmin, visitorData, visitorInventory } = await getVisitor(credentials, {
       shouldGetVisitorDetails: true,
@@ -312,7 +312,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       monsters: rosterEntries,
       currentSubmissionWindow,
       currentVoteCycle,
-      categorySchedule: categorySchedule ?? { orderIds: [], nextIndex: 0 },
+      categoryNextIndex: categoryNextIndex ?? 0,
       banners: {
         win: winTop
           ? {

@@ -36,7 +36,7 @@ const baseDataObject = (): KeyAssetDataObject =>
     },
     currentVoteCycle: null,
     storedWinners: {},
-    categorySchedule: { orderIds: ["silliest", "cutest"], nextIndex: 0 },
+    categorySchedule: { nextIndex: 0 },
   }) as unknown as KeyAssetDataObject;
 
 describe("advanceWeeklyCycle", () => {

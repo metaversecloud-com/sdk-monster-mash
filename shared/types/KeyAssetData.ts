@@ -99,11 +99,6 @@ export interface StoredWinner {
   awardedAt: number;
 }
 
-export interface CategorySchedule {
-  orderIds: string[];
-  nextIndex: number;
-}
-
 /**
  * Root shape for the Monster Mash key asset's dataObject.
  *
@@ -131,7 +126,7 @@ export interface KeyAssetDataObject {
    */
   storedWinners: { [monsterId: string]: StoredWinner };
 
-  categorySchedule: CategorySchedule;
+  categoryNextIndex: number;
 
   /** Cached for pool-sizing heuristic on the following cycle. */
   lastCycleTotalVotes?: number;

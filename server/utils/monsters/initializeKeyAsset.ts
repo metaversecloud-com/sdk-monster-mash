@@ -1,5 +1,4 @@
 import { DroppedAssetInterface } from "@rtsdk/topia";
-import { VOTING_CATEGORIES } from "@shared/content/monsterMash.js";
 import { KeyAssetDataObject } from "@shared/types/index.js";
 import { currentSubmissionWindow } from "../vote/computeWindows.js";
 import { standardizeError } from "../standardizeError.js";
@@ -29,10 +28,7 @@ export const initializeKeyAsset = async (keyAsset: DroppedAssetInterface) => {
       currentSubmissionWindow: currentSubmissionWindow(),
       currentVoteCycle: null,
       storedWinners: {},
-      categorySchedule: {
-        orderIds: VOTING_CATEGORIES.map((c) => c.id),
-        nextIndex: 0,
-      },
+      categoryNextIndex: 0,
     };
 
     const lockId = `${keyAsset.id}-init-${new Date(Math.round(Date.now() / 60000) * 60000).toISOString()}`;

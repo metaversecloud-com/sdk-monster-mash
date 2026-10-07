@@ -98,7 +98,7 @@ The "hub". Roster of every monster (in-progress + complete, index-only for finis
 - `currentVoteCycle: VoteCycle | null` - pool + tallies + total matchups served; opened on Sunday if previous week's `eligibleMonsterIds` ≥ 10.
 - `storedWinners: StoredWinner[]` - rolling 30 (10 weeks × 3 places). Deleted monsters keep their spot with a snapshot.
 - `trophyLeaderboard: { [profileId]: { displayName, awardsWon, monstersContributedTo, lastActivityAt } }` - cache; rebuilt when winners are crowned.
-- `categorySchedule: { orderIds: string[], nextIndex: number }` - rotation across the 10 voting categories.
+- `categoryNextIndex: number` - rotation across the 10 voting categories.
 
 ### Per-monster dropped asset dataObject (`MonsterAssetDataObject`)
 

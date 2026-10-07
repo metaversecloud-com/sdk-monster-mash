@@ -4,20 +4,22 @@ import { useContext, useMemo } from "react";
 import { GlobalStateContext } from "@/context/GlobalContext";
 
 // shared
-import { VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash";
+import { VOTING_CATEGORIES } from "@shared/content/monsterMash";
 
 /**
- * Only surfaces when weekly voting is on and a next-category schedule exists
+ * Only surfaces when weekly voting is on and there is at least one defined
+ * category to rotate to. The rotation order is `VOTING_CATEGORIES`; the
+ * server only persists a `nextIndex` pointer modulo that length.
  */
 export const NextCategoryLine = ({ showSubmissionCutoffLabel }: { showSubmissionCutoffLabel: boolean }) => {
   const { mainApp } = useContext(GlobalStateContext);
 
   const nextCategory = useMemo(() => {
     if (!mainApp?.weeklyVotingEnabled) return null;
-    const schedule = mainApp.categorySchedule;
-    if (!schedule?.orderIds?.length) return null;
-    const id = schedule.orderIds[schedule.nextIndex % schedule.orderIds.length];
-    return VOTING_CATEGORY_BY_ID[id]?.label ?? id;
+    if (VOTING_CATEGORIES.length === 0) return null;
+    const nextIndex = mainApp.categoryNextIndex ?? 0;
+    const def = VOTING_CATEGORIES[nextIndex % VOTING_CATEGORIES.length];
+    return def?.label ?? null;
   }, [mainApp]);
 
   const submissionCutoffLabel = useMemo(() => {

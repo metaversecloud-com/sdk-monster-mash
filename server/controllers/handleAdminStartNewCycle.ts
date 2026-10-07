@@ -67,7 +67,7 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
     const nextPatch: Record<string, unknown> = {
       currentVoteCycle: advance.next.currentVoteCycle,
       storedWinners: advance.next.storedWinners,
-      categorySchedule: advance.next.categorySchedule,
+      categoryNextIndex: advance.next.categoryNextIndex,
     };
     if (advance.freshlyCrownedWinners.length > 0) {
       nextPatch.leaderboard = computeLeaderboardForWinners({

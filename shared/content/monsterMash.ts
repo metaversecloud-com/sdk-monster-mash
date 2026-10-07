@@ -250,7 +250,10 @@ export const NAME_TOKENS: Record<Section, readonly string[]> = {
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Rotation runs in `orderIds` order. `question` is the H1 on the Vote tab: "Which one is the {question}?".
+ * Rotation runs through `VOTING_CATEGORIES` in the order defined below —
+ * `categoryNextIndex` on the key asset only persists a mod-indexed
+ * pointer into this list. `question` is the H1 on the Vote tab: "Which one
+ * is the {question}?".
  */
 export interface VotingCategoryDef {
   id: string;
@@ -263,11 +266,6 @@ export interface VotingCategoryDef {
  * ecosystem inventory — that's what lets a category win grant its badge.
  * Adding a category here without an ACTIVE badge carrying that `categoryId`
  * means the win is never rewarded.
- *
- * The spec's eight "Possible for future" categories (Best Teamwork,
- * Scariest, Roundest, Most Realistic, Most Colorful, Sneakiest, Wiggliest,
- * Most Mysterious) already have badge art in the inventory, shipped as
- * INACTIVE. To launch one: add it here and flip its badge to ACTIVE.
  */
 export const VOTING_CATEGORIES: readonly VotingCategoryDef[] = [
   { id: "homework", label: "Eats Homework", question: "Most Likely to Eat Your Homework" },
@@ -307,8 +305,7 @@ export const STORED_WINNERS_MAX = 200;
 // npm run dev`) or preload the .env file (`tsx watch --env-file=../.env`).
 const nodeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
 const envMinPoolSize = Number(nodeProcess?.env?.MIN_POOL_SIZE);
-export const MIN_POOL_SIZE_FOR_VOTE =
-  Number.isFinite(envMinPoolSize) && envMinPoolSize > 0 ? envMinPoolSize : 10;
+export const MIN_POOL_SIZE_FOR_VOTE = Number.isFinite(envMinPoolSize) && envMinPoolSize > 0 ? envMinPoolSize : 10;
 export const SECTION_LOCK_TTL_MS = 30 * 60 * 1000; // 30 min
 
 /** Every window / cycle is anchored in this timezone. Not overridable. */

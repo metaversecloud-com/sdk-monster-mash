@@ -1,4 +1,4 @@
-import { MIN_POOL_SIZE_FOR_VOTE, STORED_WINNERS_MAX, VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash.js";
+import { MIN_POOL_SIZE_FOR_VOTE, STORED_WINNERS_MAX, VOTING_CATEGORIES } from "@shared/content/monsterMash.js";
 import { KeyAssetDataObject, Place, StoredWinner, SubmissionWindow, VoteCycle } from "@shared/types/index.js";
 import { computeWinners } from "./computeWinners.js";
 import { currentSubmissionWindow } from "./computeWindows.js";
@@ -23,7 +23,7 @@ export interface WeeklyAdvanceResult {
     currentSubmissionWindow: SubmissionWindow;
     currentVoteCycle: VoteCycle | null;
     storedWinners: { [monsterId: string]: StoredWinner };
-    categorySchedule: KeyAssetDataObject["categorySchedule"];
+    categoryNextIndex: KeyAssetDataObject["categoryNextIndex"];
   };
   changed: boolean;
   /** Winners just crowned (empty when no cycle closed this call). */
@@ -87,7 +87,7 @@ export const advanceWeeklyCycle = (
         currentSubmissionWindow: activeWindow,
         currentVoteCycle: keyAssetDataObject.currentVoteCycle ?? null,
         storedWinners: keyAssetDataObject.storedWinners ?? {},
-        categorySchedule: keyAssetDataObject.categorySchedule ?? { orderIds: [], nextIndex: 0 },
+        categoryNextIndex: keyAssetDataObject.categoryNextIndex ?? 0,
       },
       changed: false,
       freshlyCrownedWinners: [],
@@ -138,11 +138,10 @@ export const advanceWeeklyCycle = (
   const prevEligible = previousWindow?.eligibleMonsterIds ?? [];
   const monstersRoster = keyAssetDataObject.monsters ?? {};
   const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
-  let nextCategoryIndex = keyAssetDataObject.categorySchedule?.nextIndex ?? 0;
-  const categoryOrder = keyAssetDataObject.categorySchedule?.orderIds ?? [];
+  let nextCategoryIndex = keyAssetDataObject.categoryNextIndex ?? 0;
   let nextVoteCycle: VoteCycle | null = null;
 
-  if (weeklyVotingEnabled && categoryOrder.length > 0) {
+  if (weeklyVotingEnabled && VOTING_CATEGORIES.length > 0) {
     const pool: string[] = prevEligible.filter((id) => {
       const entry = monstersRoster[id];
       return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
@@ -178,19 +177,16 @@ export const advanceWeeklyCycle = (
     }
 
     if (pool.length >= MIN_POOL_SIZE_FOR_VOTE) {
-      const categoryId = categoryOrder[nextCategoryIndex % categoryOrder.length];
-      // Skip categories the schedule points at that no longer exist.
-      if (VOTING_CATEGORY_BY_ID[categoryId]) {
-        nextVoteCycle = {
-          cycleId: `${nowWindow.windowId}-vote`,
-          category: categoryId,
-          startAt: nowWindow.startAt,
-          endAt: nowWindow.endAt,
-          poolMonsterIds: pool,
-          tallies: {},
-        };
-        nextCategoryIndex = (nextCategoryIndex + 1) % categoryOrder.length;
-      }
+      const categoryId = VOTING_CATEGORIES[nextCategoryIndex % VOTING_CATEGORIES.length].id;
+      nextVoteCycle = {
+        cycleId: `${nowWindow.windowId}-vote`,
+        category: categoryId,
+        startAt: nowWindow.startAt,
+        endAt: nowWindow.endAt,
+        poolMonsterIds: pool,
+        tallies: {},
+      };
+      nextCategoryIndex = (nextCategoryIndex + 1) % VOTING_CATEGORIES.length;
     }
   }
 
@@ -221,10 +217,7 @@ export const advanceWeeklyCycle = (
       currentSubmissionWindow: nextSubmissionWindow,
       currentVoteCycle: nextVoteCycle,
       storedWinners: updatedStoredWinners,
-      categorySchedule: {
-        orderIds: categoryOrder,
-        nextIndex: nextCategoryIndex,
-      },
+      categoryNextIndex: nextCategoryIndex,
     },
     changed: true,
     freshlyCrownedWinners,
@@ -244,7 +237,7 @@ export const advanceWeeklyCycle = (
  *     short of MIN (same algorithm as the weekly rollover).
  *   - End date = current window's `endAt` (upcoming Sat 23:59 ET — same
  *     deadline as a cycle opened by the weekly rollover would carry).
- *   - Advances `categorySchedule.nextIndex` so the new cycle picks the
+ *   - Advances `categoryNextIndex` so the new cycle picks the
  *     NEXT category in rotation.
  *   - CycleId suffixed with the timestamp so it doesn't collide with the
  *     cycle we just closed (vote-count accounting on the client keys on
@@ -296,11 +289,10 @@ export const forceStartNewVoteCycle = (
   const monstersRoster = keyAssetDataObject.monsters ?? {};
   const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
   const currentEligible = activeWindow?.eligibleMonsterIds ?? [];
-  let nextCategoryIndex = keyAssetDataObject.categorySchedule?.nextIndex ?? 0;
-  const categoryOrder = keyAssetDataObject.categorySchedule?.orderIds ?? [];
+  let nextCategoryIndex = keyAssetDataObject.categoryNextIndex ?? 0;
   let nextVoteCycle: VoteCycle | null = null;
 
-  if (weeklyVotingEnabled && categoryOrder.length > 0) {
+  if (weeklyVotingEnabled && VOTING_CATEGORIES.length > 0) {
     const pool: string[] = currentEligible.filter((id) => {
       const entry = monstersRoster[id];
       return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
@@ -330,20 +322,18 @@ export const forceStartNewVoteCycle = (
     }
 
     if (pool.length >= MIN_POOL_SIZE_FOR_VOTE) {
-      const categoryId = categoryOrder[nextCategoryIndex % categoryOrder.length];
-      if (VOTING_CATEGORY_BY_ID[categoryId]) {
-        nextVoteCycle = {
-          // Suffix with `now` so the new cycleId doesn't collide with the
-          // one we just closed (vote counts key on cycleId → clean reset).
-          cycleId: `${activeWindow.windowId}-vote-${now}`,
-          category: categoryId,
-          startAt: now,
-          endAt: activeWindow.endAt,
-          poolMonsterIds: pool,
-          tallies: {},
-        };
-        nextCategoryIndex = (nextCategoryIndex + 1) % categoryOrder.length;
-      }
+      const categoryId = VOTING_CATEGORIES[nextCategoryIndex % VOTING_CATEGORIES.length].id;
+      nextVoteCycle = {
+        // Suffix with `now` so the new cycleId doesn't collide with the
+        // one we just closed (vote counts key on cycleId → clean reset).
+        cycleId: `${activeWindow.windowId}-vote-${now}`,
+        category: categoryId,
+        startAt: now,
+        endAt: activeWindow.endAt,
+        poolMonsterIds: pool,
+        tallies: {},
+      };
+      nextCategoryIndex = (nextCategoryIndex + 1) % VOTING_CATEGORIES.length;
     }
   }
 
@@ -352,10 +342,7 @@ export const forceStartNewVoteCycle = (
       currentSubmissionWindow: activeWindow,
       currentVoteCycle: nextVoteCycle,
       storedWinners: updatedStoredWinners,
-      categorySchedule: {
-        orderIds: categoryOrder,
-        nextIndex: nextCategoryIndex,
-      },
+      categoryNextIndex: nextCategoryIndex,
     },
     changed: true,
     freshlyCrownedWinners,

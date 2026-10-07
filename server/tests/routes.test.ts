@@ -290,7 +290,7 @@ const defaultKeyAssetDataObject = (): any => ({
   },
   currentVoteCycle: null as any,
   storedWinners: {},
-  categorySchedule: { orderIds: ["silliest"], nextIndex: 0 },
+  categorySchedule: { nextIndex: 0 },
 });
 
 describe("routes", () => {
