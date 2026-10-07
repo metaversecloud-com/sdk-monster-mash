@@ -14,7 +14,7 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
   if (!winners || winners.length === 0) return null;
   const categoryLabel = VOTING_CATEGORY_BY_ID[winners[0].category]?.label ?? winners[0].category;
   return (
-    <aside className="flex flex-col gap-1">
+    <aside className="flex flex-col gap-1 mx-auto">
       <p className="text-xs uppercase tracking-wider mm-text-accent-lt">
         Last week's winners · {categoryLabel.toUpperCase()}
       </p>
