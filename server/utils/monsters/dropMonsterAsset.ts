@@ -9,7 +9,7 @@ interface DropMonsterInput {
   visitor: VisitorInterface | null;
   monsterId: string;
   imageUrl: string;
-  clickableLinkBase: string; // e.g. "https://my-app.example.com" or "http://localhost:3001"
+  clickableLinkBase: string;
   monsterAssetData: MonsterAssetDataObject;
 }
 
@@ -18,9 +18,6 @@ const OFFSET_Y = 0;
 
 /**
  * Drop the finished monster into the world as a new dropped asset.
- * Matches Build-an-Asset's approach: click-through URL points back into
- * this app with `?screen=single-monster&monsterId=…`, drawer framing on.
- *
  * The monster's full record lives on THIS dropped asset's dataObject
  * (`monsterAssetData` — includes name, birthdate, contributors, sections,
  * imageUrl). The key asset roster keeps only the index fields.

@@ -4,6 +4,7 @@ import { evaluateBadges } from "@utils/badges/evaluateBadges.js";
 
 const def = (over: Partial<BadgeDef> & { name: string }): BadgeDef => ({
   displayName: over.name,
+  description: "description",
   group: "building",
   sortOrder: 0,
   thresholdKind: null,
