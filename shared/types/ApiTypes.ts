@@ -193,7 +193,7 @@ export interface MainAppResponseData {
   currentSubmissionWindow: SubmissionWindow;
   currentVoteCycle: VoteCycle | null;
   /** Drives the "Next week's voting category:" advisory under the tab bar. */
-  categoryNextIndex: 0;
+  categoryNextIndex: number;
   banners: BannerBundle;
   /** Pending win banners (all of them, oldest first) — used for analytics + backup surface. */
   pendingWinBanners: Array<WinBannerPayload>;
