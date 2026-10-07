@@ -44,24 +44,10 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
     const now = Date.now();
     const advance = forceStartNewVoteCycle(dataObject, now);
 
-    // Stamp `latestAward` onto each freshly-crowned monster so Gallery /
-    // Single Monster View / vote-tab ribbons see the win — same logic as
-    // handleGetMainApp's advance block.
-    let nextMonsters = dataObject.monsters ?? {};
-    let monstersChanged = false;
-    if (advance.freshlyCrownedWinners.length > 0) {
-      const draft = { ...nextMonsters };
-      for (const w of advance.freshlyCrownedWinners) {
-        const existing = draft[w.monsterId];
-        if (!existing) continue;
-        draft[w.monsterId] = {
-          ...existing,
-          latestAward: { category: w.category, place: w.place, awardedAt: w.awardedAt },
-        };
-      }
-      nextMonsters = draft;
-      monstersChanged = true;
-    }
+    // The Gallery / Single Monster View ribbon comes straight off
+    // `storedWinners[monsterId]` — no roster stamping needed. `advance`
+    // already produced the keyed storedWinners update below.
+    const nextMonsters = dataObject.monsters ?? {};
 
     // Build the single key-asset write — same shape as handleGetMainApp's
     // advance patch, minus the submission-window swap (window is unchanged).
@@ -70,7 +56,6 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
       storedWinners: advance.next.storedWinners,
       categorySchedule: advance.next.categorySchedule,
     };
-    if (monstersChanged) nextPatch.monsters = nextMonsters;
     if (advance.freshlyCrownedWinners.length > 0) {
       nextPatch.leaderboard = computeLeaderboardForWinners({
         currentLeaderboard: dataObject.leaderboard,

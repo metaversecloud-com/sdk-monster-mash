@@ -294,8 +294,21 @@ export const VOTING_CATEGORY_BY_ID: Record<string, VotingCategoryDef> = VOTING_C
 export const IN_PROGRESS_CAP = 100;
 export const FINISHED_CAP = 200;
 export const LEADERBOARD_CAP = 25;
-export const STORED_WINNERS_MAX = 30; // 10 weeks × 3 places
-export const MIN_POOL_SIZE_FOR_VOTE = 10;
+export const STORED_WINNERS_MAX = 200;
+// Dev convenience: set `MIN_POOL_SIZE` in your environment to lower the
+// vote threshold for local testing (e.g. `MIN_POOL_SIZE=4`). Production
+// leaves it unset → the default 10 applies. Server-only — the client never
+// imports this constant, and `typeof process === "undefined"` keeps the
+// browser bundle quiet.
+//
+// Timing: this const evaluates when `monsterMash.ts` first loads, which
+// happens before `index.ts`'s own `dotenv.config()` fires. For the env var
+// to actually land, export it in your shell (`export MIN_POOL_SIZE=4 &&
+// npm run dev`) or preload the .env file (`tsx watch --env-file=../.env`).
+const nodeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+const envMinPoolSize = Number(nodeProcess?.env?.MIN_POOL_SIZE);
+export const MIN_POOL_SIZE_FOR_VOTE =
+  Number.isFinite(envMinPoolSize) && envMinPoolSize > 0 ? envMinPoolSize : 10;
 export const SECTION_LOCK_TTL_MS = 30 * 60 * 1000; // 30 min
 
 /** Every window / cycle is anchored in this timezone. Not overridable. */

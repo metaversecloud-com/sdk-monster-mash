@@ -264,6 +264,9 @@ export const finalizeMonster = async ({
     // dropped-monster asset's dataObject (`MonsterAssetDataObject.sections`).
     // Display names collapse to a pipe-joined string in [head, torso, legs]
     // order — matches `contributorProfileIds` ordering.
+    //
+    // Award ribbons are NOT on the roster entry — they live on
+    // `storedWinners[monsterId]`. Nothing to preserve across this rewrite.
     const nextRoster = { ...(dataObject.monsters ?? {}) };
     nextRoster[monsterId] = {
       monsterId,
@@ -274,7 +277,6 @@ export const finalizeMonster = async ({
       contributorNames: contributorDisplayNames.join("|"),
       ...(monsterAssetId ? { monsterAssetId } : {}),
       ...(imageUrl ? { imageUrl } : {}),
-      ...(nextRoster[monsterId]?.latestAward ? { latestAward: nextRoster[monsterId].latestAward } : {}),
     };
     const eviction = evictFinishedIfCapped(nextRoster);
     const rosterAfterCap = eviction.changed ? eviction.monsters : nextRoster;

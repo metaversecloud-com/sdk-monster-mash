@@ -1,4 +1,4 @@
-import { AwardRibbon, Section } from "./SharedTypes.js";
+import { Section } from "./SharedTypes.js";
 
 export interface SectionRecord {
   contributorProfileId: string;
@@ -28,8 +28,6 @@ export interface MonsterAssetDataObject {
   /** [head, torso, legs] contributor display names. */
   contributorDisplayNames: [string, string, string];
   sections: Record<Section, SectionRecord>;
-  /** Denormalized ribbon for the Single Monster View drawer. */
-  latestAward?: AwardRibbon;
   /**
    * ID of the Monster Mash key asset that owns this monster.
    * Set at drop time so admin actions initiated from the world (e.g. the

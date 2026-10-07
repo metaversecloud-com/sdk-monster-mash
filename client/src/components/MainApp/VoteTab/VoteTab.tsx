@@ -165,18 +165,14 @@ export const VoteTab = () => {
             <NotificationBox
               header="No vote is running right now"
               text={
-                <>
-                  {vote.nextScheduledStartAt
-                    ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}!`
-                    : "The next vote will open when this week's submission window closes."}
-                  <br />
-                  (it opens the first time someone opens the app that day)
-                </>
+                vote.nextScheduledStartAt
+                  ? `The next vote goes live on ${new Date(vote.nextScheduledStartAt).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}!`
+                  : "The next vote will open when this week's submission window closes."
               }
             />
           )}

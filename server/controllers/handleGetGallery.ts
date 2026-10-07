@@ -11,6 +11,7 @@ import {
   errorHandler,
   getCredentials,
   getKeyAsset,
+  getRibbonFromStoredWinners,
   getVisitor,
 } from "@utils/index.js";
 
@@ -54,7 +55,12 @@ export const handleGetGallery = async (req: Request, res: Response) => {
       const rosterEntry = rosterById.get(id);
       const contribEntry = callerContrib[id];
 
-      // Prefer roster metadata; fall back to visitor.contributedMonsters for evicted monsters.
+      // Prefer roster metadata; fall back to visitor.contributedMonsters for
+      // evicted monsters. The ribbon is derived from `storedWinners[id]` on
+      // the roster path (one source of truth for current awards); the
+      // evicted-but-still-in-caller-history path uses the visitor's own
+      // `awards` list since the roster entry is gone.
+      const rosterAward = rosterEntry ? getRibbonFromStoredWinners(dataObject.storedWinners, id) : undefined;
       const source = rosterEntry
         ? {
             name: rosterEntry.name ?? "",
@@ -63,7 +69,7 @@ export const handleGetGallery = async (req: Request, res: Response) => {
             monsterAssetId: rosterEntry.monsterAssetId,
             contributorProfileIds: rosterEntry.contributorProfileIds ?? [],
             contributorDisplayNames: computeDisplayNames(rosterEntry, contribEntry),
-            latestAward: rosterEntry.latestAward,
+            latestAward: rosterAward,
           }
         : {
             name: contribEntry?.name ?? "",

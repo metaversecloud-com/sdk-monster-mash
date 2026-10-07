@@ -1,4 +1,4 @@
-import { AwardRibbon, Place, Section, SectionStatus } from "./SharedTypes.js";
+import { Place, Section, SectionStatus } from "./SharedTypes.js";
 
 export interface SectionRosterEntry {
   status: SectionStatus;
@@ -37,13 +37,14 @@ export interface MonsterIndexEntry {
    *   - `contributorNames` is a pipe-separated string in [head, torso, legs]
    *     order — same ordering as `contributorProfileIds`. Cheaper than a
    *     three-element array-of-strings once you multiply by 200 monsters.
+   *
+   * Awards stored on `storedWinners[monsterId]`
    */
   birthdate?: number;
   name?: string;
   imageUrl?: string;
   contributorProfileIds: string[];
   contributorNames?: string;
-  latestAward?: AwardRibbon;
 
   /**
    * Lifetime count of matchups the monster has appeared in (sum of `shown`
@@ -80,14 +81,22 @@ export interface VoteCycle {
   computedWinners?: Array<{ monsterId: string; place: Place }>;
 }
 
+/**
+ * Minimal per-monster award record stored on the key asset. Keyed by
+ * monsterId in `KeyAssetDataObject.storedWinners` — the monsterId is NOT a
+ * field here, that's the key.
+ *
+ * Snapshots like `name` / `imageUrl` / `contributorProfileIds` are
+ * intentionally NOT stored — they're read from `monsters[monsterId]` at
+ * render time. If a winning monster is later admin-deleted, those fields
+ * are simply absent in Last Week's Winners (no snapshot survives) — a
+ * deliberate size trade: Firestore's 1 MiB document cap is tighter than
+ * admins deleting winners is common.
+ */
 export interface StoredWinner {
-  monsterId: string;
   category: string;
   place: Place;
   awardedAt: number;
-  contributorProfileIds: string[];
-  snapshotName?: string;
-  snapshotImageUrl?: string;
 }
 
 export interface CategorySchedule {
@@ -100,7 +109,7 @@ export interface CategorySchedule {
  *
  * Scope: per-instance (one placement of the app in a world). Every field
  * below is bounded — the roster is capped at 100 in-progress + 200 finished,
- * storedWinners is capped at 10 weeks * 3 places = 30 entries. Nothing here
+ * `storedWinners` is capped at `STORED_WINNERS_MAX` entries. Nothing here
  * grows unbounded.
  */
 export interface KeyAssetDataObject {
@@ -114,8 +123,13 @@ export interface KeyAssetDataObject {
   currentSubmissionWindow: SubmissionWindow;
   currentVoteCycle: VoteCycle | null;
 
-  /** Rolling 30 (10 weeks × 3 places). Monsters in this list are ineligible for a new vote. */
-  storedWinners: StoredWinner[];
+  /**
+   * Per-monster award record, keyed by monsterId. A monster appears here
+   * exactly once (crowned monsters are excluded from future pools, so a
+   * second win can't overwrite the first). Also serves as the exclusion
+   * set for pool-building. Trimmed to `STORED_WINNERS_MAX` oldest-first.
+   */
+  storedWinners: { [monsterId: string]: StoredWinner };
 
   categorySchedule: CategorySchedule;
 

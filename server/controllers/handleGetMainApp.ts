@@ -75,25 +75,10 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       monstersChanged = true;
     }
 
-    // Stamp `latestAward` onto every freshly-crowned monster in the roster -
-    // without this, the Gallery's "Show only award winners" filter and the
-    // card ribbon stay empty even though the win banner fires correctly. The
-    // win banner reads straight off `pendingWinBanners`, but Gallery/single-
-    // monster surfaces read `latestAward` off the roster entry.
-    if (advance.changed && advance.freshlyCrownedWinners.length > 0) {
-      const nextMonsters = { ...(monsters ?? {}) };
-      for (const w of advance.freshlyCrownedWinners) {
-        const existing = nextMonsters[w.monsterId];
-        if (!existing) continue; // winner's monster was evicted/deleted between crowning and this write - skip.
-        nextMonsters[w.monsterId] = {
-          ...existing,
-          latestAward: { category: w.category, place: w.place, awardedAt: w.awardedAt },
-        };
-      }
-      monsters = nextMonsters;
-      monstersChanged = true;
-    }
-
+    // The Gallery / Single Monster View ribbon comes straight off
+    // `storedWinners[monsterId]` — no roster stamping needed. `advance`
+    // already wrote the keyed storedWinners map; nothing extra to do here
+    // for the "Show only winners" filter to light up.
     const nextPatch: Record<string, unknown> = {};
     if (advance.changed) {
       nextPatch.currentSubmissionWindow = advance.next.currentSubmissionWindow;
@@ -172,8 +157,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
         }
       : { ...dataObject, monsters };
 
-    const { currentSubmissionWindow, currentVoteCycle, storedWinners, weeklyVotingEnabled, categorySchedule } =
-      effectiveDataObject;
+    const { currentSubmissionWindow, currentVoteCycle, weeklyVotingEnabled, categorySchedule } = effectiveDataObject;
 
     const { visitor, isAdmin, visitorData, visitorInventory } = await getVisitor(credentials, {
       shouldGetVisitorDetails: true,
@@ -328,7 +312,6 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       monsters: rosterEntries,
       currentSubmissionWindow,
       currentVoteCycle,
-      storedWinners: storedWinners ?? [],
       categorySchedule: categorySchedule ?? { orderIds: [], nextIndex: 0 },
       banners: {
         win: winTop

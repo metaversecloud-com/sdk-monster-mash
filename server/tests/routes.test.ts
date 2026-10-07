@@ -289,7 +289,7 @@ const defaultKeyAssetDataObject = (): any => ({
     eligibleMonsterIds: [] as string[],
   },
   currentVoteCycle: null as any,
-  storedWinners: [],
+  storedWinners: {},
   categorySchedule: { orderIds: ["silliest"], nextIndex: 0 },
 });
 
@@ -333,7 +333,6 @@ describe("routes", () => {
       weeklyVotingEnabled: true,
       monsters: [],
       currentVoteCycle: null,
-      storedWinners: [],
     });
   });
 
@@ -1005,7 +1004,6 @@ describe("routes", () => {
         birthdate: 10,
         name: "Award",
         imageUrl: "https://example.com/aw.png",
-        latestAward: { category: "silliest", place: 1, awardedAt: 20 },
         sections: {
           head: { status: "done", contributorProfileId: "p4", submittedAt: 1 },
           torso: { status: "done", contributorProfileId: "p5", submittedAt: 2 },
@@ -1014,6 +1012,8 @@ describe("routes", () => {
         contributorProfileIds: ["p4", "p5", "p6"],
       },
     };
+    // Ribbon lives on storedWinners[monsterId], not on the roster entry.
+    keyAssetData.storedWinners = { "mon-award": { category: "silliest", place: 1, awardedAt: 20 } };
 
     mockUtils.getCredentials.mockReturnValue(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
@@ -1051,7 +1051,6 @@ describe("routes", () => {
         birthdate: 5,
         name: "Detailed",
         imageUrl: "https://example.com/detail.png",
-        latestAward: { category: "silliest", place: 2, awardedAt: 20 },
         sections: {
           head: { status: "done", contributorProfileId: "p1", contributorDisplayName: "One", submittedAt: 1 },
           torso: { status: "done", contributorProfileId: "p2", contributorDisplayName: "Two", submittedAt: 2 },
@@ -1060,6 +1059,8 @@ describe("routes", () => {
         contributorProfileIds: ["p1", "p2", "p3"],
       },
     };
+    // Ribbon lives on storedWinners[monsterId], not on the roster entry.
+    keyAssetData.storedWinners = { [monsterId]: { category: "silliest", place: 2, awardedAt: 20 } };
 
     mockUtils.getCredentials.mockReturnValue(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
@@ -1145,17 +1146,9 @@ describe("routes", () => {
       poolMonsterIds: pool,
       tallies: {},
     };
-    keyAssetData.storedWinners = [
-      {
-        monsterId: "m1",
-        category: "cutest",
-        place: 1,
-        awardedAt: 10,
-        contributorProfileIds: ["p1"],
-        snapshotName: "Prior winner",
-        snapshotImageUrl: "https://ex/prior.png",
-      },
-    ];
+    keyAssetData.storedWinners = {
+      m1: { category: "cutest", place: 1, awardedAt: 10 },
+    };
     mockUtils.getCredentials.mockReturnValue(baseCreds);
     mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
     mockUtils.getVisitor.mockResolvedValue({

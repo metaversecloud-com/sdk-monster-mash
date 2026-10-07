@@ -35,7 +35,7 @@ const baseDataObject = (): KeyAssetDataObject =>
       eligibleMonsterIds: [],
     },
     currentVoteCycle: null,
-    storedWinners: [],
+    storedWinners: {},
     categorySchedule: { orderIds: ["silliest", "cutest"], nextIndex: 0 },
   }) as unknown as KeyAssetDataObject;
 
@@ -75,15 +75,9 @@ describe("advanceWeeklyCycle", () => {
     const winner = "winner-x";
     for (const id of [...kept, winner]) data.monsters[id] = makeCompleteMonster(id) as any;
     data.currentSubmissionWindow!.eligibleMonsterIds = [...kept, winner];
-    data.storedWinners = [
-      {
-        monsterId: winner,
-        category: "silliest",
-        place: 1,
-        awardedAt: 1,
-        contributorProfileIds: ["p1"],
-      },
-    ];
+    data.storedWinners = {
+      [winner]: { category: "silliest", place: 1, awardedAt: 1 },
+    };
 
     const { next } = advanceWeeklyCycle(data, NOW);
 
@@ -172,9 +166,9 @@ describe("advanceWeeklyCycle", () => {
 
     const winner = "old-winner";
     data.monsters[winner] = { ...makeCompleteMonster(winner, 50), timesShown: 0 } as any;
-    data.storedWinners = [
-      { monsterId: winner, category: "silliest", place: 1, awardedAt: 1, contributorProfileIds: ["p1"] },
-    ];
+    data.storedWinners = {
+      [winner]: { category: "silliest", place: 1, awardedAt: 1 },
+    };
 
     // Enough non-winner backfill candidates to reach MIN comfortably.
     for (let i = 0; i < MIN_POOL_SIZE_FOR_VOTE; i++) {

@@ -22,6 +22,7 @@ describe("parseBadgeDef", () => {
     expect(
       parseBadgeDef("Master Builder", {
         displayName: "Master Builder",
+        description: "description",
         sortOrder: 37,
         group: "building",
         thresholdKind: "completeAsThird",

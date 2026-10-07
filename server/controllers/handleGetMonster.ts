@@ -5,6 +5,7 @@ import {
   errorHandler,
   getCredentials,
   getKeyAsset,
+  getRibbonFromStoredWinners,
   getVisitor,
 } from "@utils/index.js";
 
@@ -43,7 +44,7 @@ export const handleGetMonster = async (req: Request, res: Response) => {
           imageUrl: entry.imageUrl ?? null,
           contributorProfileIds: entry.contributorProfileIds ?? [],
           contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
-          latestAward: entry.latestAward,
+          latestAward: getRibbonFromStoredWinners(dataObject.storedWinners, monsterId),
           callerContributed,
           fromCallerHistory: false,
         }

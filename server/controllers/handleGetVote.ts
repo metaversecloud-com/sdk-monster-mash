@@ -3,7 +3,6 @@ import { MIN_POOL_SIZE_FOR_VOTE, VOTING_CATEGORY_BY_ID } from "@shared/content/m
 import {
   GalleryMonster,
   KeyAssetDataObject,
-  MonsterIndexEntry,
   StoredWinnerPayload,
   VoteMatchupPayload,
   VoteResponseData,
@@ -15,6 +14,7 @@ import {
   errorHandler,
   getCredentials,
   getKeyAsset,
+  getRibbonFromStoredWinners,
   getVisitor,
   pickMatchup,
 } from "@utils/index.js";
@@ -120,13 +120,14 @@ const buildMatchup = (
   const raw = pickMatchup(cycle);
   if (!raw) return null;
   const [aId, bId] = raw.pair;
-  const a = monsterToGallery(dataObject.monsters?.[aId]);
-  const b = monsterToGallery(dataObject.monsters?.[bId]);
+  const a = monsterToGallery(dataObject, aId);
+  const b = monsterToGallery(dataObject, bId);
   if (!a || !b) return null;
   return { matchupId: raw.matchupId, pair: [a, b] };
 };
 
-const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster | null => {
+const monsterToGallery = (dataObject: KeyAssetDataObject, monsterId: string): GalleryMonster | null => {
+  const entry = dataObject.monsters?.[monsterId];
   if (!entry) return null;
   return {
     monsterId: entry.monsterId,
@@ -136,23 +137,25 @@ const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster 
     imageUrl: entry.imageUrl ?? null,
     contributorProfileIds: entry.contributorProfileIds ?? [],
     contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
-    latestAward: entry.latestAward,
+    latestAward: getRibbonFromStoredWinners(dataObject.storedWinners, entry.monsterId),
     callerContributed: false,
     fromCallerHistory: false,
   };
 };
 
 const collectLastWinners = (dataObject: KeyAssetDataObject): StoredWinnerPayload[] => {
-  const stored = dataObject.storedWinners ?? [];
-  // Grab the most recent 3 (the "LAST WEEK'S WINNERS · CATEGORY" row).
-  const tail = stored.slice(-3);
-  return tail.map((w) => {
-    const entry = dataObject.monsters?.[w.monsterId];
+  // Keyed storedWinners — grab the 3 most recent crownings by `awardedAt`.
+  // Snapshots (name / imageUrl / contributors) are NOT in storedWinners any
+  // more: we read them live off the roster. If the monster has been admin-
+  // deleted or evicted, we flag `deleted: true` and leave name/image empty.
+  const sorted = Object.entries(dataObject.storedWinners ?? {}).sort((a, b) => b[1].awardedAt - a[1].awardedAt);
+  return sorted.slice(0, 3).map(([monsterId, w]) => {
+    const entry = dataObject.monsters?.[monsterId];
     const deleted = !entry;
     return {
-      monsterId: w.monsterId,
-      name: entry?.name ?? w.snapshotName ?? "",
-      imageUrl: entry?.imageUrl ?? w.snapshotImageUrl ?? null,
+      monsterId,
+      name: entry?.name ?? "",
+      imageUrl: entry?.imageUrl ?? null,
       contributorDisplayNames: entry ? contributorDisplayNamesFromEntry(entry) : [],
       place: w.place,
       category: w.category,

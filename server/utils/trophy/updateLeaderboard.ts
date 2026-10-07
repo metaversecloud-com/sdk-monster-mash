@@ -1,10 +1,11 @@
-import { KeyAssetDataObject, StoredWinner } from "@shared/types/index.js";
+import { KeyAssetDataObject } from "@shared/types/index.js";
+import { FreshlyCrownedWinner } from "../vote/advanceWeeklyCycle.js";
 import { formatLeaderboardRow, parseLeaderboardRow } from "./leaderboardRow.js";
 
 interface UpdateInput {
   currentLeaderboard: KeyAssetDataObject["leaderboard"];
   monsters: KeyAssetDataObject["monsters"];
-  freshlyCrowned: StoredWinner[];
+  freshlyCrowned: FreshlyCrownedWinner[];
 }
 
 /**

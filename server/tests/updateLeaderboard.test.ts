@@ -1,4 +1,5 @@
-import { KeyAssetDataObject, StoredWinner } from "@shared/types/index";
+import { KeyAssetDataObject } from "@shared/types/index";
+import { FreshlyCrownedWinner } from "../utils/vote/advanceWeeklyCycle";
 import { computeLeaderboardForWinners } from "../utils/trophy/updateLeaderboard";
 import { parseLeaderboardRow } from "../utils/trophy/leaderboardRow";
 
@@ -15,7 +16,7 @@ const makeMonster = (
   contributorNames,
 });
 
-const makeWinner = (monsterId: string, profileIds: string[], place: 1 | 2 | 3): StoredWinner => ({
+const makeWinner = (monsterId: string, profileIds: string[], place: 1 | 2 | 3): FreshlyCrownedWinner => ({
   monsterId,
   category: "silliest",
   place,

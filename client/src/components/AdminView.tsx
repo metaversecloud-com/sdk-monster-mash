@@ -111,8 +111,7 @@ export const AdminView = () => {
         </div>
         <p className="p2 mm-on-card-muted">
           Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
-          start, no awards are given, and the Vote tab shows the "no active vote" state ("Check in with your teacher
-          about the next vote!").
+          start, no awards are given, and the Vote tab shows the "no active vote" state.
         </p>
         <button
           type="button"
@@ -123,9 +122,7 @@ export const AdminView = () => {
           Start New Vote Cycle
         </button>
         {cycleJustStarted ? (
-          <p className="p2 mm-text-success">
-            New vote cycle started! It ends this coming Saturday 11:59 PM ET.
-          </p>
+          <p className="p2 mm-text-success">New vote cycle started! It ends this coming Saturday 11:59 PM ET.</p>
         ) : (
           <p className="p2 mm-on-card-muted">
             Immediately closes the current cycle (crowning winners if there is one running) and opens a new cycle ending

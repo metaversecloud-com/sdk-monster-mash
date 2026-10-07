@@ -3,7 +3,6 @@ import { MIN_POOL_SIZE_FOR_VOTE, VOTING_CATEGORY_BY_ID } from "@shared/content/m
 import {
   CastVoteResponseData,
   KeyAssetDataObject,
-  MonsterIndexEntry,
   MonsterMashVisitorData,
   VoteMatchupPayload,
   GalleryMonster,
@@ -15,6 +14,7 @@ import {
   etDateKey,
   getCredentials,
   getKeyAsset,
+  getRibbonFromStoredWinners,
   getVisitor,
   pickMatchup,
 } from "@utils/index.js";
@@ -143,8 +143,8 @@ export const handleCastVote = async (req: Request, res: Response) => {
       const raw = pickMatchup(nextCycle);
       if (raw) {
         const [aId, bId] = raw.pair;
-        const a = monsterToGallery(dataObject.monsters?.[aId]);
-        const b = monsterToGallery(dataObject.monsters?.[bId]);
+        const a = monsterToGallery(dataObject, aId);
+        const b = monsterToGallery(dataObject, bId);
         if (a && b) next = { matchupId: raw.matchupId, pair: [a, b] };
       }
     }
@@ -178,7 +178,8 @@ export const handleCastVote = async (req: Request, res: Response) => {
 
 const dedupPush = <T>(arr: T[], value: T): T[] => (arr.includes(value) ? arr : [...arr, value]);
 
-const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster | null => {
+const monsterToGallery = (dataObject: KeyAssetDataObject, monsterId: string): GalleryMonster | null => {
+  const entry = dataObject.monsters?.[monsterId];
   if (!entry) return null;
   return {
     monsterId: entry.monsterId,
@@ -188,7 +189,7 @@ const monsterToGallery = (entry: MonsterIndexEntry | undefined): GalleryMonster 
     imageUrl: entry.imageUrl ?? null,
     contributorProfileIds: entry.contributorProfileIds ?? [],
     contributorDisplayNames: contributorDisplayNamesFromEntry(entry),
-    latestAward: entry.latestAward,
+    latestAward: getRibbonFromStoredWinners(dataObject.storedWinners, entry.monsterId),
     callerContributed: false,
     fromCallerHistory: false,
   };

@@ -3,17 +3,49 @@ import { KeyAssetDataObject, Place, StoredWinner, SubmissionWindow, VoteCycle } 
 import { computeWinners } from "./computeWinners.js";
 import { currentSubmissionWindow } from "./computeWindows.js";
 
+/**
+ * In-memory award record for a monster that was just crowned. Not what we
+ * STORE (that's the leaner `StoredWinner` on the key asset) — it carries
+ * monsterId + contributorProfileIds because the banner-fanout side needs
+ * them, and reading them from the roster at fanout time is a little nicer
+ * than passing a second parameter through four controllers.
+ */
+export interface FreshlyCrownedWinner {
+  monsterId: string;
+  category: string;
+  place: Place;
+  awardedAt: number;
+  contributorProfileIds: string[];
+}
+
 export interface WeeklyAdvanceResult {
   next: {
     currentSubmissionWindow: SubmissionWindow;
     currentVoteCycle: VoteCycle | null;
-    storedWinners: StoredWinner[];
+    storedWinners: { [monsterId: string]: StoredWinner };
     categorySchedule: KeyAssetDataObject["categorySchedule"];
   };
   changed: boolean;
   /** Winners just crowned (empty when no cycle closed this call). */
-  freshlyCrownedWinners: StoredWinner[];
+  freshlyCrownedWinners: FreshlyCrownedWinner[];
 }
+
+/**
+ * Trim a storedWinners map to the newest `max` entries by `awardedAt`.
+ * Sorted-oldest-first eviction so the Vote tab's "last 3" stays accurate.
+ */
+const trimStoredWinners = (
+  map: { [monsterId: string]: StoredWinner },
+  max: number,
+): { [monsterId: string]: StoredWinner } => {
+  const entries = Object.entries(map);
+  if (entries.length <= max) return map;
+  entries.sort((a, b) => a[1].awardedAt - b[1].awardedAt);
+  const trimmed = entries.slice(-max);
+  const next: { [monsterId: string]: StoredWinner } = {};
+  for (const [id, winner] of trimmed) next[id] = winner;
+  return next;
+};
 
 /**
  * Opportunistic weekly transition. Called from `handleGetMainApp` on every
@@ -54,7 +86,7 @@ export const advanceWeeklyCycle = (
       next: {
         currentSubmissionWindow: activeWindow,
         currentVoteCycle: keyAssetDataObject.currentVoteCycle ?? null,
-        storedWinners: keyAssetDataObject.storedWinners ?? [],
+        storedWinners: keyAssetDataObject.storedWinners ?? {},
         categorySchedule: keyAssetDataObject.categorySchedule ?? { orderIds: [], nextIndex: 0 },
       },
       changed: false,
@@ -66,8 +98,8 @@ export const advanceWeeklyCycle = (
   const previousWindow = activeWindow;
   const previousCycle = keyAssetDataObject.currentVoteCycle ?? null;
 
-  let freshlyCrownedWinners: StoredWinner[] = [];
-  let updatedStoredWinners = [...(keyAssetDataObject.storedWinners ?? [])];
+  let freshlyCrownedWinners: FreshlyCrownedWinner[] = [];
+  let updatedStoredWinners = { ...(keyAssetDataObject.storedWinners ?? {}) };
 
   if (previousCycle && weeklyVotingEnabled) {
     // Build birthdates map so ties break by earliest.
@@ -76,28 +108,25 @@ export const advanceWeeklyCycle = (
     for (const [id, entry] of Object.entries(monsters)) {
       if (entry?.birthdate) birthdates.set(id, entry.birthdate);
     }
-    const excluded = new Set((keyAssetDataObject.storedWinners ?? []).map((w) => w.monsterId));
+    const excluded = new Set(Object.keys(updatedStoredWinners));
 
     const winners = computeWinners(previousCycle, birthdates, excluded);
     freshlyCrownedWinners = winners.map((w) => {
       const entry = monsters[w.monsterId];
-      const stored: StoredWinner = {
+      return {
         monsterId: w.monsterId,
         category: previousCycle.category,
         place: w.place as Place,
         awardedAt: now,
         contributorProfileIds: entry?.contributorProfileIds ?? [],
-        snapshotName: entry?.name,
-        snapshotImageUrl: entry?.imageUrl,
       };
-      return stored;
     });
 
-    updatedStoredWinners = [...updatedStoredWinners, ...freshlyCrownedWinners];
-    // Trim to STORED_WINNERS_MAX (rolling window).
-    if (updatedStoredWinners.length > STORED_WINNERS_MAX) {
-      updatedStoredWinners = updatedStoredWinners.slice(-STORED_WINNERS_MAX);
+    const nextStored = { ...updatedStoredWinners };
+    for (const w of freshlyCrownedWinners) {
+      nextStored[w.monsterId] = { category: w.category, place: w.place, awardedAt: w.awardedAt };
     }
+    updatedStoredWinners = trimStoredWinners(nextStored, STORED_WINNERS_MAX);
   }
 
   // Step 3: open a new submission window (already computed).
@@ -108,7 +137,7 @@ export const advanceWeeklyCycle = (
   // reach quorum.
   const prevEligible = previousWindow?.eligibleMonsterIds ?? [];
   const monstersRoster = keyAssetDataObject.monsters ?? {};
-  const alreadyCrownedIds = new Set(updatedStoredWinners.map((w) => w.monsterId));
+  const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
   let nextCategoryIndex = keyAssetDataObject.categorySchedule?.nextIndex ?? 0;
   const categoryOrder = keyAssetDataObject.categorySchedule?.orderIds ?? [];
   let nextVoteCycle: VoteCycle | null = null;
@@ -233,8 +262,8 @@ export const forceStartNewVoteCycle = (
   const previousCycle = keyAssetDataObject.currentVoteCycle ?? null;
   const weeklyVotingEnabled = keyAssetDataObject.weeklyVotingEnabled;
 
-  let freshlyCrownedWinners: StoredWinner[] = [];
-  let updatedStoredWinners = [...(keyAssetDataObject.storedWinners ?? [])];
+  let freshlyCrownedWinners: FreshlyCrownedWinner[] = [];
+  let updatedStoredWinners = { ...(keyAssetDataObject.storedWinners ?? {}) };
 
   // Close the current cycle (if any) — same winner-crowning logic as the
   // automatic rollover.
@@ -244,30 +273,28 @@ export const forceStartNewVoteCycle = (
     for (const [id, entry] of Object.entries(monsters)) {
       if (entry?.birthdate) birthdates.set(id, entry.birthdate);
     }
-    const excluded = new Set((keyAssetDataObject.storedWinners ?? []).map((w) => w.monsterId));
+    const excluded = new Set(Object.keys(updatedStoredWinners));
     const winners = computeWinners(previousCycle, birthdates, excluded);
     freshlyCrownedWinners = winners.map((w) => {
       const entry = monsters[w.monsterId];
-      const stored: StoredWinner = {
+      return {
         monsterId: w.monsterId,
         category: previousCycle.category,
         place: w.place as Place,
         awardedAt: now,
         contributorProfileIds: entry?.contributorProfileIds ?? [],
-        snapshotName: entry?.name,
-        snapshotImageUrl: entry?.imageUrl,
       };
-      return stored;
     });
-    updatedStoredWinners = [...updatedStoredWinners, ...freshlyCrownedWinners];
-    if (updatedStoredWinners.length > STORED_WINNERS_MAX) {
-      updatedStoredWinners = updatedStoredWinners.slice(-STORED_WINNERS_MAX);
+    const nextStored = { ...updatedStoredWinners };
+    for (const w of freshlyCrownedWinners) {
+      nextStored[w.monsterId] = { category: w.category, place: w.place, awardedAt: w.awardedAt };
     }
+    updatedStoredWinners = trimStoredWinners(nextStored, STORED_WINNERS_MAX);
   }
 
   // Build the pool from the CURRENT window's eligible IDs (plus backfill).
   const monstersRoster = keyAssetDataObject.monsters ?? {};
-  const alreadyCrownedIds = new Set(updatedStoredWinners.map((w) => w.monsterId));
+  const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
   const currentEligible = activeWindow?.eligibleMonsterIds ?? [];
   let nextCategoryIndex = keyAssetDataObject.categorySchedule?.nextIndex ?? 0;
   const categoryOrder = keyAssetDataObject.categorySchedule?.orderIds ?? [];

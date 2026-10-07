@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "dev": "npx tsx watch index.ts",
+    "dev": "npx tsx watch --env-file-if-exists=../.env index.ts",
     "start": "node ./dist/server/index.js",
     "build": "npx tsc && npx tsc-alias",
     "ts-check": "tsc --noEmit",

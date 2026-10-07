@@ -28,7 +28,7 @@ export const initializeKeyAsset = async (keyAsset: DroppedAssetInterface) => {
       monsters: {},
       currentSubmissionWindow: currentSubmissionWindow(),
       currentVoteCycle: null,
-      storedWinners: [],
+      storedWinners: {},
       categorySchedule: {
         orderIds: VOTING_CATEGORIES.map((c) => c.id),
         nextIndex: 0,
