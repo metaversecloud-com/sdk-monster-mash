@@ -11,19 +11,13 @@ import { VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash";
 // utils
 import { backendAPI } from "@/utils";
 
+// components
+import Countdown from "./VoteTab/Countdown";
+
 const PLACE_LABEL = { 1: "1st", 2: "2nd", 3: "3rd" } as const;
 
 const fmtDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-
-const formatCountdown = (ms: number) => {
-  if (ms <= 0) return "0 days";
-  const totalMinutes = Math.floor(ms / 60_000);
-  const d = Math.floor(totalMinutes / (60 * 24));
-  const h = Math.floor((totalMinutes % (60 * 24)) / 60);
-  if (d > 0) return `${d} days and ${h} hours`;
-  return `${h} hours`;
-};
 
 /**
  * Order - top to bottom:
@@ -97,20 +91,24 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
         </div>
       )}
 
-      {activeTab !== "vote" && countdownActive && (
+      {countdownActive && (
         <div className="rounded-xl mm-border-2 mm-border-amber mm-bg-amber px-4 py-2 flex items-center justify-between gap-2">
           <p className="mm-text-done font-semibold">
-            <span className="font-semibold">{formatCountdown((cycleEnds as number) - now)}</span> left to VOTE on last
-            week's monsters!
+            <span className="font-semibold">
+              <Countdown targetMs={cycleEnds} />
+            </span>{" "}
+            left to VOTE on last week's monsters!
           </p>
-          <button
-            type="button"
-            className="btn mm-btn-sm w-fit"
-            disabled={isBusy}
-            onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
-          >
-            VOTE
-          </button>
+          {activeTab !== "vote" && (
+            <button
+              type="button"
+              className="btn mm-btn-sm w-fit"
+              disabled={isBusy}
+              onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
+            >
+              VOTE
+            </button>
+          )}
         </div>
       )}
     </div>

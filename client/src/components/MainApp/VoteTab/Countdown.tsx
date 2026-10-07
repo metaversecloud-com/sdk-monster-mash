@@ -25,7 +25,7 @@ export const Countdown = ({ targetMs }: CountdownProps) => {
   const { d, h, m, s } = formatSegments(targetMs - now);
   return (
     <span
-      className="text-3xl font-extrabold tracking-wider mm-text-done"
+      className="text-xl font-bold mm-text-done pr-1"
       aria-label={`${d} days ${h} hours ${m} minutes ${s} seconds left`}
     >
       {d}d : {pad(h)}h : {pad(m)}m : {pad(s)}s

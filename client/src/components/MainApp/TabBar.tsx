@@ -27,7 +27,7 @@ export const TabBar = () => {
             aria-selected={isActive}
             aria-controls={`monster-mash-tab-${tab.id}`}
             id={`monster-mash-tab-btn-${tab.id}`}
-            className={`min-w-[120px] px-4 py-2 text-[1.1rem] rounded-xl border-none transition ${
+            className={`min-w-[120px] px-4 py-2 text-[1.1rem] rounded-xl border-none transition cursor-pointer ${
               isActive ? "bg-white mm-text-done" : "bg-transparent mm-text-accent-lt hover:mm-text-white"
             }`}
             onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: tab.id } })}

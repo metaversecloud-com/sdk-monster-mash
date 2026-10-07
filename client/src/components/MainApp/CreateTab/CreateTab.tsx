@@ -213,7 +213,7 @@ export const CreateTab = () => {
         >
           <span
             aria-hidden="true"
-            className="text-6xl mm-text-accent-lt mm-border-blue rounded-full p-2 w-20 h-20 flex items-center justify-center"
+            className="text-6xl mm-text-accent-lt mm-border-4 mm-border-accent-lt rounded-full p-2 w-20 h-20 flex items-center justify-center"
           >
             +
           </span>

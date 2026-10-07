@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 
 // components
-import { Countdown } from "./Countdown.js";
 import { LastWeeksWinners } from "./LastWeeksWinners.js";
 import { MatchupCard } from "./MatchupCard.js";
 import NotificationBox from "@/components/shared/NotificationBox.js";
@@ -100,15 +99,7 @@ export const VoteTab = () => {
         <p className="p2 text-center mm-text-muted py-10">Vote unavailable right now.</p>
       ) : (
         <>
-          <div className="flex justify-between items-start gap-4 flex-wrap">
-            {vote.state === "running" && vote.cycleEndsAt && (
-              <div className="p-2 rounded-2xl mm-border-2 mm-border-amber mm-bg-amber flex-1 min-w-[280px]">
-                <Countdown targetMs={vote.cycleEndsAt} />
-                <p className="p2 mt-1">left to vote on last week's monsters!</p>
-              </div>
-            )}
-            <LastWeeksWinners winners={vote.lastWinners} />
-          </div>
+          <LastWeeksWinners winners={vote.lastWinners} />
 
           {vote.state === "running" && (
             <>
