@@ -282,14 +282,14 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
 
             <div className="grid gap-2">
               <div className="mm-section flex flex-col items-center gap-3 p-2">
-                <div className="w-full flex items-baseline justify-between gap-3">
-                  <p className="flex-stretch font-semibold mm-text-white">
+                <div className="w-full items-baseline justify-between">
+                  <p className="font-semibold mm-text-white">
                     {categories[0]?.section === section &&
                       `${section.charAt(0).toUpperCase()}${section.slice(1)} parts`}
                   </p>
-                  <span className="p2 mm-text-accent-lt">
+                  <p className="block text-[9px] mm-text-accent-lt">
                     {requiredChosenCount} of {requiredCategories.length} required
-                  </span>
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-2">

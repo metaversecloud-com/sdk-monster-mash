@@ -79,6 +79,7 @@ export const VoteTab = () => {
                 }
               : prev,
           );
+          setErrorMessage(dispatch, "");
         }
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);

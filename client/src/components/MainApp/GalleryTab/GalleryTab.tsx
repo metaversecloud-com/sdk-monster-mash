@@ -97,7 +97,10 @@ export const GalleryTab = () => {
     backendAPI
       .get("/main-app")
       .then((response) => {
-        if (response?.data?.success && response.data.data) setMainAppState(dispatch, response.data.data);
+        if (response?.data?.success && response.data.data) {
+          setMainAppState(dispatch, response.data.data);
+          setErrorMessage(dispatch, "");
+        }
       })
       .catch(() => {});
 

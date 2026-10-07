@@ -68,6 +68,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
     return run(async () => {
       try {
         await backendAPI.delete(`/monsters/${monsterId}`, { data: { shouldCloseIframe: true } });
+        setErrorMessage(dispatch, "");
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
       } finally {

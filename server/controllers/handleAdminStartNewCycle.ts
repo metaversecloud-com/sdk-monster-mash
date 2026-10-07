@@ -44,6 +44,19 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
     const now = Date.now();
     const advance = forceStartNewVoteCycle(dataObject, now);
 
+    // Short-circuit when the pool build didn't actually open a cycle —
+    // forceStartNewVoteCycle returns a null currentVoteCycle when fewer
+    // than MIN_POOL_SIZE_FOR_VOTE non-crowned monsters are reachable from
+    // the current window + backfill. Writing `null` here would wipe the
+    // existing cycle AND report success to the admin UI, which is how the
+    // "started!" latch has been firing for failed starts.
+    if (!advance.next.currentVoteCycle) {
+      return res.status(409).json({
+        success: false,
+        message: "Not enough monsters available for a new vote cycle.",
+      });
+    }
+
     // The Gallery / Single Monster View ribbon comes straight off
     // `storedWinners[monsterId]` — no roster stamping needed. `advance`
     // already produced the keyed storedWinners update below.
