@@ -66,6 +66,7 @@ export class UserFactory {
     const record: any = {
       fetchDataObject: jest.fn().mockResolvedValue({}),
       updateDataObject: jest.fn().mockResolvedValue({}),
+      fireToast,
     };
     return Promise.resolve(record);
   }
@@ -74,10 +75,10 @@ export class UserFactory {
 export class VisitorFactory {
   constructor(_topia: any) {}
   get(_visitorId: number, _slug: string, _opts: any) {
-    return Promise.resolve({});
+    return Promise.resolve({ fireToast });
   }
   create(_visitorId: number, _slug: string, _opts: any) {
-    return Promise.resolve({});
+    return Promise.resolve({ fireToast });
   }
 }
 

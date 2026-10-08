@@ -273,6 +273,7 @@ function makeVisitor() {
     updateDataObject: jest.fn().mockResolvedValue({}),
     closeIframe: jest.fn().mockResolvedValue({}),
     openIframe: jest.fn().mockResolvedValue({}),
+    fireToast: jest.fn().mockResolvedValue({ success: true }),
   };
   return record;
 }

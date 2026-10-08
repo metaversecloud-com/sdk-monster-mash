@@ -226,7 +226,7 @@ export const CreateTab = () => {
           <span className="grid gap-2">
             <h3 className="mm-text-white">Create New Monster</h3>
             <p className="text-xs mm-text-muted text-center mt-1">you'll be given a section to build</p>
-            <div className="btn mm-btn-primary mm-btn-lg text-lg mt-3">Create</div>
+            <div className={`btn mm-btn-primary mm-btn-lg text-lg mt-3 ${isBusy && "opacity-50"}`}>Create</div>
           </span>
         </button>
 

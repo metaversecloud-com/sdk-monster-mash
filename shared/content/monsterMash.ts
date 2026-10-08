@@ -293,6 +293,14 @@ export const IN_PROGRESS_CAP = 100;
 export const FINISHED_CAP = 200;
 export const LEADERBOARD_CAP = 25;
 export const STORED_WINNERS_MAX = 200;
+/**
+ * How long after winning a monster is kept out of future vote pools. Past
+ * this window the monster is eligible to backfill into a pool again (and
+ * therefore eligible to win again). Ribbons on the Gallery / Single Monster
+ * View still show for the lifetime of the `storedWinners` entry — the
+ * cooldown only gates re-entry into voting.
+ */
+export const WINNER_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 // Dev convenience: set `MIN_POOL_SIZE` in your environment to lower the
 // vote threshold for local testing (e.g. `MIN_POOL_SIZE=4`). Production
 // leaves it unset → the default 10 applies. Server-only — the client never

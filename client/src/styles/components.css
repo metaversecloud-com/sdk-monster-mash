@@ -202,9 +202,7 @@
   color: var(--mm-dark);
 }
 .mm-btn-primary:disabled {
-  background-color: var(--mm-accent-dark);
-  border: 1px solid var(--mm-accent);
-  color: var(--mm-accent-lt);
+  opacity: 0.5;
 }
 
 .mm-btn-secondary {

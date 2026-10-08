@@ -59,7 +59,7 @@ export const SectionSlot = ({
         <div className="h-full flex flex-col justify-between">
           <p className="text-md mm-text-on-card">{SECTION_LABELS[section]} - being built by YOU</p>
           <p className="mm-text-amber-dark text-[9px] mb-1">
-            Your progress is saved! Your claim frees up after 30 min idle.
+            Your progress is saved! Your claim frees up after 30 min.
           </p>
           <div className="flex gap-2">
             <button className="btn mm-btn-amber mm-btn-sm" onClick={onResume} disabled={isBusy}>

@@ -1,4 +1,9 @@
-import { MIN_POOL_SIZE_FOR_VOTE, STORED_WINNERS_MAX, VOTING_CATEGORIES } from "@shared/content/monsterMash.js";
+import {
+  MIN_POOL_SIZE_FOR_VOTE,
+  STORED_WINNERS_MAX,
+  VOTING_CATEGORIES,
+  WINNER_COOLDOWN_MS,
+} from "@shared/content/monsterMash.js";
 import {
   KeyAssetDataObject,
   MonsterIndexEntry,
@@ -58,6 +63,22 @@ const trimStoredWinners = (map: StoredWinnersMap, max: number): StoredWinnersMap
 };
 
 /**
+ * Monsters whose award is still within the `WINNER_COOLDOWN_MS` window.
+ * Returned as a Set for O(1) exclusion checks against roster ids. Past the
+ * window a monster is eligible to backfill into a pool again (and to win
+ * again) — `storedWinners` entries older than the cooldown stay around
+ * purely for ribbon display on Gallery / Single Monster View.
+ */
+const recentlyCrownedIds = (storedWinners: StoredWinnersMap, now: number): Set<string> => {
+  const cutoff = now - WINNER_COOLDOWN_MS;
+  const ids = new Set<string>();
+  for (const [id, w] of Object.entries(storedWinners)) {
+    if (w.awardedAt > cutoff) ids.add(id);
+  }
+  return ids;
+};
+
+/**
  * Close out `previousCycle`: crown top-3 winners and fold them into the
  * storedWinners map (trimmed to STORED_WINNERS_MAX). No-op when voting is
  * off or no cycle was running.
@@ -78,7 +99,10 @@ const closeCycle = (
   for (const [id, entry] of Object.entries(monsters)) {
     if (entry?.birthdate) birthdates.set(id, entry.birthdate);
   }
-  const excluded = new Set(Object.keys(storedWinners));
+  // Only EXCLUDE monsters still within the cooldown window from winning.
+  // Monsters whose previous win is older than `WINNER_COOLDOWN_MS` have
+  // re-entered the pool via backfill and are up for crowning again.
+  const excluded = recentlyCrownedIds(storedWinners, now);
   const winners = computeWinners(previousCycle, birthdates, excluded);
   const freshlyCrownedWinners: FreshlyCrownedWinner[] = winners.map((w) => {
     const entry = monsters[w.monsterId];
@@ -237,7 +261,9 @@ export const advanceWeeklyCycle = (
   const nextSubmissionWindow: SubmissionWindow = { ...nowWindow };
 
   // Step 4: build the pool from previous week's fresh submissions.
-  const alreadyCrownedIds = new Set(Object.keys(closed.storedWinners));
+  // Only monsters still inside the cooldown window are blocked from
+  // re-entering the pool. Older winners are free to backfill again.
+  const alreadyCrownedIds = recentlyCrownedIds(closed.storedWinners, now);
   const pool = weeklyVotingEnabled ? buildPool(prevEligible, monstersRoster, alreadyCrownedIds) : [];
   const opened = openCycle({
     pool,
@@ -304,7 +330,9 @@ export const forceStartNewVoteCycle = (
     now,
   );
 
-  const alreadyCrownedIds = new Set(Object.keys(closed.storedWinners));
+  // See `recentlyCrownedIds` — only monsters still inside the cooldown
+  // are blocked from the admin-forced new pool.
+  const alreadyCrownedIds = recentlyCrownedIds(closed.storedWinners, now);
   const pool = weeklyVotingEnabled
     ? buildPool(activeWindow.eligibleMonsterIds ?? [], monstersRoster, alreadyCrownedIds)
     : [];

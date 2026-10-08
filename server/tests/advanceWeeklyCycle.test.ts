@@ -1,5 +1,5 @@
 import { KeyAssetDataObject } from "@shared/types/index";
-import { MIN_POOL_SIZE_FOR_VOTE } from "@shared/content/monsterMash";
+import { MIN_POOL_SIZE_FOR_VOTE, WINNER_COOLDOWN_MS } from "@shared/content/monsterMash";
 import { advanceWeeklyCycle } from "../utils/vote/advanceWeeklyCycle";
 
 // A "now" that lives outside the seeded windowIds so `advanceWeeklyCycle`
@@ -69,19 +69,50 @@ describe("advanceWeeklyCycle", () => {
     expect(next.currentSubmissionWindow.eligibleMonsterIds).toEqual([]);
   });
 
-  test("carry-over drops monsters already crowned in storedWinners", () => {
+  test("carry-over drops monsters already crowned in storedWinners (within cooldown)", () => {
     const data = baseDataObject();
     const kept = ["a", "b"];
     const winner = "winner-x";
     for (const id of [...kept, winner]) data.monsters[id] = makeCompleteMonster(id) as any;
     data.currentSubmissionWindow!.eligibleMonsterIds = [...kept, winner];
+    // awardedAt within the cooldown window → winner stays excluded.
     data.storedWinners = {
-      [winner]: { category: "silliest", place: 1, awardedAt: 1 },
+      [winner]: { category: "silliest", place: 1, awardedAt: NOW - 1_000 },
     };
 
     const { next } = advanceWeeklyCycle(data, NOW);
 
     expect(next.currentSubmissionWindow.eligibleMonsterIds).toEqual(kept);
+  });
+
+  test("past-cooldown winners re-enter the pool via backfill when needed", () => {
+    const data = baseDataObject();
+    const fresh = ["f1", "f2"];
+    for (const id of fresh) data.monsters[id] = makeCompleteMonster(id, 100) as any;
+    data.currentSubmissionWindow!.eligibleMonsterIds = [...fresh];
+
+    // Winner whose award is well past the 30-day cooldown — should be
+    // eligible to backfill into the new pool again.
+    const oldWinner = "ancient-winner";
+    data.monsters[oldWinner] = { ...makeCompleteMonster(oldWinner, 50), timesShown: 0 } as any;
+    data.storedWinners = {
+      [oldWinner]: { category: "silliest", place: 1, awardedAt: NOW - WINNER_COOLDOWN_MS - 1 },
+    };
+
+    // Enough other backfill candidates to reach MIN — the test specifically
+    // asserts the old-winner is NOT filtered out as alreadyCrowned.
+    for (let i = 0; i < MIN_POOL_SIZE_FOR_VOTE; i++) {
+      const id = `backfill-${i}`;
+      data.monsters[id] = { ...makeCompleteMonster(id, i), timesShown: 1 } as any;
+    }
+
+    const { next } = advanceWeeklyCycle(data, NOW);
+
+    const pool = next.currentVoteCycle!.poolMonsterIds;
+    // Fresh submissions still lead; the old winner shows up ahead of the
+    // higher-timesShown backfill padding because it's zero-shown.
+    expect(pool.slice(0, 2)).toEqual(fresh);
+    expect(pool).toContain(oldWinner);
   });
 
   test("carry-over drops monsters no longer on the roster (admin deleted or evicted)", () => {
@@ -166,8 +197,9 @@ describe("advanceWeeklyCycle", () => {
 
     const winner = "old-winner";
     data.monsters[winner] = { ...makeCompleteMonster(winner, 50), timesShown: 0 } as any;
+    // Within cooldown — exclusion is still active for this test.
     data.storedWinners = {
-      [winner]: { category: "silliest", place: 1, awardedAt: 1 },
+      [winner]: { category: "silliest", place: 1, awardedAt: NOW - 1_000 },
     };
 
     // Enough non-winner backfill candidates to reach MIN comfortably.
