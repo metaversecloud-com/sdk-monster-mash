@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Section } from "@shared/types/index";
 import { useBusy } from "@/context/BusyContext";
 import { Confetti, DownloadBtn, Logo, SectionLayeredImage, SuccessIcon } from "@/components";
+import { playSfx } from "@/utils";
 
 interface SectionSubmittedProps {
   section: Section;
@@ -40,6 +42,15 @@ export const SectionSubmitted = ({
   onBackToMonsterMash,
 }: SectionSubmittedProps) => {
   const { isBusy } = useBusy();
+
+  // Fire the submit sfx on mount: complete monster → MONSTER_COMPLETE,
+  // otherwise SECTION_SUBMIT.
+  useEffect(() => {
+    playSfx(isComplete ? "MONSTER_COMPLETE" : "SECTION_SUBMIT");
+    // Mount-only — we only want to play once per submit screen render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (isComplete) {
     const attribution = (contributorNames ?? []).filter(Boolean).join(" · ");
     return (

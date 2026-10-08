@@ -1,5 +1,12 @@
 import { MIN_POOL_SIZE_FOR_VOTE, STORED_WINNERS_MAX, VOTING_CATEGORIES } from "@shared/content/monsterMash.js";
-import { KeyAssetDataObject, Place, StoredWinner, SubmissionWindow, VoteCycle } from "@shared/types/index.js";
+import {
+  KeyAssetDataObject,
+  MonsterIndexEntry,
+  Place,
+  StoredWinner,
+  SubmissionWindow,
+  VoteCycle,
+} from "@shared/types/index.js";
 import { computeWinners } from "./computeWinners.js";
 import { currentSubmissionWindow } from "./computeWindows.js";
 
@@ -30,22 +37,147 @@ export interface WeeklyAdvanceResult {
   freshlyCrownedWinners: FreshlyCrownedWinner[];
 }
 
+type MonsterRoster = { [monsterId: string]: MonsterIndexEntry };
+type StoredWinnersMap = { [monsterId: string]: StoredWinner };
+
+// ─────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────
+
 /**
  * Trim a storedWinners map to the newest `max` entries by `awardedAt`.
  * Sorted-oldest-first eviction so the Vote tab's "last 3" stays accurate.
  */
-const trimStoredWinners = (
-  map: { [monsterId: string]: StoredWinner },
-  max: number,
-): { [monsterId: string]: StoredWinner } => {
+const trimStoredWinners = (map: StoredWinnersMap, max: number): StoredWinnersMap => {
   const entries = Object.entries(map);
   if (entries.length <= max) return map;
   entries.sort((a, b) => a[1].awardedAt - b[1].awardedAt);
-  const trimmed = entries.slice(-max);
-  const next: { [monsterId: string]: StoredWinner } = {};
-  for (const [id, winner] of trimmed) next[id] = winner;
+  const next: StoredWinnersMap = {};
+  for (const [id, winner] of entries.slice(-max)) next[id] = winner;
   return next;
 };
+
+/**
+ * Close out `previousCycle`: crown top-3 winners and fold them into the
+ * storedWinners map (trimmed to STORED_WINNERS_MAX). No-op when voting is
+ * off or no cycle was running.
+ */
+const closeCycle = (
+  previousCycle: VoteCycle | null,
+  weeklyVotingEnabled: boolean,
+  monsters: MonsterRoster,
+  storedWinners: StoredWinnersMap,
+  now: number,
+): { freshlyCrownedWinners: FreshlyCrownedWinner[]; storedWinners: StoredWinnersMap } => {
+  if (!previousCycle || !weeklyVotingEnabled) {
+    return { freshlyCrownedWinners: [], storedWinners };
+  }
+
+  // Build birthdates map so ties break by earliest.
+  const birthdates = new Map<string, number>();
+  for (const [id, entry] of Object.entries(monsters)) {
+    if (entry?.birthdate) birthdates.set(id, entry.birthdate);
+  }
+  const excluded = new Set(Object.keys(storedWinners));
+  const winners = computeWinners(previousCycle, birthdates, excluded);
+  const freshlyCrownedWinners: FreshlyCrownedWinner[] = winners.map((w) => {
+    const entry = monsters[w.monsterId];
+    return {
+      monsterId: w.monsterId,
+      category: previousCycle.category,
+      place: w.place as Place,
+      awardedAt: now,
+      contributorProfileIds: entry?.contributorProfileIds ?? [],
+    };
+  });
+
+  const nextStored: StoredWinnersMap = { ...storedWinners };
+  for (const w of freshlyCrownedWinners) {
+    nextStored[w.monsterId] = { category: w.category, place: w.place, awardedAt: w.awardedAt };
+  }
+  return {
+    freshlyCrownedWinners,
+    storedWinners: trimStoredWinners(nextStored, STORED_WINNERS_MAX),
+  };
+};
+
+/**
+ * Build the next vote-cycle pool. Starts with `seedEligibleIds` (filtered
+ * to complete, non-crowned monsters that still exist on the roster) and
+ * backfills from older complete monsters sorted by (fewest `timesShown`,
+ * newest `birthdate`) if short of MIN. Stops short if there aren't enough
+ * candidates — caller decides whether that's enough to open a cycle.
+ */
+const buildPool = (
+  seedEligibleIds: string[],
+  monstersRoster: MonsterRoster,
+  alreadyCrownedIds: Set<string>,
+): string[] => {
+  const pool: string[] = seedEligibleIds.filter((id) => {
+    const entry = monstersRoster[id];
+    return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
+  });
+
+  if (pool.length >= MIN_POOL_SIZE_FOR_VOTE) return pool;
+
+  const alreadyPooled = new Set(pool);
+  const backfillCandidates = Object.values(monstersRoster)
+    .filter(
+      (entry): entry is NonNullable<typeof entry> =>
+        !!entry &&
+        entry.state === "complete" &&
+        !alreadyCrownedIds.has(entry.monsterId) &&
+        !alreadyPooled.has(entry.monsterId),
+    )
+    .sort((a, b) => {
+      const aShown = a.timesShown ?? 0;
+      const bShown = b.timesShown ?? 0;
+      if (aShown !== bShown) return aShown - bShown; // asc: fewest shown first
+      const aBirth = a.birthdate ?? 0;
+      const bBirth = b.birthdate ?? 0;
+      return bBirth - aBirth; // desc: newest first
+    });
+
+  const needed = MIN_POOL_SIZE_FOR_VOTE - pool.length;
+  for (const entry of backfillCandidates.slice(0, needed)) {
+    pool.push(entry.monsterId);
+  }
+  return pool;
+};
+
+/**
+ * Open a vote cycle with the given pool when it hits MIN, advancing the
+ * category pointer. Returns `cycle: null` when the pool is short OR when
+ * `VOTING_CATEGORIES` is empty — in that case `nextCategoryIndex` is
+ * returned unchanged.
+ */
+const openCycle = (params: {
+  pool: string[];
+  nextCategoryIndex: number;
+  cycleId: string;
+  startAt: number;
+  endAt: number;
+}): { cycle: VoteCycle | null; nextCategoryIndex: number } => {
+  if (params.pool.length < MIN_POOL_SIZE_FOR_VOTE || VOTING_CATEGORIES.length === 0) {
+    return { cycle: null, nextCategoryIndex: params.nextCategoryIndex };
+  }
+  const idx = params.nextCategoryIndex % VOTING_CATEGORIES.length;
+  return {
+    cycle: {
+      cycleId: params.cycleId,
+      category: VOTING_CATEGORIES[idx].id,
+      startAt: params.startAt,
+      endAt: params.endAt,
+      poolMonsterIds: params.pool,
+      tallies: {},
+    },
+    nextCategoryIndex: (idx + 1) % VOTING_CATEGORIES.length,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// Public entry points
+// ─────────────────────────────────────────────────────────────────────
 
 /**
  * Opportunistic weekly transition. Called from `handleGetMainApp` on every
@@ -56,15 +188,9 @@ const trimStoredWinners = (
  *      append to storedWinners, tell caller so the finalize side can
  *      grant badges + enqueue banners.
  *   3. Open the new submission window for the week we've just entered.
- *   4. Build the next cycle's pool:
- *        a. Start with the previous window's `eligibleMonsterIds` (fresh
- *           submissions from the week that just ended).
- *        b. If that's short of `MIN_POOL_SIZE_FOR_VOTE`, backfill from
- *           older complete monsters sorted by (least `timesShown` first,
- *           most recent `birthdate` as tiebreak). Winners and already-
- *           pooled monsters are excluded. Takes as many as needed to hit
- *           MIN; stops short if there aren't that many eligible.
- *        c. Open the cycle with that pool if we hit MIN, else skip.
+ *   4. Build the next cycle's pool from the previous window's fresh
+ *      submissions, backfilled from older monsters if short of MIN.
+ *      Open the cycle if we hit MIN, else skip.
  *   5. If no cycle opened, carry the previous window's `eligibleMonsterIds`
  *      forward into the new submission window (spec: "Entered in the next
  *      vote — if enough are finished — otherwise the one after"). Winners
@@ -94,115 +220,38 @@ export const advanceWeeklyCycle = (
     };
   }
 
-  // Step 1 + 2: close the previous week.
+  const monstersRoster = keyAssetDataObject.monsters ?? {};
   const previousWindow = activeWindow;
-  const previousCycle = keyAssetDataObject.currentVoteCycle ?? null;
+  const prevEligible = previousWindow?.eligibleMonsterIds ?? [];
 
-  let freshlyCrownedWinners: FreshlyCrownedWinner[] = [];
-  let updatedStoredWinners = { ...(keyAssetDataObject.storedWinners ?? {}) };
+  // Step 1 + 2: close the previous week's cycle.
+  const closed = closeCycle(
+    keyAssetDataObject.currentVoteCycle ?? null,
+    weeklyVotingEnabled,
+    monstersRoster,
+    keyAssetDataObject.storedWinners ?? {},
+    now,
+  );
 
-  if (previousCycle && weeklyVotingEnabled) {
-    // Build birthdates map so ties break by earliest.
-    const birthdates = new Map<string, number>();
-    const monsters = keyAssetDataObject.monsters ?? {};
-    for (const [id, entry] of Object.entries(monsters)) {
-      if (entry?.birthdate) birthdates.set(id, entry.birthdate);
-    }
-    const excluded = new Set(Object.keys(updatedStoredWinners));
-
-    const winners = computeWinners(previousCycle, birthdates, excluded);
-    freshlyCrownedWinners = winners.map((w) => {
-      const entry = monsters[w.monsterId];
-      return {
-        monsterId: w.monsterId,
-        category: previousCycle.category,
-        place: w.place as Place,
-        awardedAt: now,
-        contributorProfileIds: entry?.contributorProfileIds ?? [],
-      };
-    });
-
-    const nextStored = { ...updatedStoredWinners };
-    for (const w of freshlyCrownedWinners) {
-      nextStored[w.monsterId] = { category: w.category, place: w.place, awardedAt: w.awardedAt };
-    }
-    updatedStoredWinners = trimStoredWinners(nextStored, STORED_WINNERS_MAX);
-  }
-
-  // Step 3: open a new submission window (already computed).
+  // Step 3: open a new submission window.
   const nextSubmissionWindow: SubmissionWindow = { ...nowWindow };
 
-  // Step 4: build the pool for the next vote cycle. Start with the fresh
-  // submissions, then (if short) backfill from older complete monsters to
-  // reach quorum.
-  const prevEligible = previousWindow?.eligibleMonsterIds ?? [];
-  const monstersRoster = keyAssetDataObject.monsters ?? {};
-  const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
-  let nextCategoryIndex = keyAssetDataObject.categoryNextIndex ?? 0;
-  let nextVoteCycle: VoteCycle | null = null;
+  // Step 4: build the pool from previous week's fresh submissions.
+  const alreadyCrownedIds = new Set(Object.keys(closed.storedWinners));
+  const pool = weeklyVotingEnabled ? buildPool(prevEligible, monstersRoster, alreadyCrownedIds) : [];
+  const opened = openCycle({
+    pool,
+    nextCategoryIndex: keyAssetDataObject.categoryNextIndex ?? 0,
+    cycleId: `${nowWindow.windowId}-vote`,
+    startAt: nowWindow.startAt,
+    endAt: nowWindow.endAt,
+  });
 
-  if (weeklyVotingEnabled && VOTING_CATEGORIES.length > 0) {
-    const pool: string[] = prevEligible.filter((id) => {
-      const entry = monstersRoster[id];
-      return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
-    });
-
-    // Short pool → backfill from older complete monsters, prioritized by
-    // least `timesShown` (zero-shown first), tiebreak by most recent
-    // birthdate (newer first). Skips winners, deletions, and anything we've
-    // already got in the pool.
-    if (pool.length < MIN_POOL_SIZE_FOR_VOTE) {
-      const alreadyPooled = new Set(pool);
-      const backfillCandidates = Object.values(monstersRoster)
-        .filter(
-          (entry): entry is NonNullable<typeof entry> =>
-            !!entry &&
-            entry.state === "complete" &&
-            !alreadyCrownedIds.has(entry.monsterId) &&
-            !alreadyPooled.has(entry.monsterId),
-        )
-        .sort((a, b) => {
-          const aShown = a.timesShown ?? 0;
-          const bShown = b.timesShown ?? 0;
-          if (aShown !== bShown) return aShown - bShown; // asc: fewest shown first
-          const aBirth = a.birthdate ?? 0;
-          const bBirth = b.birthdate ?? 0;
-          return bBirth - aBirth; // desc: newest first
-        });
-
-      const needed = MIN_POOL_SIZE_FOR_VOTE - pool.length;
-      for (const entry of backfillCandidates.slice(0, needed)) {
-        pool.push(entry.monsterId);
-      }
-    }
-
-    if (pool.length >= MIN_POOL_SIZE_FOR_VOTE) {
-      const categoryId = VOTING_CATEGORIES[nextCategoryIndex % VOTING_CATEGORIES.length].id;
-      nextVoteCycle = {
-        cycleId: `${nowWindow.windowId}-vote`,
-        category: categoryId,
-        startAt: nowWindow.startAt,
-        endAt: nowWindow.endAt,
-        poolMonsterIds: pool,
-        tallies: {},
-      };
-      nextCategoryIndex = (nextCategoryIndex + 1) % VOTING_CATEGORIES.length;
-    }
-  }
-
-  // Step 5: carry over any unvoted-on fresh submissions into the new window.
-  // A completed monster that missed its shot at a vote (previous window was
-  // short of MIN even after backfill, or weekly voting was off) rolls forward
-  // and keeps accumulating with next week's finalizes until a pool reaches
-  // quorum. Without this carry-over, the Vote tab reports "0 of 10 in the
-  // pool" every Sunday even when the Gallery shows a stack of finished
-  // monsters. Monsters that just went INTO the vote cycle above are not
-  // carried; monsters already crowned in `storedWinners` are filtered out so
-  // they can't re-enter a future pool. Missing roster entries (evicted or
-  // admin-deleted) are dropped too. (The backfilled OLD monsters stay in the
-  // roster and will be considered again next advance — no need to shove them
-  // into the submission window.)
-  if (!nextVoteCycle) {
+  // Step 5: if no cycle opened, carry the previous window's fresh submissions
+  // forward so they can try again next week instead of disappearing. The
+  // backfilled OLD monsters stay on the roster and are reconsidered next
+  // advance — no need to shove them into the submission window.
+  if (!opened.cycle) {
     const carriedOver = prevEligible.filter((id) => {
       const entry = monstersRoster[id];
       return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
@@ -215,12 +264,12 @@ export const advanceWeeklyCycle = (
   return {
     next: {
       currentSubmissionWindow: nextSubmissionWindow,
-      currentVoteCycle: nextVoteCycle,
-      storedWinners: updatedStoredWinners,
-      categoryNextIndex: nextCategoryIndex,
+      currentVoteCycle: opened.cycle,
+      storedWinners: closed.storedWinners,
+      categoryNextIndex: opened.nextCategoryIndex,
     },
     changed: true,
-    freshlyCrownedWinners,
+    freshlyCrownedWinners: closed.freshlyCrownedWinners,
   };
 };
 
@@ -229,122 +278,52 @@ export const advanceWeeklyCycle = (
  * close + pool-build + open logic as the weekly rollover, but WITHIN the
  * current submission window (doesn't roll to a new week):
  *
- *   - Closes the current cycle (if any), computes top-3 winners, appends
- *     to `storedWinners` — identical to the automatic Sunday rollover.
+ *   - Closes the current cycle (if any), crowns winners, appends to
+ *     `storedWinners`.
  *   - Keeps the current submission window intact: its `eligibleMonsterIds`
- *     survive and are used as the pool source for the new cycle.
- *   - Backfills from older complete monsters when the eligible list is
- *     short of MIN (same algorithm as the weekly rollover).
- *   - End date = current window's `endAt` (upcoming Sat 23:59 ET — same
- *     deadline as a cycle opened by the weekly rollover would carry).
- *   - Advances `categoryNextIndex` so the new cycle picks the
- *     NEXT category in rotation.
+ *     seed the new pool.
+ *   - Backfills + opens via the same helpers used by the Sunday rollover.
+ *   - End date = current window's `endAt` (upcoming Sat 23:59 ET).
  *   - CycleId suffixed with the timestamp so it doesn't collide with the
- *     cycle we just closed (vote-count accounting on the client keys on
- *     cycleId; new id resets counters cleanly).
- *
- * Returns `WeeklyAdvanceResult`-shaped output so callers can run the same
- * side-effect fanout (stamp `latestAward`, update leaderboard, enqueue win
- * banners) as `handleGetMainApp` does for the automatic path.
+ *     cycle we just closed — vote-count accounting on the client keys on
+ *     cycleId, so a new id resets per-user counters cleanly.
  */
 export const forceStartNewVoteCycle = (
   keyAssetDataObject: KeyAssetDataObject,
   now: number = Date.now(),
 ): WeeklyAdvanceResult => {
   const activeWindow = keyAssetDataObject.currentSubmissionWindow ?? currentSubmissionWindow(now);
-  const previousCycle = keyAssetDataObject.currentVoteCycle ?? null;
   const weeklyVotingEnabled = keyAssetDataObject.weeklyVotingEnabled;
-
-  let freshlyCrownedWinners: FreshlyCrownedWinner[] = [];
-  let updatedStoredWinners = { ...(keyAssetDataObject.storedWinners ?? {}) };
-
-  // Close the current cycle (if any) — same winner-crowning logic as the
-  // automatic rollover.
-  if (previousCycle && weeklyVotingEnabled) {
-    const birthdates = new Map<string, number>();
-    const monsters = keyAssetDataObject.monsters ?? {};
-    for (const [id, entry] of Object.entries(monsters)) {
-      if (entry?.birthdate) birthdates.set(id, entry.birthdate);
-    }
-    const excluded = new Set(Object.keys(updatedStoredWinners));
-    const winners = computeWinners(previousCycle, birthdates, excluded);
-    freshlyCrownedWinners = winners.map((w) => {
-      const entry = monsters[w.monsterId];
-      return {
-        monsterId: w.monsterId,
-        category: previousCycle.category,
-        place: w.place as Place,
-        awardedAt: now,
-        contributorProfileIds: entry?.contributorProfileIds ?? [],
-      };
-    });
-    const nextStored = { ...updatedStoredWinners };
-    for (const w of freshlyCrownedWinners) {
-      nextStored[w.monsterId] = { category: w.category, place: w.place, awardedAt: w.awardedAt };
-    }
-    updatedStoredWinners = trimStoredWinners(nextStored, STORED_WINNERS_MAX);
-  }
-
-  // Build the pool from the CURRENT window's eligible IDs (plus backfill).
   const monstersRoster = keyAssetDataObject.monsters ?? {};
-  const alreadyCrownedIds = new Set(Object.keys(updatedStoredWinners));
-  const currentEligible = activeWindow?.eligibleMonsterIds ?? [];
-  let nextCategoryIndex = keyAssetDataObject.categoryNextIndex ?? 0;
-  let nextVoteCycle: VoteCycle | null = null;
 
-  if (weeklyVotingEnabled && VOTING_CATEGORIES.length > 0) {
-    const pool: string[] = currentEligible.filter((id) => {
-      const entry = monstersRoster[id];
-      return !!entry && entry.state === "complete" && !alreadyCrownedIds.has(id);
-    });
-    if (pool.length < MIN_POOL_SIZE_FOR_VOTE) {
-      const alreadyPooled = new Set(pool);
-      const backfillCandidates = Object.values(monstersRoster)
-        .filter(
-          (entry): entry is NonNullable<typeof entry> =>
-            !!entry &&
-            entry.state === "complete" &&
-            !alreadyCrownedIds.has(entry.monsterId) &&
-            !alreadyPooled.has(entry.monsterId),
-        )
-        .sort((a, b) => {
-          const aShown = a.timesShown ?? 0;
-          const bShown = b.timesShown ?? 0;
-          if (aShown !== bShown) return aShown - bShown;
-          const aBirth = a.birthdate ?? 0;
-          const bBirth = b.birthdate ?? 0;
-          return bBirth - aBirth;
-        });
-      const needed = MIN_POOL_SIZE_FOR_VOTE - pool.length;
-      for (const entry of backfillCandidates.slice(0, needed)) {
-        pool.push(entry.monsterId);
-      }
-    }
+  const closed = closeCycle(
+    keyAssetDataObject.currentVoteCycle ?? null,
+    weeklyVotingEnabled,
+    monstersRoster,
+    keyAssetDataObject.storedWinners ?? {},
+    now,
+  );
 
-    if (pool.length >= MIN_POOL_SIZE_FOR_VOTE) {
-      const categoryId = VOTING_CATEGORIES[nextCategoryIndex % VOTING_CATEGORIES.length].id;
-      nextVoteCycle = {
-        // Suffix with `now` so the new cycleId doesn't collide with the
-        // one we just closed (vote counts key on cycleId → clean reset).
-        cycleId: `${activeWindow.windowId}-vote-${now}`,
-        category: categoryId,
-        startAt: now,
-        endAt: activeWindow.endAt,
-        poolMonsterIds: pool,
-        tallies: {},
-      };
-      nextCategoryIndex = (nextCategoryIndex + 1) % VOTING_CATEGORIES.length;
-    }
-  }
+  const alreadyCrownedIds = new Set(Object.keys(closed.storedWinners));
+  const pool = weeklyVotingEnabled
+    ? buildPool(activeWindow.eligibleMonsterIds ?? [], monstersRoster, alreadyCrownedIds)
+    : [];
+  const opened = openCycle({
+    pool,
+    nextCategoryIndex: keyAssetDataObject.categoryNextIndex ?? 0,
+    cycleId: `${activeWindow.windowId}-vote-${now}`,
+    startAt: now,
+    endAt: activeWindow.endAt,
+  });
 
   return {
     next: {
       currentSubmissionWindow: activeWindow,
-      currentVoteCycle: nextVoteCycle,
-      storedWinners: updatedStoredWinners,
-      categoryNextIndex: nextCategoryIndex,
+      currentVoteCycle: opened.cycle,
+      storedWinners: closed.storedWinners,
+      categoryNextIndex: opened.nextCategoryIndex,
     },
     changed: true,
-    freshlyCrownedWinners,
+    freshlyCrownedWinners: closed.freshlyCrownedWinners,
   };
 };

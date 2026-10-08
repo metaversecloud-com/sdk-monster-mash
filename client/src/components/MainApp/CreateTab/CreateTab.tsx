@@ -13,7 +13,7 @@ import { ErrorType } from "@/context/types";
 import { MonsterIndexEntry, Section } from "@shared/types/index";
 
 // utils
-import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
+import { backendAPI, playSfx, setErrorMessage, setMainAppState } from "@/utils";
 
 /**
  * Card ordering:
@@ -77,6 +77,7 @@ export const CreateTab = () => {
     if (isBusy || activeDraft) return;
     return run(async () => {
       try {
+        playSfx("JOIN_SECTION");
         await backendAPI.post(`/monsters/start`);
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
@@ -106,10 +107,12 @@ export const CreateTab = () => {
   const performClaim = (monsterId: string, section: Section) =>
     run(async () => {
       try {
+        playSfx("JOIN_SECTION");
         await backendAPI.post(`/monsters/${monsterId}/claim`, { section });
       } catch (error) {
         const httpStatus = (error as { response?: { status?: number } })?.response?.status;
         if (httpStatus === 409) {
+          playSfx("CLAIM_TAKEN");
           setClaimError("Oops, that one was just claimed! Try another.");
           refreshMainApp();
         } else {
@@ -161,10 +164,12 @@ export const CreateTab = () => {
         // Release the current claim first, then take the new section.
         await backendAPI.post(`/monsters/${activeDraft.monsterId}/abandon`);
         try {
+          playSfx("JOIN_SECTION");
           await backendAPI.post(`/monsters/${target.monsterId}/claim`, { section: target.section });
         } catch (error) {
           const httpStatus = (error as { response?: { status?: number } })?.response?.status;
           if (httpStatus === 409) {
+            playSfx("CLAIM_TAKEN");
             setClaimError("Oops, that one was just claimed! Try another.");
             await refreshMainApp();
           } else {
@@ -181,6 +186,7 @@ export const CreateTab = () => {
     if (!deleteTarget) return;
     return run(async () => {
       try {
+        playSfx("DELETE_POOF");
         await backendAPI.delete(`/monsters/${deleteTarget.monsterId}`);
         setDeleteTarget(null);
         await refreshMainApp();
@@ -220,7 +226,7 @@ export const CreateTab = () => {
           <span className="grid gap-2">
             <h3 className="mm-text-white">Create New Monster</h3>
             <p className="text-xs mm-text-muted text-center mt-1">you'll be given a section to build</p>
-            <div className="btn mm-btn-primary text-lg mt-3">Create</div>
+            <div className="btn mm-btn-primary mm-btn-lg text-lg mt-3">Create</div>
           </span>
         </button>
 

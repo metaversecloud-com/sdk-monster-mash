@@ -200,8 +200,6 @@
   background-color: var(--mm-success);
   border: 1px solid var(--mm-success-dark);
   color: var(--mm-dark);
-  min-height: 60px;
-  border-radius: 20px;
 }
 .mm-btn-primary:disabled {
   background-color: var(--mm-accent-dark);
@@ -225,6 +223,10 @@
   height: 30px;
   font-size: 0.7rem;
   border-radius: 10px;
+}
+.mm-btn-lg {
+  min-height: 60px;
+  border-radius: 20px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────

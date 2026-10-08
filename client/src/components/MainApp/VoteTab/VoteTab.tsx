@@ -14,7 +14,7 @@ import { ErrorType } from "@/context/types";
 import { VoteResponseData } from "@shared/types/index";
 
 // utils
-import { backendAPI, setErrorMessage } from "@/utils";
+import { backendAPI, playSfx, setErrorMessage } from "@/utils";
 
 /**
  * Vote tab - three states:
@@ -41,6 +41,7 @@ export const VoteTab = () => {
     if (isBusy) return;
     return run(async () => {
       try {
+        playSfx("JOIN_SECTION");
         await backendAPI.post(`/monsters/start`);
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
@@ -63,6 +64,7 @@ export const VoteTab = () => {
     if (isBusy) return;
     return run(async () => {
       try {
+        playSfx("VOTE_SUBMIT");
         const response = await backendAPI.post("/vote/cast", {
           winnerMonsterId: winnerId,
           loserMonsterId: loserId,
@@ -78,6 +80,10 @@ export const VoteTab = () => {
                 }
               : prev,
           );
+          // A fresh matchup is sliding in — queue the "next matchup" sfx so
+          // it chases the vote-submit sound. Short setTimeout so the two
+          // cues don't collide on the same tick.
+          if (next) setTimeout(() => playSfx("MATCHUP_NEXT"), 180);
           setErrorMessage(dispatch, "");
         }
       } catch (error) {

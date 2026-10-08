@@ -47,19 +47,18 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: validation.error ?? "Invalid picks" });
     }
 
-    const keyAsset = await getKeyAsset(credentials);
     const { visitor, visitorData } = await getVisitor(credentials, { shouldGetVisitorDetails: true });
 
     const now = Date.now();
 
-    // Re-read under the lock.
-    await keyAsset.fetchDataObject();
+    const keyAsset = await getKeyAsset(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
+
     const entry = dataObject.monsters?.[monsterId];
     if (!entry) {
-      // We already hold `lockId`; don't re-acquire to release. TTL clears it.
       return res.status(404).json({ success: false, message: "Monster not found." });
     }
+
     const slot = entry.sections?.[section];
     if (!slot || slot.status !== "locked" || slot.contributorProfileId !== profileId) {
       return res.status(409).json({ success: false, message: "You don't hold the lock on this section." });
@@ -182,6 +181,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
       ...(nowDone ? { completedAt: now, wasThirdSection: true } : {}),
       ...(visitorData.activeDraft?.monsterId === monsterId && visitorData.activeDraft.joined ? { joined: true } : {}),
     };
+
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
       contributedMonsters: {
@@ -193,6 +193,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         },
       },
     };
+
     const currentDraft = visitorData.activeDraft;
     if (currentDraft && currentDraft.monsterId === monsterId && currentDraft.section === section) {
       delete nextVisitorData.activeDraft;

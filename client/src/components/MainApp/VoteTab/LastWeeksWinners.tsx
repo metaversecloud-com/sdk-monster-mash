@@ -20,7 +20,6 @@ export const LastWeeksWinners = ({ winners }: LastWeeksWinnersProps) => {
       </p>
       <div className="grid grid-cols-3 gap-2">
         {winners.map((w) => {
-          console.log("🚀 ~ LastWeeksWinners.tsx:23 ~ w:", w);
           return (
             <div
               key={w.monsterId}

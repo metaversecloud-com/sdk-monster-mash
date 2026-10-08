@@ -25,7 +25,7 @@ import { ErrorType } from "@/context/types";
 import { MonsterIndexEntry, Section, SECTIONS } from "@shared/types/index";
 
 // utils
-import { backendAPI, setErrorMessage, useContent } from "@/utils";
+import { backendAPI, playSfx, setErrorMessage, useContent } from "@/utils";
 
 interface MonsterBuilderProps {
   isLoading: boolean;
@@ -223,6 +223,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
   const startFreshMonster = () => {
     return run(async () => {
       try {
+        playSfx("JOIN_SECTION");
         await backendAPI.post(`/monsters/start`);
       } catch (error) {
         setErrorMessage(dispatch, error as ErrorType);
@@ -320,7 +321,7 @@ export const MonsterBuilder = ({ isLoading, monsterId, section }: MonsterBuilder
 
           <div className="border-t pt-3 mt-2 flex flex-col gap-2">
             <button
-              className="btn mm-btn-primary"
+              className="btn mm-btn-primary mm-btn-lg"
               disabled={!allChosen || isBusy}
               onClick={() => setPhase("confirming")}
               aria-disabled={!allChosen || isBusy}

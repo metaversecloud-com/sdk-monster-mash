@@ -12,7 +12,7 @@ import { ErrorType } from "@/context/types";
 import { SingleMonsterResponseData } from "@shared/types/index";
 
 // utils
-import { backendAPI, setErrorMessage } from "@/utils";
+import { backendAPI, playSfx, setErrorMessage } from "@/utils";
 
 interface SingleMonsterViewProps {
   monsterId: string;
@@ -67,6 +67,7 @@ export const SingleMonsterView = ({ monsterId }: SingleMonsterViewProps) => {
     if (!monsterId) return;
     return run(async () => {
       try {
+        playSfx("DELETE_POOF");
         await backendAPI.delete(`/monsters/${monsterId}`, { data: { shouldCloseIframe: true } });
         setErrorMessage(dispatch, "");
       } catch (error) {

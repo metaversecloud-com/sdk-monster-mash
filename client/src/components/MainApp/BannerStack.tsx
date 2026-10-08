@@ -9,7 +9,7 @@ import { SET_ACTIVE_TAB, SET_GALLERY_DEEP_LINK } from "@/context/types";
 import { VOTING_CATEGORY_BY_ID } from "@shared/content/monsterMash";
 
 // utils
-import { backendAPI } from "@/utils";
+import { backendAPI, playSfx } from "@/utils";
 
 // components
 import Countdown from "./VoteTab/Countdown";
@@ -40,6 +40,13 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
     if (!shownWin && !shownCompletion) return;
     backendAPI.post("/banners/acknowledge", { win: !!shownWin, completion: !!shownCompletion }).catch(() => {});
   }, [shownWin, shownCompletion]);
+
+  // Win-cheer plays once when a win banner is present on first open. The
+  // ack above clears it from pendingWinBanners server-side so it won't
+  // replay on a subsequent `/main-app` fetch.
+  useEffect(() => {
+    if (shownWin) playSfx("WIN_CHEER");
+  }, [shownWin]);
 
   if (!mainApp) return null;
 
@@ -102,7 +109,7 @@ export const BannerStack = ({ activeTab }: { activeTab: string }) => {
           {activeTab !== "vote" && (
             <button
               type="button"
-              className="btn mm-btn-sm w-fit"
+              className="btn mm-btn-sm w-fit mm-btn-primary"
               disabled={isBusy}
               onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: "vote" } })}
             >

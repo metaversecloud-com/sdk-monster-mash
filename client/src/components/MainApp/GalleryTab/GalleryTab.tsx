@@ -13,7 +13,7 @@ import { CLEAR_GALLERY_DEEP_LINK, ErrorType } from "@/context/types";
 import { GalleryMonster, GalleryResponseData } from "@shared/types/index";
 
 // utils
-import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
+import { backendAPI, playSfx, setErrorMessage, setMainAppState } from "@/utils";
 
 type SortValue = "newest" | "oldest";
 
@@ -109,6 +109,7 @@ export const GalleryTab = () => {
     const target = deleteTarget;
     return run(async () => {
       try {
+        playSfx("DELETE_POOF");
         await backendAPI.delete(`/monsters/${target.monsterId}`);
         setDeleteTarget(null);
         await Promise.all([fetchGallery(), refreshMainApp()]);

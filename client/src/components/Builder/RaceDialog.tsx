@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { ConfirmationModal } from "../ConfirmationModal.js";
+import { playSfx } from "@/utils";
 
 interface RaceDialogProps {
   onBackToList: () => void;
@@ -12,6 +14,13 @@ interface RaceDialogProps {
  * "confirm" affordance kicks off a fresh POST /monsters/start.
  */
 export const RaceDialog = ({ onBackToList, onStartNew }: RaceDialogProps) => {
+  // Play the race-collision sfx once on mount (same cue the Create tab
+  // fires inline when `/claim` returns 409 — this is the Builder-side
+  // path where the race surfaces as a modal instead).
+  useEffect(() => {
+    playSfx("CLAIM_TAKEN");
+  }, []);
+
   return (
     <ConfirmationModal
       title="Oops, that one was just claimed!"

@@ -1,6 +1,6 @@
 import { CategoryDef } from "@shared/content/monsterMash";
 import { useBusy } from "@/context/BusyContext";
-import { SECTION_CROP, makePartUrl, useContent } from "@/utils";
+import { SECTION_CROP, makePartUrl, playBuilderPick, playSfx, useContent } from "@/utils";
 
 interface PartGridProps {
   category: CategoryDef;
@@ -44,7 +44,11 @@ export const PartGrid = ({ category, value, onChange, disabledIds }: PartGridPro
         aria-pressed={isPicked}
         aria-label={label}
         disabled={isDisabled}
-        onClick={() => onChange(tileId)}
+        onClick={() => {
+          if (isNone) playSfx("BUILDER_NONE");
+          else playBuilderPick();
+          onChange(tileId);
+        }}
       >
         {imageSrc ? (
           <img

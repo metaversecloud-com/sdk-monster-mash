@@ -5,6 +5,9 @@ import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { SET_ACTIVE_TAB, TabId } from "@/context/types";
 
+// utils
+import { playSfx } from "@/utils";
+
 const TABS: readonly { id: TabId; label: string }[] = [
   { id: "create", label: "Create" },
   { id: "gallery", label: "Gallery" },
@@ -30,7 +33,10 @@ export const TabBar = () => {
             className={`min-w-[120px] px-4 py-2 text-[1.1rem] rounded-xl border-none transition cursor-pointer ${
               isActive ? "bg-white mm-text-done" : "bg-transparent mm-text-accent-lt hover:mm-text-white"
             }`}
-            onClick={() => dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: tab.id } })}
+            onClick={() => {
+              if (!isActive) playSfx("TAB_SWITCH");
+              dispatch?.({ type: SET_ACTIVE_TAB, payload: { activeTab: tab.id } });
+            }}
             disabled={isBusy}
           >
             {tab.label}
