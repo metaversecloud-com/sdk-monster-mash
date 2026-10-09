@@ -1,0 +1,12 @@
+export const SuccessIcon = () => {
+  return (
+    <span
+      aria-label="Chosen"
+      className="text-[12px] mm-text-done mm-bg-success mm-border-2 mm-border-success-dark rounded-full p-1 w-6 h-6 flex items-center justify-center"
+    >
+      ✔️
+    </span>
+  );
+};
+
+export default SuccessIcon;

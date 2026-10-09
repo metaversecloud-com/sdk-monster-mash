@@ -1,80 +1,159 @@
 import { useContext, useState } from "react";
 
 // components
-import { PageFooter, ConfirmationModal } from "@/components";
+import { ConfirmationModal } from "./ConfirmationModal.js";
+import { Logo } from "./Logo.js";
 
 // context
+import { useBusy } from "@/context/BusyContext";
 import { GlobalDispatchContext, GlobalStateContext } from "@/context/GlobalContext";
 import { ErrorType } from "@/context/types";
 
 // utils
-import { backendAPI, setErrorMessage } from "@/utils";
+import { backendAPI, setErrorMessage, setMainAppState } from "@/utils";
 
+/**
+ * Weekly voting toggle:
+ *   - ON  → automatic Sunday→Saturday windows + Sunday vote rollovers.
+ *   - OFF → freeze the machinery; the current vote cycle is nulled on the
+ *           same server write ("The current vote will end right away and
+ *           no awards will be given for it"). Turning back ON does not
+ *           immediately open a vote - the next Sunday rollover does.
+ */
 export const AdminView = () => {
   const dispatch = useContext(GlobalDispatchContext);
-  const { droppedAsset } = useContext(GlobalStateContext);
-  const imgSrc = droppedAsset?.topLayerURL || droppedAsset?.bottomLayerURL;
+  const { mainApp } = useContext(GlobalStateContext);
+  const { isBusy, run } = useBusy();
 
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [areButtonsDisabled, setAreButtonsDisabled] = useState(false);
+  const currentEnabled = mainApp?.weeklyVotingEnabled ?? true;
+  const hasActiveCycle = !!mainApp?.currentVoteCycle;
 
-  const handleToggleShowConfirmationModal = () => {
-    setShowConfirmationModal(!showConfirmationModal);
-  };
+  const [pendingOff, setPendingOff] = useState(false);
+  const [pendingStartNewCycle, setPendingStartNewCycle] = useState(false);
+  // Latches on the first successful "Start New Vote Cycle" so the button
+  // locks + the surrounding paragraph flips to a success note — guards
+  // against an admin double-clicking and closing their fresh cycle a
+  // second time by accident.
+  const [cycleJustStarted, setCycleJustStarted] = useState(false);
 
-  const handleDropAsset = async () => {
-    setAreButtonsDisabled(true);
-
+  const refreshMainApp = () =>
     backendAPI
-      .post("/dropped-asset")
-      .then(() => {
-        backendAPI.put("/world/fire-toast", { title: "Asset successfully dropped!" });
+      .get("/main-app")
+      .then((response) => {
+        if (response?.data?.success && response.data.data) setMainAppState(dispatch, response.data.data);
       })
-      .catch((error) => setErrorMessage(dispatch, error as ErrorType))
-      .finally(() => {
-        setAreButtonsDisabled(false);
-      });
+      .catch(() => {});
+
+  const applyToggle = (nextEnabled: boolean) =>
+    run(async () => {
+      try {
+        await backendAPI.put("/admin/settings", { weeklyVotingEnabled: nextEnabled });
+        await refreshMainApp();
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
+
+  const handleToggleClick = () => {
+    if (isBusy) return;
+    // Turning OFF while a cycle is running → confirm (plan §10.13 modal).
+    if (currentEnabled && hasActiveCycle) {
+      setPendingOff(true);
+      return;
+    }
+    applyToggle(!currentEnabled);
   };
 
-  const handleRemoveDroppedAssets = async () => {
-    setAreButtonsDisabled(true);
-
-    backendAPI
-      .post("/remove-dropped-assets")
-      .then(() => {
-        backendAPI.put("/world/fire-toast", {
-          title: "Dropped assets successfully removed!",
-          text: "All dropped assets with matching unique name have been removed from this world.",
-        });
-      })
-      .catch((error) => setErrorMessage(dispatch, error as ErrorType))
-      .finally(() => {
-        setAreButtonsDisabled(false);
-      });
+  const confirmEndVoteAndTurnOff = async () => {
+    setPendingOff(false);
+    await applyToggle(false);
   };
+
+  const confirmStartNewCycle = () =>
+    run(async () => {
+      try {
+        setPendingStartNewCycle(false);
+        await backendAPI.post("/admin/vote/start-new-cycle");
+        await refreshMainApp();
+        setCycleJustStarted(true);
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
 
   return (
-    <div style={{ position: "relative" }}>
-      {imgSrc && <img className="w-96 h-96 object-cover rounded-2xl my-4" alt="preview" src={imgSrc} />}
-      <PageFooter>
-        <button className="btn mt-2" disabled={areButtonsDisabled} onClick={handleDropAsset}>
-          Drop Asset
-        </button>
-        <button
-          className="btn btn-danger mt-2"
-          disabled={areButtonsDisabled}
-          onClick={() => handleToggleShowConfirmationModal()}
-        >
-          Remove Dropped Assets
-        </button>
-      </PageFooter>
+    <div className="flex flex-col items-center gap-2 text-center">
+      <Logo className="h-8 w-auto mx-auto" />
+      <h3 className="h3">Admin Settings</h3>
 
-      {showConfirmationModal && (
+      {/* Weekly voting toggle row */}
+      <div className="card p-3 flex flex-col gap-3 text-left mt-2">
+        <div className="flex gap-1">
+          <p className="font-semibold flex-grow">Weekly voting</p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={currentEnabled}
+            aria-label={`Weekly voting is ${currentEnabled ? "on" : "off"}`}
+            disabled={isBusy}
+            onClick={handleToggleClick}
+            className={`relative flex-shrink-0 w-10 h-6 rounded-full transition ${
+              currentEnabled ? "bg-green-500" : "bg-gray-300"
+            } ${isBusy ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          >
+            <span
+              aria-hidden="true"
+              className={`absolute top-0.5 w-6 h-4 rounded-full bg-white shadow transition-all ${
+                currentEnabled ? "left-[calc(100%-1.625rem)]" : "left-0.5"
+              }`}
+            />
+          </button>
+        </div>
+        <p className="p2 mm-on-card-muted">
+          Runs the automatic weekly submission and voting windows (Sunday to Saturday, ET). When OFF: no new votes
+          start, no awards are given, and the Vote tab shows the "no active vote" state.
+        </p>
+        <button
+          type="button"
+          className="btn w-fit mt-2"
+          disabled={isBusy || !currentEnabled || cycleJustStarted}
+          onClick={() => setPendingStartNewCycle(true)}
+        >
+          Start New Vote Cycle
+        </button>
+        {cycleJustStarted ? (
+          <p className="p2 mm-text-success">New vote cycle started! It ends this coming Saturday 11:59 PM ET.</p>
+        ) : (
+          <p className="p2 mm-on-card-muted">
+            Immediately closes the current cycle (crowning winners if there is one running) and opens a new cycle ending
+            this coming Saturday 11:59 PM ET. Uses the next category in the rotation.
+          </p>
+        )}
+      </div>
+
+      {pendingOff && (
         <ConfirmationModal
-          title="Remove Dropped Assets"
-          message="Are you sure you want to remove all dropped assets? This action cannot be undone."
-          handleOnConfirm={handleRemoveDroppedAssets}
-          handleToggleShowConfirmationModal={handleToggleShowConfirmationModal}
+          title="Turn off weekly voting?"
+          message="The current vote will end right away and no awards will be given for it. Players can still build monsters."
+          confirmLabel="End Vote & Turn Off"
+          cancelLabel="Keep Voting On"
+          handleOnConfirm={confirmEndVoteAndTurnOff}
+          handleToggleShowConfirmationModal={() => setPendingOff(false)}
+        />
+      )}
+
+      {pendingStartNewCycle && (
+        <ConfirmationModal
+          title="Start a new vote cycle now?"
+          message={
+            hasActiveCycle
+              ? "The current vote cycle will close immediately — top-3 winners will be crowned and awards granted. A new cycle will open with the next category, ending this coming Saturday 11:59 PM ET."
+              : "A new cycle will open with the next category, ending this coming Saturday 11:59 PM ET."
+          }
+          confirmLabel="Start New Cycle"
+          cancelLabel="Cancel"
+          handleOnConfirm={confirmStartNewCycle}
+          handleToggleShowConfirmationModal={() => setPendingStartNewCycle(false)}
         />
       )}
     </div>

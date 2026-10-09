@@ -2,7 +2,6 @@ const topiaMock = require("../mocks/@rtsdk/topia").__mock;
 
 import express from "express";
 import request from "supertest";
-import axios from "axios";
 
 import router from "../routes.js";
 
@@ -19,26 +18,281 @@ const baseCreds = {
   interactiveNonce: "nonce-xyz",
   visitorId: 1,
   urlSlug: "my-world",
+  sceneDropId: "scene-abc",
+  profileId: "profile-1",
+  displayName: "Alice",
+  username: "alice",
 };
 
-// Mock axios for external API calls
-jest.mock("axios");
-const mockedAxios = jest.mocked(axios);
+const bobCreds = {
+  ...baseCreds,
+  visitorId: 2,
+  profileId: "profile-2",
+  displayName: "Bob",
+  username: "bob",
+};
 
-// Mock the utils
-jest.mock("@utils/index.js", () => ({
-  errorHandler: jest.fn(),
-  getCredentials: jest.fn(),
-  getDroppedAsset: jest.fn(),
-  Visitor: {
-    get: jest.fn(),
-  },
-  World: {
-    create: jest.fn(),
-  },
+const emptyVisitorData = {
+  schemaVersion: 1,
+  dateStarted: 1,
+  contributedMonsters: {},
+  pendingWinBanners: [],
+  pendingCompletionBanners: [],
+  daysAppOpened: [],
+  weeksVotedIn: [],
+  votesCastThisWeek: { windowId: "", count: 0 },
+  votesCastToday: { dateEt: "", count: 0 },
+  totalVotesCast: 0,
+};
+
+const HEAD_PICKS = {
+  headShape: "pig-head",
+  eyes: "cyclops-eye",
+  nose: "NONE",
+  mouth: "grin",
+  hair: "NONE",
+};
+const TORSO_PICKS = {
+  shirt: "hoodie",
+  arms: "hoodie-arms",
+  collar: "NONE",
+  torsoBack: "NONE",
+};
+const LEGS_PICKS = {
+  legs: "jeans",
+  feet: "sneakers",
+  belt: "NONE",
+  waist: "NONE",
+  legsBack: "NONE",
+};
+
+// Mock the app utils at the boundary so routes can be exercised without hitting @rtsdk/topia.
+// Only mock what routes actually import — everything else can pass through.
+// Mock the parts loader at its source so `validatePicks` (imported deeply)
+// sees a stable catalog instead of walking the empty filesystem.
+jest.mock("@utils/content/getContent.js", () => ({
+  __esModule: true,
+  getContent: jest.fn().mockImplementation(() => fakeContent()),
+  refreshContent: jest.fn().mockImplementation(() => fakeContent()),
+  buildClientPayload: jest.fn().mockImplementation(() => ({
+    ...fakeContent(),
+    categories: [],
+    categoriesBySection: { head: [], torso: [], legs: [] },
+    layerOrder: [],
+  })),
 }));
 
+jest.mock("@utils/index.js", () => {
+  const actual = jest.requireActual("@utils/index.js");
+  return {
+    ...actual,
+    errorHandler: jest.fn(({ res }: any) => {
+      if (res && !res.headersSent) res.status(500).send({ success: false, error: "test-error" });
+      return {};
+    }),
+    getCredentials: jest.fn(),
+    getKeyAsset: jest.fn(),
+    getVisitor: jest.fn(),
+    // The badge catalog now comes from the ecosystem inventory rather than a
+    // hardcoded list (see docs/claude/inventory-zip-format.md). The @rtsdk
+    // mock has no ecosystem, so stand in a catalog shaped like real metadata.
+    getBadgeCatalog: jest.fn().mockImplementation(async () => fakeBadgeCatalog()),
+    // Compositor + finalize surfaces: mocked so tests don't reach S3 or spin
+    // up Jimp. Individual tests can override return values. Section image
+    // upload was removed — only the full monster composes on finalize.
+    composeAndUploadMonster: jest.fn().mockResolvedValue("https://example.com/monster.png"),
+    // Real finalize builds a roster patch; the mock returns a patch that lets
+    // handleSubmitSection merge state/name/monsterAssetId onto monster mon-triple
+    // (the id used by the third-section test).
+    finalizeMonster: jest.fn().mockImplementation(async ({ monsterId, entry }: any) => ({
+      imageUrl: "https://example.com/monster.png",
+      monsterAssetId: "dropped-monster-42",
+      monsterAssetData: {},
+      composedName: "Test Monster",
+      keyAssetPatch: {
+        // Lean complete-shape (matches the real finalize): no `sections`,
+        // no `createdAt`/`lastEditedAt`, contributor display names collapse
+        // into `contributorNames`.
+        monsters: {
+          [monsterId]: {
+            monsterId,
+            state: "complete",
+            birthdate: 12345,
+            name: "Test Monster",
+            monsterAssetId: "dropped-monster-42",
+            imageUrl: "https://example.com/monster.png",
+            contributorProfileIds: entry.contributorProfileIds ?? [],
+            contributorNames: (entry.contributorProfileIds ?? [])
+              .map((_: string, i: number) => `Contrib ${i}`)
+              .join("|"),
+          },
+        },
+      },
+      callerContribution: {
+        monsterAssetId: "dropped-monster-42",
+        imageUrl: "https://example.com/monster.png",
+        completedAt: 12345,
+      },
+    })),
+    // Epic-7 banner fanouts — no-ops in tests.
+    enqueueWinBannersForProfiles: jest.fn().mockResolvedValue(undefined),
+    enqueueCompletionBannersForProfiles: jest.fn().mockResolvedValue(undefined),
+    computeLeaderboardForWinners: jest.fn().mockReturnValue({}),
+    // Epic-6 pool builder — deterministic pair.
+    pickMatchup: jest.fn().mockImplementation((cycle: any) => {
+      const [a, b] = cycle.poolMonsterIds ?? [];
+      if (!a || !b) return null;
+      return { matchupId: `${cycle.cycleId}-${a}-${b}`, pair: [a, b] };
+    }),
+    // Content loader — return the parts the test picks reference so
+    // validatePicks succeeds. Real prod loader walks client/public/parts.
+    getContent: jest.fn().mockReturnValue(fakeContent()),
+    refreshContent: jest.fn().mockReturnValue(fakeContent()),
+    buildClientPayload: jest.fn().mockReturnValue({
+      ...fakeContent(),
+      categories: [],
+      categoriesBySection: { head: [], torso: [], legs: [] },
+      layerOrder: [],
+    }),
+  };
+});
+
+/**
+ * A representative slice of the real ecosystem badge catalog (Design Spec 1.2
+ * → Badges (38)), in sortOrder: one entry per group, plus each rule shape
+ * that takes a qualifier — `winCategory`, `submitSection`, `weeksWithMinVotes`.
+ *
+ * Only ACTIVE badges reach here: `getBadgeCatalog` filters INACTIVE ones out,
+ * which is how the eight not-yet-live voting categories stay off the grid.
+ */
+function fakeBadgeCatalog() {
+  const entry = (
+    id: string,
+    name: string,
+    group: string,
+    sortOrder: number,
+    thresholdKind: string | null,
+    threshold: number | null,
+    extra: { categoryId?: string; sectionId?: string; minVotesPerWeek?: number } = {},
+  ) => ({
+    id,
+    name,
+    displayName: name,
+    group,
+    sortOrder,
+    thresholdKind,
+    threshold,
+    categoryId: extra.categoryId ?? null,
+    sectionId: extra.sectionId ?? null,
+    minVotesPerWeek: extra.minVotesPerWeek ?? null,
+    iconUrl: `https://cdn.example.com/${id}.png`,
+  });
+
+  return [
+    entry("mm-badge-silliest", "Winner: Silliest Monster", "winning", 0, "winCategory", 1, {
+      categoryId: "silliest",
+    }),
+    entry("mm-badge-halloffame", "Monster Hall of Fame", "winning", 15, "awardsWon", 5),
+    entry("mm-badge-ivoted", "I Voted!", "voting", 16, "vote", 1),
+    entry("mm-badge-stillvoting", "Still Voting", "voting", 20, "weeksWithMinVotes", 5, { minVotesPerWeek: 10 }),
+    entry("mm-badge-newmasher", "New Masher", "visiting", 24, "visitAppOpens", 2),
+    entry("mm-badge-madscientist", "Mad Scientist", "building", 27, "monstersStarted", 1),
+    entry("mm-badge-brainstormer", "Brainstormer", "building", 30, "submitSection", 1, { sectionId: "head" }),
+    entry("mm-badge-masterbuilder", "Master Builder", "building", 37, "completeAsThird", 50),
+  ];
+}
+
+function fakeContent() {
+  const rawParts = [
+    { id: "pig-head", section: "head", categoryId: "headShape", imageName: "pig-head.png" },
+    { id: "cyclops-eye", section: "head", categoryId: "eyes", imageName: "cyclops-eye.png" },
+    { id: "grin", section: "head", categoryId: "mouth", imageName: "grin.png" },
+    { id: "hoodie", section: "torso", categoryId: "shirt", imageName: "hoodie.png" },
+    { id: "hoodie-arms", section: "torso", categoryId: "arms", imageName: "hoodie-arms.png" },
+    { id: "jeans", section: "legs", categoryId: "legs", imageName: "jeans.png", supportsFeet: true },
+    { id: "spring", section: "legs", categoryId: "legs", imageName: "spring.png", supportsFeet: false },
+    { id: "sneakers", section: "legs", categoryId: "feet", imageName: "sneakers.png" },
+  ];
+  const partById: Record<string, any> = {};
+  const partsByCategory: Record<string, any[]> = {};
+  for (const p of rawParts) {
+    partById[p.id] = p;
+    partsByCategory[p.categoryId] = partsByCategory[p.categoryId] ?? [];
+    partsByCategory[p.categoryId].push(p);
+  }
+  return {
+    parts: rawParts,
+    partById,
+    partsByCategory,
+    loadedAt: 0,
+  };
+}
+
 const mockUtils = jest.mocked(require("@utils/index.js"));
+
+// A stateful in-memory key-asset stand-in the tests can hand to `getKeyAsset`.
+function makeKeyAsset(initialDataObject: any = {}) {
+  const record: any = {
+    id: "asset-123",
+    dataObject: initialDataObject,
+    fetchDataObject: jest.fn().mockImplementation(async () => record.dataObject),
+    updateDataObject: jest.fn().mockImplementation(async (patch: any) => {
+      record.dataObject = mergeDataObject(record.dataObject, patch);
+      return record.dataObject;
+    }),
+    setDataObject: jest.fn().mockImplementation(async (payload: any) => {
+      record.dataObject = payload;
+      return record.dataObject;
+    }),
+  };
+  return record;
+}
+
+/** Applies dot-notation patch keys the way the real SDK's updateDataObject does. */
+function mergeDataObject(current: any, patch: any) {
+  const next = { ...(current || {}) };
+  for (const [key, value] of Object.entries(patch)) {
+    if (!key.includes(".")) {
+      next[key] = value;
+      continue;
+    }
+    const parts = key.split(".");
+    let cursor = next;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const p = parts[i];
+      cursor[p] = { ...(cursor[p] || {}) };
+      cursor = cursor[p];
+    }
+    cursor[parts[parts.length - 1]] = value;
+  }
+  return next;
+}
+
+function makeVisitor() {
+  const record: any = {
+    updateDataObject: jest.fn().mockResolvedValue({}),
+    closeIframe: jest.fn().mockResolvedValue({}),
+    openIframe: jest.fn().mockResolvedValue({}),
+    fireToast: jest.fn().mockResolvedValue({ success: true }),
+  };
+  return record;
+}
+
+const defaultKeyAssetDataObject = (): any => ({
+  schemaVersion: 1,
+  timezone: "America/New_York",
+  weeklyVotingEnabled: true,
+  monsters: {} as any,
+  currentSubmissionWindow: {
+    windowId: "2026-09-13",
+    startAt: 1_757_734_800_000,
+    endAt: 1_758_335_999_000,
+    eligibleMonsterIds: [] as string[],
+  },
+  currentVoteCycle: null as any,
+  storedWinners: {},
+  categorySchedule: { nextIndex: 0 },
+});
 
 describe("routes", () => {
   beforeEach(() => {
@@ -48,7 +302,7 @@ describe("routes", () => {
 
   test("GET /system/health returns status OK and env keys", async () => {
     const app = makeApp();
-    let res = await request(app).get("/api/system/health");
+    const res = await request(app).get("/api/system/health");
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("status", "OK");
@@ -56,86 +310,1166 @@ describe("routes", () => {
     expect(res.body.envs).toHaveProperty("NODE_ENV");
   });
 
-  test("GET /game-state returns game state with dropped asset and admin status", async () => {
-    const mockDroppedAsset = {
-      id: "dropped-asset-123",
-      position: { x: 100, y: 200 },
-      name: "Test Asset"
-    };
+  test("GET /main-app returns visitor summary + empty roster on first open", async () => {
+    const keyAsset = makeKeyAsset(defaultKeyAssetDataObject());
 
-    const mockVisitor = {
-      isAdmin: true,
-      id: 1
-    };
-
-    const mockWorld = {
-      triggerParticle: jest.fn().mockResolvedValue({}),
-      fireToast: jest.fn().mockResolvedValue({})
-    };
-
-    // Setup mocks
     mockUtils.getCredentials.mockReturnValue(baseCreds);
-    mockUtils.getDroppedAsset.mockResolvedValue(mockDroppedAsset);
-    mockUtils.Visitor.get.mockResolvedValue(mockVisitor);
-    mockUtils.World.create.mockReturnValue(mockWorld);
-    mockedAxios.post.mockResolvedValue({ data: { success: true } });
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
 
     const app = makeApp();
     const res = await request(app)
-      .get("/api/game-state")
-      .query(baseCreds);
+      .get("/api/main-app")
+      .query(baseCreds as any);
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("success", true);
-    expect(res.body).toHaveProperty("droppedAsset", mockDroppedAsset);
-    expect(res.body).toHaveProperty("isAdmin", true);
-
-    // Verify mocks were called correctly
-    expect(mockUtils.getCredentials).toHaveBeenCalledWith(expect.objectContaining({
-      assetId: "asset-123",
-      interactiveNonce: "nonce-xyz",
-      urlSlug: "my-world",
-      visitorId: "1" // Query params come as strings
-    }));
-    expect(mockUtils.getDroppedAsset).toHaveBeenCalledWith(baseCreds);
-    expect(mockUtils.Visitor.get).toHaveBeenCalledWith(baseCreds.visitorId, baseCreds.urlSlug, { credentials: baseCreds });
-    expect(mockUtils.World.create).toHaveBeenCalledWith(baseCreds.urlSlug, { credentials: baseCreds });
-    expect(mockWorld.triggerParticle).toHaveBeenCalledWith({
-      name: "Sparkle",
-      duration: 3,
-      position: mockDroppedAsset.position
-    });
-    expect(mockWorld.fireToast).toHaveBeenCalledWith({
-      title: "You've leveled up!",
-      text: "Congratulations! You've reached a new level."
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toMatchObject({
+      visitor: { isAdmin: true, visitorId: baseCreds.visitorId, profileId: baseCreds.profileId },
+      weeklyVotingEnabled: true,
+      monsters: [],
+      currentVoteCycle: null,
     });
   });
 
-  test("GET /game-state handles errors when getDroppedAsset fails", async () => {
-    const mockError = new Error("Asset not found");
+  test("POST /monsters/start creates an in-progress monster + locks one section for caller", async () => {
+    const keyAsset = makeKeyAsset(defaultKeyAssetDataObject());
+    const visitor = makeVisitor();
 
     mockUtils.getCredentials.mockReturnValue(baseCreds);
-    mockUtils.getDroppedAsset.mockResolvedValue(mockError);
-
-    // Mock errorHandler to actually call res.status().json() to end the response
-    mockUtils.errorHandler.mockImplementation(({ res }: any) => {
-      if (res) {
-        return res.status(500).json({ error: "Internal server error" });
-      }
-      return { status: 500, message: "error" };
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
     });
 
     const app = makeApp();
-    await request(app)
-      .get("/api/game-state")
-      .query(baseCreds);
+    const res = await request(app).post("/api/monsters/start").send(baseCreds);
 
-    expect(mockUtils.errorHandler).toHaveBeenCalledWith({
-      error: mockError,
-      functionName: "getDroppedAssetDetails",
-      message: "Error getting dropped asset instance and data object",
-      req: expect.any(Object),
-      res: expect.any(Object)
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    const { monsterId, section, monster } = res.body.data;
+    expect(monsterId).toBeTruthy();
+    expect(["head", "torso", "legs"]).toContain(section);
+    expect(monster.state).toBe("in-progress");
+    expect(monster.sections[section]).toMatchObject({
+      status: "locked",
+      contributorProfileId: baseCreds.profileId,
     });
-  }, 30000);
+
+    // The other two start `available`.
+    const others = ["head", "torso", "legs"].filter((s) => s !== section);
+    for (const s of others) expect(monster.sections[s].status).toBe("available");
+
+    // Visitor received an activeDraft.
+    expect(visitor.updateDataObject).toHaveBeenCalled();
+    const visitorPayload = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = visitorPayload[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.activeDraft).toMatchObject({ monsterId, section });
+    // Starting is the only signal for the Mad Scientist ladder.
+    expect(scoped.monstersStarted).toBe(1);
+    expect(scoped.weeksStartedMonsterIn).toHaveLength(1);
+    // Starting is not joining — Lab Partner must not fire off a /start.
+    expect(scoped.activeDraft.joined).toBeUndefined();
+  });
+
+  test("POST /monsters/start refuses when the caller already has an activeDraft", async () => {
+    const preExistingMonster = "existing-mon";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [preExistingMonster]: {
+        monsterId: preExistingMonster,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: { status: "locked", contributorProfileId: baseCreds.profileId, lockedAt: Date.now() },
+          torso: { status: "available" },
+          legs: { status: "available" },
+        },
+        contributorProfileIds: [],
+      },
+    };
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: {
+        ...emptyVisitorData,
+        activeDraft: {
+          monsterId: preExistingMonster,
+          section: "head",
+          lockedAt: Date.now(),
+          lastActivityAt: Date.now(),
+          picks: {},
+        },
+      },
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).post("/api/monsters/start").send(baseCreds);
+
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.activeDraft).toMatchObject({ monsterId: preExistingMonster });
+  });
+
+  test("POST /monsters/:id/claim: two concurrent claims → one 200, one 409", async () => {
+    const monsterId = "mon-claim-race";
+    const buildData = () => ({
+      ...defaultKeyAssetDataObject(),
+      monsters: {
+        [monsterId]: {
+          monsterId,
+          state: "in-progress",
+          createdAt: 1,
+          lastEditedAt: 2,
+          sections: {
+            head: { status: "locked", contributorProfileId: "profile-9", lockedAt: Date.now() },
+            torso: { status: "available" },
+            legs: { status: "available" },
+          },
+          contributorProfileIds: ["profile-9"],
+        },
+      },
+    });
+
+    // First caller (Alice): claims torso → 200.
+    const aliceKeyAsset = makeKeyAsset(buildData());
+    const aliceVisitor = makeVisitor();
+    mockUtils.getCredentials.mockReturnValueOnce(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValueOnce(aliceKeyAsset);
+    mockUtils.getVisitor.mockResolvedValueOnce({
+      visitor: aliceVisitor,
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    let res = await request(app)
+      .post(`/api/monsters/${monsterId}/claim`)
+      .send({ ...baseCreds, section: "torso" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.section).toBe("torso");
+
+    // Claiming marks the draft as a join, which is what carries Lab Partner
+    // through to submit. Claiming alone must not award it.
+    const claimScoped = aliceVisitor.updateDataObject.mock.calls[0][0][`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(claimScoped.activeDraft).toMatchObject({ monsterId, section: "torso", joined: true });
+    expect(claimScoped.contributedMonsters).toEqual({});
+
+    // Second caller (Bob): tries same torso AFTER Alice has already locked it.
+    // Simulate the state the shared key asset would be in post-Alice-claim.
+    const bobData = buildData();
+    (bobData.monsters as any)[monsterId].sections.torso = {
+      status: "locked",
+      contributorProfileId: baseCreds.profileId,
+      lockedAt: Date.now(),
+    };
+    const bobKeyAsset = makeKeyAsset(bobData);
+    mockUtils.getCredentials.mockReturnValueOnce(bobCreds);
+    mockUtils.getKeyAsset.mockResolvedValueOnce(bobKeyAsset);
+    mockUtils.getVisitor.mockResolvedValueOnce({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    res = await request(app)
+      .post(`/api/monsters/${monsterId}/claim`)
+      .send({ ...bobCreds, section: "torso" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("POST /monsters/:id/section: submitting the third section flips state to complete + composes name", async () => {
+    const monsterId = "mon-triple";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: {
+            status: "done",
+            contributorProfileId: "profile-9",
+            contributorDisplayName: "Zed",
+            submittedAt: 3,
+          },
+          torso: {
+            status: "done",
+            contributorProfileId: "profile-8",
+            contributorDisplayName: "Yara",
+            submittedAt: 4,
+          },
+          legs: {
+            status: "locked",
+            contributorProfileId: baseCreds.profileId,
+            contributorDisplayName: baseCreds.displayName,
+            lockedAt: 5,
+          },
+        },
+        contributorProfileIds: ["profile-9", "profile-8"],
+      },
+    };
+
+    const keyAsset = makeKeyAsset(keyAssetData);
+    const visitor = makeVisitor();
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: {
+        ...emptyVisitorData,
+        activeDraft: {
+          monsterId,
+          section: "legs",
+          lockedAt: 5,
+          lastActivityAt: 5,
+          picks: LEGS_PICKS,
+          nameToken: "the Magnificent",
+        },
+      },
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .post(`/api/monsters/${monsterId}/section`)
+      .send({
+        ...baseCreds,
+        section: "legs",
+        picks: LEGS_PICKS,
+        nameToken: "the Magnificent",
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toMatchObject({
+      monsterId,
+      section: "legs",
+      isComplete: true,
+      composedName: "Test Monster",
+      imageUrl: "https://example.com/monster.png",
+      monsterAssetId: "dropped-monster-42",
+    });
+
+    // KeyAsset now has state=complete + composed name (from finalize's patch).
+    // Complete-shape entries are lean — the section state map is dropped in
+    // favor of `contributorNames` (pipe-joined, [head, torso, legs] order).
+    expect(keyAsset.dataObject.monsters[monsterId].state).toBe("complete");
+    expect(keyAsset.dataObject.monsters[monsterId].name).toBe("Test Monster");
+    expect(keyAsset.dataObject.monsters[monsterId].sections).toBeUndefined();
+    expect(keyAsset.dataObject.monsters[monsterId].contributorNames).toBe("Contrib 0|Contrib 1|Contrib 2");
+
+    // Finalize is called once with the caller's picks + nameToken and receives
+    // the section that triggered completion. No per-section image compose.
+    expect(mockUtils.finalizeMonster).toHaveBeenCalledTimes(1);
+    expect(mockUtils.finalizeMonster).toHaveBeenCalledWith(
+      expect.objectContaining({
+        monsterId,
+        callerSection: "legs",
+        callerNameToken: "the Magnificent",
+        clickableLinkBase: expect.any(String),
+      }),
+    );
+
+    // Visitor: activeDraft cleared, contributedMonsters updated.
+    const visitorPatch = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = visitorPatch[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.activeDraft).toBeUndefined();
+    expect(scoped.contributedMonsters[monsterId]).toMatchObject({
+      section: "legs",
+      completedAt: expect.any(Number),
+      // The submit that completes the monster is the It's Alive! → Master
+      // Builder signal. `completedAt` can't stand in for it — finalize gives
+      // that to every contributor, not just the third.
+      wasThirdSection: true,
+    });
+  });
+
+  test("POST /monsters/:id/section on non-final submit stores picks on visitor data + skips finalize", async () => {
+    const monsterId = "mon-partial";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: {
+            status: "locked",
+            contributorProfileId: baseCreds.profileId,
+            contributorDisplayName: baseCreds.displayName,
+            lockedAt: 5,
+          },
+          torso: { status: "available" },
+          legs: { status: "available" },
+        },
+        contributorProfileIds: [],
+      },
+    };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    const visitor = makeVisitor();
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .post(`/api/monsters/${monsterId}/section`)
+      .send({ ...baseCreds, section: "head", picks: HEAD_PICKS, nameToken: "Harold" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      isComplete: false,
+      composedName: null,
+      imageUrl: null,
+      monsterAssetId: null,
+    });
+    expect(mockUtils.finalizeMonster).not.toHaveBeenCalled();
+
+    // Picks + nameToken should have been saved to visitor contributedDrafts
+    // so the client can render the layered preview on the Create tab.
+    const visitorPatch = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = visitorPatch[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.contributedDrafts?.[monsterId]?.head).toMatchObject({
+      picks: HEAD_PICKS,
+      nameToken: "Harold",
+    });
+  });
+
+  test("POST /monsters/:id/section rejects picks that don't match server-side content", async () => {
+    const monsterId = "mon-bad-picks";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: {
+            status: "locked",
+            contributorProfileId: baseCreds.profileId,
+            contributorDisplayName: baseCreds.displayName,
+            lockedAt: 5,
+          },
+          torso: { status: "available" },
+          legs: { status: "available" },
+        },
+        contributorProfileIds: [],
+      },
+    };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .post(`/api/monsters/${monsterId}/section`)
+      .send({
+        ...baseCreds,
+        section: "head",
+        picks: { ...HEAD_PICKS, headShape: "not-a-real-part" },
+        nameToken: "Harold",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/unknown part/);
+  });
+
+  test("DELETE /monsters/:id rejects non-admin callers", async () => {
+    const monsterId = "mon-forbidden";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: { head: { status: "available" }, torso: { status: "available" }, legs: { status: "available" } },
+        contributorProfileIds: [],
+      },
+    };
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).delete(`/api/monsters/${monsterId}`).send(baseCreds);
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("DELETE /monsters/:id (in-progress) removes from roster + clears contributors' contributedMonsters", async () => {
+    const monsterId = "mon-inprogress-delete";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: {
+            status: "done",
+            contributorProfileId: "profile-9",
+            contributorDisplayName: "Zed",
+            submittedAt: 3,
+          },
+          torso: { status: "locked", contributorProfileId: "profile-8", lockedAt: 4 },
+          legs: { status: "available" },
+        },
+        contributorProfileIds: ["profile-9"],
+      },
+    };
+
+    const keyAsset = makeKeyAsset(keyAssetData);
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).delete(`/api/monsters/${monsterId}`).send(baseCreds);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ monsterId, state: "in-progress", deletedDroppedAsset: false });
+    expect(keyAsset.dataObject.monsters[monsterId]).toBeUndefined();
+    // No dropped-asset delete on the in-progress path.
+    expect(topiaMock.worldDeleteDroppedAssetsSpy).not.toHaveBeenCalled();
+  });
+
+  test("DELETE /monsters/:id (complete) removes dropped asset + strips vote-cycle pool + tallies", async () => {
+    const monsterId = "mon-complete-delete";
+    const droppedId = "dropped-mon-42";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        monsterAssetId: droppedId,
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 2,
+        name: "Harold McFishy the Magnificent",
+        imageUrl: "https://example.com/monster.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "profile-9", submittedAt: 3 },
+          torso: { status: "done", contributorProfileId: "profile-8", submittedAt: 4 },
+          legs: { status: "done", contributorProfileId: "profile-7", submittedAt: 5 },
+        },
+        contributorProfileIds: ["profile-9", "profile-8", "profile-7"],
+      },
+    };
+    keyAssetData.currentSubmissionWindow = {
+      windowId: "2026-09-13",
+      startAt: 1,
+      endAt: 2,
+      eligibleMonsterIds: [monsterId, "other-monster"],
+    };
+    keyAssetData.currentVoteCycle = {
+      cycleId: "c1",
+      category: "silliest",
+      startAt: 1,
+      endAt: 2,
+      poolMonsterIds: [monsterId, "other-monster"],
+      tallies: { [monsterId]: { shown: 4, wins: 2 }, "other-monster": { shown: 3, wins: 1 } },
+    };
+
+    const keyAsset = makeKeyAsset(keyAssetData);
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).delete(`/api/monsters/${monsterId}`).send(baseCreds);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      monsterId,
+      state: "complete",
+      deletedDroppedAsset: true,
+      contributorProfileIds: ["profile-9", "profile-8", "profile-7"],
+    });
+    expect(topiaMock.worldDeleteDroppedAssetsSpy).toHaveBeenCalledWith(
+      baseCreds.urlSlug,
+      [droppedId],
+      expect.any(String),
+      expect.any(Object),
+    );
+    // Roster + window + cycle all cleaned.
+    expect(keyAsset.dataObject.monsters[monsterId]).toBeUndefined();
+    expect(keyAsset.dataObject.currentSubmissionWindow.eligibleMonsterIds).toEqual(["other-monster"]);
+    expect(keyAsset.dataObject.currentVoteCycle.poolMonsterIds).toEqual(["other-monster"]);
+    expect(keyAsset.dataObject.currentVoteCycle.tallies).toEqual({ "other-monster": { shown: 3, wins: 1 } });
+  });
+
+  test("GET /gallery returns every complete roster monster, newest first, no in-progress", async () => {
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      "mon-a": {
+        monsterId: "mon-a",
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: "Alpha",
+        imageUrl: "https://example.com/a.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "p1", contributorDisplayName: "One", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", contributorDisplayName: "Two", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", contributorDisplayName: "Three", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p1", "p2", "p3"],
+      },
+      "mon-b": {
+        monsterId: "mon-b",
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 10,
+        birthdate: 10,
+        name: "Bravo",
+        imageUrl: "https://example.com/b.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "p4", contributorDisplayName: "Four", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p5", contributorDisplayName: "Five", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p6", contributorDisplayName: "Six", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p4", "p5", "p6"],
+      },
+      "mon-in-progress": {
+        monsterId: "mon-in-progress",
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 20,
+        sections: { head: { status: "available" }, torso: { status: "available" }, legs: { status: "available" } },
+        contributorProfileIds: [],
+      },
+    };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.monsters).toHaveLength(2);
+    // Newest first: Bravo (birthdate 10) before Alpha (birthdate 5).
+    expect(res.body.data.monsters.map((m: any) => m.monsterId)).toEqual(["mon-b", "mon-a"]);
+    expect(res.body.data.totalOnRoster).toBe(2);
+  });
+
+  test("GET /gallery includes evicted monsters from the caller's contributedMonsters so the client can toggle 'mine' locally", async () => {
+    const evictedMonsterId = "mon-evicted";
+    const keyAssetData = defaultKeyAssetDataObject();
+    // Roster does NOT include the evicted monster.
+    keyAssetData.monsters = {
+      "mon-on-roster": {
+        monsterId: "mon-on-roster",
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: "OnRoster",
+        imageUrl: "https://example.com/roster.png",
+        sections: {
+          head: { status: "done", contributorProfileId: baseCreds.profileId, submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", submittedAt: 3 },
+        },
+        contributorProfileIds: [baseCreds.profileId, "p2", "p3"],
+      },
+    };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: {
+        ...emptyVisitorData,
+        contributedMonsters: {
+          "mon-on-roster": { section: "head", submittedAt: 1, completedAt: 5 },
+          [evictedMonsterId]: {
+            section: "torso",
+            submittedAt: 1,
+            completedAt: 100,
+            monsterAssetId: "dropped-evicted",
+            name: "OldEvicted",
+            birthdate: 100,
+            imageUrl: "https://example.com/evicted.png",
+            contributorProfileIds: [baseCreds.profileId, "p9", "p10"],
+            contributorDisplayNames: ["Alice", "Nine", "Ten"],
+          },
+        },
+      },
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.data.monsters.map((m: any) => m.monsterId);
+    expect(ids).toContain(evictedMonsterId);
+    expect(ids).toContain("mon-on-roster");
+    const evictedRow = res.body.data.monsters.find((m: any) => m.monsterId === evictedMonsterId);
+    expect(evictedRow).toMatchObject({
+      fromCallerHistory: true,
+      callerContributed: true,
+      name: "OldEvicted",
+      imageUrl: "https://example.com/evicted.png",
+    });
+    expect(res.body.data.totalInCallerHistory).toBe(2);
+  });
+
+  test("GET /gallery stamps latestAward on winning monsters so the client can toggle 'winners' locally", async () => {
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      "mon-no-award": {
+        monsterId: "mon-no-award",
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: "NoAward",
+        imageUrl: "https://example.com/na.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "p1", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p1", "p2", "p3"],
+      },
+      "mon-award": {
+        monsterId: "mon-award",
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 10,
+        birthdate: 10,
+        name: "Award",
+        imageUrl: "https://example.com/aw.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "p4", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p5", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p6", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p4", "p5", "p6"],
+      },
+    };
+    // Ribbon lives on storedWinners[monsterId], not on the roster entry.
+    keyAssetData.storedWinners = { "mon-award": { category: "silliest", place: 1, awardedAt: 20 } };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/gallery")
+      .query(baseCreds as any);
+
+    expect(res.status).toBe(200);
+    // Both monsters come back; the client decides what to show based on
+    // `latestAward`. Only the awarded one carries the ribbon field.
+    expect(res.body.data.monsters).toHaveLength(2);
+    const award = res.body.data.monsters.find((m: any) => m.monsterId === "mon-award");
+    const noAward = res.body.data.monsters.find((m: any) => m.monsterId === "mon-no-award");
+    expect(award?.latestAward).toMatchObject({ category: "silliest", place: 1 });
+    expect(noAward?.latestAward).toBeUndefined();
+  });
+
+  test("GET /monsters/:id returns single-monster payload (roster hit) + admin canDelete=true", async () => {
+    const monsterId = "mon-detail";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: "Detailed",
+        imageUrl: "https://example.com/detail.png",
+        sections: {
+          head: { status: "done", contributorProfileId: "p1", contributorDisplayName: "One", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", contributorDisplayName: "Two", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", contributorDisplayName: "Three", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p1", "p2", "p3"],
+      },
+    };
+    // Ribbon lives on storedWinners[monsterId], not on the roster entry.
+    keyAssetData.storedWinners = { [monsterId]: { category: "silliest", place: 2, awardedAt: 20 } };
+
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get(`/api/monsters/${monsterId}`)
+      .query(baseCreds as any);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      monster: {
+        monsterId,
+        name: "Detailed",
+        imageUrl: "https://example.com/detail.png",
+        latestAward: { category: "silliest", place: 2 },
+        contributorDisplayNames: ["One", "Two", "Three"],
+      },
+      canDelete: true,
+    });
+  });
+
+  test("GET /vote returns not-enough-monsters when the current window has < 10 eligible", async () => {
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.currentSubmissionWindow = {
+      windowId: "2026-09-20",
+      startAt: Date.now(),
+      endAt: Date.now() + 86400_000 * 7,
+      eligibleMonsterIds: ["a", "b", "c"],
+    };
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/vote")
+      .query(baseCreds as any);
+    expect(res.status).toBe(200);
+    expect(res.body.data.state).toBe("not-enough-monsters");
+    expect(res.body.data.poolSize).toBe(3);
+    // Reference the shared constant instead of a hard-coded value so this
+    // test survives tuning MIN_POOL_SIZE_FOR_VOTE.
+    expect(res.body.data.minPoolSize).toBe(require("@shared/content/monsterMash").MIN_POOL_SIZE_FOR_VOTE);
+  });
+
+  test("GET /vote returns running state with matchup + last winners when a cycle is open", async () => {
+    const pool = ["m1", "m2", "m3", "m4", "m5"];
+    const keyAssetData = defaultKeyAssetDataObject();
+    for (const id of pool) {
+      keyAssetData.monsters[id] = {
+        monsterId: id,
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: id,
+        imageUrl: `https://ex/${id}.png`,
+        sections: {
+          head: { status: "done", contributorProfileId: "p1", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p1", "p2", "p3"],
+      };
+    }
+    keyAssetData.currentVoteCycle = {
+      cycleId: "c1",
+      category: "silliest",
+      startAt: Date.now(),
+      endAt: Date.now() + 86400_000 * 3,
+      poolMonsterIds: pool,
+      tallies: {},
+    };
+    keyAssetData.storedWinners = {
+      m1: { category: "cutest", place: 1, awardedAt: 10 },
+    };
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/vote")
+      .query(baseCreds as any);
+    expect(res.status).toBe(200);
+    expect(res.body.data.state).toBe("running");
+    expect(res.body.data.categoryQuestion).toBe("Silliest");
+    expect(res.body.data.matchup).toBeTruthy();
+    expect(res.body.data.matchup.pair).toHaveLength(2);
+    expect(res.body.data.lastWinners).toHaveLength(1);
+  });
+
+  test("POST /vote/cast increments winner tallies + rejects when caller hits cap", async () => {
+    const cycle = {
+      cycleId: "c1",
+      category: "silliest",
+      startAt: Date.now(),
+      endAt: Date.now() + 86400_000 * 3,
+      poolMonsterIds: ["m1", "m2"],
+      tallies: {},
+    };
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.currentVoteCycle = cycle;
+    for (const id of ["m1", "m2"]) {
+      keyAssetData.monsters[id] = {
+        monsterId: id,
+        state: "complete",
+        createdAt: 1,
+        lastEditedAt: 5,
+        birthdate: 5,
+        name: id,
+        imageUrl: `https://ex/${id}.png`,
+        sections: {
+          head: { status: "done", contributorProfileId: "p1", submittedAt: 1 },
+          torso: { status: "done", contributorProfileId: "p2", submittedAt: 2 },
+          legs: { status: "done", contributorProfileId: "p3", submittedAt: 3 },
+        },
+        contributorProfileIds: ["p1", "p2", "p3"],
+      };
+    }
+
+    const keyAsset = makeKeyAsset(keyAssetData);
+    const visitor = makeVisitor();
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .post("/api/vote/cast")
+      .send({
+        ...baseCreds,
+        winnerMonsterId: "m1",
+        loserMonsterId: "m2",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.data.ok).toBe(true);
+    expect(keyAsset.dataObject.currentVoteCycle.tallies.m1).toEqual({ wins: 1, shown: 1 });
+    expect(keyAsset.dataObject.currentVoteCycle.tallies.m2).toEqual({ wins: 0, shown: 1 });
+
+    // Per-week vote counts are kept alongside the running total.
+    // `votesCastThisWeek` tracks the current cycle's count — not a cap any
+    // more, but still used so Monster Judge / Obsessed Voter / Still Voting
+    // badges can score the player's best week via `votesByWeek`.
+    const voteScoped = visitor.updateDataObject.mock.calls[0][0][`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(voteScoped.votesByWeek).toEqual({ c1: 1 });
+    expect(voteScoped.totalVotesCast).toBe(1);
+    expect(voteScoped.weeksVotedIn).toEqual(["c1"]);
+
+    // Now bump the visitor's TODAY count above the daily cap (poolSize × 1
+    // = 2 for this fixture) and try again — should 429 with daily-cap.
+    const todayKey = require("@utils/vote/computeWindows").etDateKey(Date.now());
+    const capped = {
+      ...emptyVisitorData,
+      votesCastThisWeek: { windowId: "c1", count: 999 },
+      votesCastToday: { dateEt: todayKey, count: 999 },
+    };
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: capped,
+      visitorInventory: {},
+    });
+    const res2 = await request(app)
+      .post("/api/vote/cast")
+      .send({
+        ...baseCreds,
+        winnerMonsterId: "m1",
+        loserMonsterId: "m2",
+      });
+    expect(res2.status).toBe(429);
+    expect(res2.body.reason).toBe("daily-cap");
+  });
+
+  test("POST /banners/acknowledge clears both pending queues", async () => {
+    const keyAsset = makeKeyAsset(defaultKeyAssetDataObject());
+    const visitor = makeVisitor();
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: {
+        ...emptyVisitorData,
+        pendingWinBanners: [{ monsterId: "m1", category: "silliest", place: 1, awardedAt: 1 } as any],
+        pendingCompletionBanners: [{ monsterId: "m2", monsterName: "X", completedAt: 2 } as any],
+      },
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).post("/api/banners/acknowledge").send(baseCreds);
+    expect(res.status).toBe(200);
+    const patch = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = patch[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.pendingWinBanners).toEqual([]);
+    expect(scoped.pendingCompletionBanners).toEqual([]);
+  });
+
+  test("GET /trophy returns leaderboard rows + badges grid", async () => {
+    const keyAssetData = defaultKeyAssetDataObject();
+    // Leaderboard rows are stored as compact pipe-joined strings
+    // ("{displayName}|{awardsWon}|{monstersContributedTo}").
+    keyAssetData.leaderboard = {
+      p1: "Alpha|5|12",
+      p2: "Beta|3|10",
+      [baseCreds.profileId]: "Alice|1|4",
+    };
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: { "I Voted!": { id: "b1", icon: "https://x/y.png", name: "I Voted!" } },
+    });
+
+    const app = makeApp();
+    const res = await request(app)
+      .get("/api/trophy")
+      .query(baseCreds as any);
+    expect(res.status).toBe(200);
+    expect(res.body.data.leaderboard).toHaveLength(3);
+    expect(res.body.data.leaderboard[0].displayName).toBe("Alpha");
+    expect(res.body.data.leaderboard[0].awardsWon).toBe(5);
+    expect(res.body.data.isAdmin).toBe(true);
+
+    // The grid is the ecosystem catalog, in sortOrder, across all four groups.
+    expect(res.body.data.totalBadges).toBe(fakeBadgeCatalog().length);
+    expect(res.body.data.badges.map((b: any) => b.name)).toEqual(fakeBadgeCatalog().map((b) => b.displayName));
+    expect(new Set(res.body.data.badges.map((b: any) => b.group))).toEqual(
+      new Set(["building", "voting", "visiting", "winning"]),
+    );
+
+    // Owned flags come from the visitor's own inventory, not the catalog.
+    const iVoted = res.body.data.badges.find((b: any) => b.name === "I Voted!");
+    expect(iVoted?.owned).toBe(true);
+    expect(iVoted?.iconUrl).toBe("https://x/y.png"); // visitor art wins
+    expect(res.body.data.ownedBadgesCount).toBe(1);
+
+    // Unowned badges still render, falling back to the catalog art.
+    const silliest = res.body.data.badges.find((b: any) => b.name === "Winner: Silliest Monster");
+    expect(silliest?.owned).toBe(false);
+    expect(silliest?.iconUrl).toBe("https://cdn.example.com/mm-badge-silliest.png");
+  });
+
+  test("POST /leaderboard/reset admin-only + wipes leaderboard", async () => {
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.leaderboard = {
+      p1: "Alpha|5|3",
+    };
+
+    const app = makeApp();
+
+    // Non-admin → 403.
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(makeKeyAsset(keyAssetData));
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    let res = await request(app).post("/api/leaderboard/reset").send(baseCreds);
+    expect(res.status).toBe(403);
+
+    // Admin → 200 + wipe.
+    const adminKey = makeKeyAsset({ ...keyAssetData });
+    mockUtils.getKeyAsset.mockResolvedValue(adminKey);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    res = await request(app).post("/api/leaderboard/reset").send(baseCreds);
+    expect(res.status).toBe(200);
+    expect(adminKey.dataObject.leaderboard).toEqual({});
+  });
+
+  test("PUT /admin/settings admin-only + toggles weeklyVotingEnabled + ends running vote", async () => {
+    const app = makeApp();
+
+    // Non-admin → 403.
+    const nonAdminKey = makeKeyAsset({ ...defaultKeyAssetDataObject(), weeklyVotingEnabled: true });
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(nonAdminKey);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: false,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    let res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: false });
+    expect(res.status).toBe(403);
+
+    // Admin turning OFF while a cycle is running → ends the vote in the same write.
+    const runningKeyAssetData: any = { ...defaultKeyAssetDataObject(), weeklyVotingEnabled: true };
+    runningKeyAssetData.currentVoteCycle = {
+      cycleId: "cycle-99",
+      category: "silliest",
+      startAt: 1,
+      endAt: 2,
+      poolMonsterIds: [],
+      tallies: {},
+    };
+    const adminKey = makeKeyAsset(runningKeyAssetData);
+    mockUtils.getKeyAsset.mockResolvedValue(adminKey);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor: makeVisitor(),
+      isAdmin: true,
+      visitorData: emptyVisitorData,
+      visitorInventory: {},
+    });
+    res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: false });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ weeklyVotingEnabled: false, endedVote: true });
+    expect(adminKey.dataObject.weeklyVotingEnabled).toBe(false);
+    expect(adminKey.dataObject.currentVoteCycle).toBeNull();
+
+    // Turning back ON does NOT open a vote — the next Sunday rollover does.
+    res = await request(app)
+      .put("/api/admin/settings")
+      .send({ ...baseCreds, weeklyVotingEnabled: true });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ weeklyVotingEnabled: true, endedVote: false });
+    expect(adminKey.dataObject.weeklyVotingEnabled).toBe(true);
+    expect(adminKey.dataObject.currentVoteCycle).toBeNull();
+  });
+
+  test("POST /monsters/:id/abandon releases the caller's lock + clears activeDraft", async () => {
+    const monsterId = "mon-abandon";
+    const keyAssetData = defaultKeyAssetDataObject();
+    keyAssetData.monsters = {
+      [monsterId]: {
+        monsterId,
+        state: "in-progress",
+        createdAt: 1,
+        lastEditedAt: 2,
+        sections: {
+          head: {
+            status: "locked",
+            contributorProfileId: baseCreds.profileId,
+            contributorDisplayName: baseCreds.displayName,
+            lockedAt: 5,
+          },
+          torso: { status: "available" },
+          legs: { status: "available" },
+        },
+        contributorProfileIds: [],
+      },
+    };
+
+    const keyAsset = makeKeyAsset(keyAssetData);
+    const visitor = makeVisitor();
+    mockUtils.getCredentials.mockReturnValue(baseCreds);
+    mockUtils.getKeyAsset.mockResolvedValue(keyAsset);
+    mockUtils.getVisitor.mockResolvedValue({
+      visitor,
+      isAdmin: false,
+      visitorData: {
+        ...emptyVisitorData,
+        activeDraft: {
+          monsterId,
+          section: "head",
+          lockedAt: 5,
+          lastActivityAt: 5,
+          picks: {},
+        },
+      },
+      visitorInventory: {},
+    });
+
+    const app = makeApp();
+    const res = await request(app).post(`/api/monsters/${monsterId}/abandon`).send(baseCreds);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.released).toBe("head");
+    expect(keyAsset.dataObject.monsters[monsterId].sections.head.status).toBe("available");
+
+    const visitorPatch = visitor.updateDataObject.mock.calls[0][0];
+    const scoped = visitorPatch[`${baseCreds.urlSlug}-${baseCreds.sceneDropId}`];
+    expect(scoped.activeDraft).toBeUndefined();
+  });
 });

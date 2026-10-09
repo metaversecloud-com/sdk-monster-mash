@@ -1,11 +1,11 @@
 {
-  "name": "@sdk-ai-boilerplate/server",
+  "name": "@sdk-monster-mash/server",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "dev": "npx tsx watch index.ts",
+    "dev": "npx tsx watch --env-file-if-exists=../.env index.ts",
     "start": "node ./dist/server/index.js",
     "build": "npx tsc && npx tsc-alias",
     "ts-check": "tsc --noEmit",
@@ -13,11 +13,13 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.658.1",
     "@googleapis/sheets": "^9.0.0",
     "@rtsdk/topia": "^0.20.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.18.3"
+    "express": "^4.18.3",
+    "jimp": "^0.22.12"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

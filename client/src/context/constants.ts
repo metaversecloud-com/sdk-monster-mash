@@ -1,5 +1,7 @@
-export const initialState = {
+import { InitialState } from "./types";
+
+export const initialState: InitialState = {
   error: "",
-  gameState: {},
   hasInteractiveParams: false,
+  activeTab: "create",
 };

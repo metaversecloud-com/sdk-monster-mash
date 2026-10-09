@@ -1,15 +1,37 @@
 import express from "express";
-import { handleGetGameState } from "./controllers/index.js";
+import {
+  handleAbandonSection,
+  handleAcknowledgeBanners,
+  handleAdminStartNewCycle,
+  handleCastVote,
+  handleClaimSection,
+  handleDeleteMonster,
+  handleDownloadMonster,
+  handleGetGallery,
+  handleGetMainApp,
+  handleGetMonster,
+  handleGetTrophy,
+  handleGetVote,
+  handleOpenMonsterDrawer,
+  handleResetLeaderboard,
+  handleResumeSection,
+  handleReturnToMainApp,
+  handleStartMonster,
+  handleSubmitSection,
+  handleTabView,
+  handleUpdateAdminSettings,
+  handleUpdateDraft,
+} from "./controllers/index.js";
 import { getVersion } from "@utils/getVersion.js";
 
 const router = express.Router();
 const SERVER_START_DATE = new Date();
 
-router.get("/", (req, res) => {
-  res.json({ message: "Hello from server!" });
+router.get("/", (_req, res) => {
+  res.json({ message: "Hello from Monster Mash server!" });
 });
 
-router.get("/system/health", (req, res) => {
+router.get("/system/health", (_req, res) => {
   return res.json({
     appVersion: getVersion(),
     status: "OK",
@@ -23,6 +45,38 @@ router.get("/system/health", (req, res) => {
   });
 });
 
-router.get("/game-state", handleGetGameState);
+router.get("/main-app", handleGetMainApp);
+router.post("/main-app/return", handleReturnToMainApp);
+
+// Monster lifecycle
+router.post("/monsters/start", handleStartMonster);
+router.post("/monsters/:id/claim", handleClaimSection);
+router.post("/monsters/:id/section", handleSubmitSection);
+router.post("/monsters/:id/draft", handleUpdateDraft);
+router.post("/monsters/:id/abandon", handleAbandonSection);
+router.post("/monsters/:id/resume", handleResumeSection);
+router.delete("/monsters/:id", handleDeleteMonster);
+
+// Gallery + single monster
+router.get("/gallery", handleGetGallery);
+router.get("/monsters/:id", handleGetMonster);
+router.post("/monsters/:id/open", handleOpenMonsterDrawer);
+router.post("/monsters/:id/download", handleDownloadMonster);
+
+// Analytics
+router.post("/tab-view", handleTabView);
+
+// Vote
+router.get("/vote", handleGetVote);
+router.post("/vote/cast", handleCastVote);
+router.post("/admin/vote/start-new-cycle", handleAdminStartNewCycle);
+
+// Banner queues
+router.post("/banners/acknowledge", handleAcknowledgeBanners);
+
+// Trophy
+router.get("/trophy", handleGetTrophy);
+router.post("/leaderboard/reset", handleResetLeaderboard);
+router.put("/admin/settings", handleUpdateAdminSettings);
 
 export default router;

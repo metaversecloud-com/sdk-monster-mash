@@ -1,0 +1,146 @@
+import { useEffect } from "react";
+import { Section } from "@shared/types/index";
+import { useBusy } from "@/context/BusyContext";
+import { Confetti, DownloadBtn, Logo, SectionLayeredImage, SuccessIcon } from "@/components";
+import { playSfx } from "@/utils";
+
+interface SectionSubmittedProps {
+  section: Section;
+  isComplete: boolean;
+  composedName?: string | null;
+  nameToken: string;
+  /** All three contributor display names in order (head, torso, legs). Complete variant only. */
+  contributorNames?: string[];
+  /** Composited monster PNG URL. Complete variant only; null while finalize is retrying. */
+  imageUrl?: string | null;
+  /** Just-submitted picks - used for a layered preview on the "not complete" screen. */
+  picks?: { [categoryId: string]: string };
+  /** How many sections still need a contributor to finish this monster. Used in the "not complete" copy. */
+  sectionsRemaining?: number;
+  /** Passed through to DownloadBtn so the download fires `monster_downloaded_own`. */
+  monsterId?: string;
+  onBackToMonsterMash: () => void;
+}
+
+/**
+ * Post-submit screen. Two variants:
+ *   - Section submitted (not complete yet) - "Name so far:" placeholder.
+ *   - Complete - real "IT'S ALIVE!" moment: composed art, name, attribution,
+ *     three ✓ bullets (Placed in the world / Added to the gallery / Entered
+ *     in the next vote), Download PNG (opens PNG in new tab), Back.
+ */
+export const SectionSubmitted = ({
+  section,
+  isComplete,
+  composedName,
+  nameToken,
+  contributorNames,
+  imageUrl,
+  picks,
+  sectionsRemaining,
+  monsterId,
+  onBackToMonsterMash,
+}: SectionSubmittedProps) => {
+  const { isBusy } = useBusy();
+
+  // Fire the submit sfx on mount: complete monster → MONSTER_COMPLETE,
+  // otherwise SECTION_SUBMIT.
+  useEffect(() => {
+    playSfx(isComplete ? "MONSTER_COMPLETE" : "SECTION_SUBMIT");
+    // Mount-only — we only want to play once per submit screen render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (isComplete) {
+    const attribution = (contributorNames ?? []).filter(Boolean).join(" · ");
+    return (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <Confetti />
+        <Logo className="h-8 w-auto mx-auto" />
+        <h2 className="mm-text-success text-semibold">IT'S ALIVE!</h2>
+        <p className="mm-text-accent-lt">Your section finished the monster!</p>
+
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={composedName ? `${composedName} composed monster` : "composed monster"}
+            className="w-56 h-72 object-contain rounded-2xl bg-gray-50 border"
+          />
+        ) : (
+          <div className="w-56 h-72 rounded-2xl bg-gray-50 border-2 border-dashed flex items-center justify-center mm-text-on-card-muted p-4">
+            World drop is queued - refresh the app in a moment.
+          </div>
+        )}
+
+        {composedName && <h4 className="pt-2 mm-text-white">{composedName}</h4>}
+        {attribution && <p className="text-xs mm-text-accent-lt">by {attribution}</p>}
+
+        <ul className="text-sm mm-text-accent-lt w-full text-left flex flex-col gap-2 p-2">
+          <li className="flex items-center gap-2">
+            <SuccessIcon />
+            Placed in the world
+          </li>
+          <li className="flex items-center gap-2">
+            <SuccessIcon />
+            Added to the gallery
+          </li>
+          <li className="flex flex-col">
+            <span className="flex items-center gap-2">
+              <SuccessIcon />
+              <span>
+                Entered in the next vote
+                <br />
+                <span className="mm-text-xs mm-text-amber pt-1">if enough are finished - otherwise the one after</span>
+              </span>
+            </span>
+          </li>
+        </ul>
+
+        {imageUrl && <DownloadBtn className="btn-outline" imageUrl={imageUrl} monsterId={monsterId} />}
+        <button className="btn btn-outline w-full" onClick={onBackToMonsterMash} disabled={isBusy}>
+          Back to Monster Mash
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 text-center">
+      <Logo className="h-8 w-auto mx-auto" />
+      <h2 className="mm-text-success capitalize">{section} submitted!</h2>
+      <p className="mm-text-accent-lt">
+        Nice work
+        {typeof sectionsRemaining === "number" && sectionsRemaining > 0 && (
+          <>
+            {" "}
+            - {sectionsRemaining} {sectionsRemaining === 1 ? "section" : "sections"} to go
+          </>
+        )}
+      </p>
+      {picks && (
+        <SectionLayeredImage
+          section={section}
+          picks={picks}
+          containerClassName="overflow-hidden w-full h-[190px] rounded-2xl border-2 border-taupe-500 bg-white mx-auto"
+          imgStyle={{
+            height: "250px",
+            marginTop: section === "head" ? "0px" : section === "torso" ? "-75px" : "-75px",
+          }}
+          ariaLabel={`your submitted ${section}`}
+        />
+      )}
+      <div className="card p-4 flex flex-col gap-2">
+        <p className="p2 mm-on-card-muted">Name so far:</p>
+        <h4>
+          {section === "head" ? nameToken : "___"} {section === "torso" ? nameToken : "___"}{" "}
+          {section === "legs" ? nameToken : "___"}
+        </h4>
+      </div>
+      <button className="btn mm-btn-secondary" onClick={onBackToMonsterMash} disabled={isBusy}>
+        Back to Monster Mash
+      </button>
+    </div>
+  );
+};
+
+export default SectionSubmitted;

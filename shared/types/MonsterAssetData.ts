@@ -1,0 +1,41 @@
+import { Section } from "./SharedTypes.js";
+
+export interface SectionRecord {
+  contributorProfileId: string;
+  contributorDisplayName: string;
+  submittedAt: number;
+  /** { headShape: "jack-o-lantern", eyes: "googly", ... } — maps to LAYER_ORDER slots. */
+  parts: { [categoryId: string]: string };
+  /** first-name (head) | last-name (torso) | title (legs). */
+  nameToken: string;
+}
+
+/**
+ * Root shape for a per-monster dropped-asset dataObject. One of these exists
+ * per finished monster (dropped in the world at completion). In-progress
+ * monsters have no dropped asset — their picks live on each contributor's
+ * visitor dataObject (`contributedDrafts`) and migrate here only when the
+ * third section lands.
+ */
+export interface MonsterAssetDataObject {
+  schemaVersion: 1;
+  monsterId: string;
+  name: string;
+  birthdate: number;
+  imageUrl: string;
+  /** [head, torso, legs] contributor profileIds. */
+  contributorProfileIds: [string, string, string];
+  /** [head, torso, legs] contributor display names. */
+  contributorDisplayNames: [string, string, string];
+  sections: Record<Section, SectionRecord>;
+  /**
+   * ID of the Monster Mash key asset that owns this monster.
+   * Set at drop time so admin actions initiated from the world (e.g. the
+   * SingleMonsterView drawer opened by clicking the monster asset) can
+   * resolve the roster back to the RIGHT key asset — `credentials.assetId`
+   * in that flow points at THIS monster, not the key. Older monsters
+   * dropped before this field existed fall back to a scene-wide lookup in
+   * `getKeyAsset`.
+   */
+  keyAssetId?: string;
+}

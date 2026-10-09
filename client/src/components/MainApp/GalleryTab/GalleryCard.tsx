@@ -1,0 +1,112 @@
+import { useContext } from "react";
+import { AwardRibbon, DownloadBtn } from "@/components/shared";
+import { useBusy } from "@/context/BusyContext";
+import { GlobalDispatchContext } from "@/context/GlobalContext";
+import { ErrorType } from "@/context/types";
+import { GalleryMonster } from "@shared/types/index";
+import { backendAPI, setErrorMessage } from "@/utils";
+
+interface GalleryCardProps {
+  monster: GalleryMonster;
+  callerIsAdmin?: boolean;
+  onAdminDelete?: (monster: GalleryMonster) => void;
+}
+
+/**
+ * One monster card on the Gallery tab.
+ *   - Green outline when the caller contributed.
+ *   - Award ribbon at the top when awarded.
+ *   - Contributor names dot-separated.
+ *   - "Born {date}" caption.
+ *   - Per-card Download button (opens PNG in a new tab).
+ *   - Admin only: Delete button next to Download.
+ *
+ * Card click triggers a modal → drawer iframe transition (server closes the
+ * main-app modal and reopens as the Single Monster View drawer) so the
+ * detail surface matches the fixed-width look reached from clicking the
+ * finished-monster asset in the world.
+ */
+export const GalleryCard = ({ monster, callerIsAdmin, onAdminDelete }: GalleryCardProps) => {
+  const dispatch = useContext(GlobalDispatchContext);
+  const { isBusy, run } = useBusy();
+  const born = monster.birthdate
+    ? new Date(monster.birthdate).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "";
+
+  const openDetail = () => {
+    if (isBusy) return;
+    return run(async () => {
+      try {
+        await backendAPI.post(`/monsters/${monster.monsterId}/open`);
+      } catch (error) {
+        setErrorMessage(dispatch, error as ErrorType);
+      }
+    });
+  };
+
+  return (
+    <div
+      className={`card p-3 flex flex-col gap-2 min-h-[320px] ${
+        monster.callerContributed ? "mm-border-2 mm-border-success" : ""
+      }`}
+    >
+      {monster.latestAward && (
+        <div className="flex justify-center">
+          <AwardRibbon award={monster.latestAward} />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={openDetail}
+        disabled={isBusy}
+        className="flex-1 flex items-center justify-center rounded-lg mm-border-section mm-bg-card"
+        aria-label={`Open ${monster.name || "monster"} details`}
+      >
+        {monster.imageUrl ? (
+          <img src={monster.imageUrl} alt={monster.name || "monster"} className="w-40 h-44 object-contain" />
+        ) : (
+          <span aria-hidden="true" className="text-5xl mm-text-on-card-subtle">
+            ?
+          </span>
+        )}
+      </button>
+
+      <div className="flex flex-col items-center text-center gap-1 min-h-[90px]">
+        <h4 className="leading-tight">{monster.name || "unnamed"}</h4>
+        {monster.contributorDisplayNames.length > 0 && (
+          <p className="p2 mm-text-accent-dark text-sm">{monster.contributorDisplayNames.join(" · ")}</p>
+        )}
+        {born && <p className="text-xs mm-text-on-card-muted">Born {born}</p>}
+      </div>
+
+      <div className="flex items-center justify-center gap-2">
+        <DownloadBtn
+          className="content-center"
+          imageUrl={monster.imageUrl}
+          label="Download"
+          showCaption={false}
+          monsterId={monster.monsterId}
+        />
+        {callerIsAdmin && onAdminDelete && (
+          <button
+            type="button"
+            className="btn btn-danger"
+            aria-label={`Delete ${monster.name || "this monster"} (admin only)`}
+            title="Admin only - delete this monster from gallery and world"
+            onClick={() => onAdminDelete(monster)}
+            disabled={isBusy}
+          >
+            Delete
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default GalleryCard;
