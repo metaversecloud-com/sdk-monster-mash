@@ -16,8 +16,12 @@ export interface EvictFinishedResult {
  * `visitorData.contributedMonsters` with monster metadata at finalize time;
  * evicted own-monsters still surface in the caller's "mine" filter.
  *
- * The corresponding dropped asset in the world is left alone — eviction is
- * only a roster / display-cap concern.
+ * Pure — this helper only computes the shrunken roster map; the matching
+ * world-drop deletion is handled by the caller (`finalizeMonster` batches
+ * `World.deleteDroppedAssets` for every `evictedIds[*]` with a resolved
+ * `monsterAssetId`). A world delete failure never bubbles — if the asset
+ * has already been removed by an admin or a prior cleanup, finalize
+ * continues silently.
  */
 export const evictFinishedIfCapped = (monsters: KeyAssetDataObject["monsters"] | undefined): EvictFinishedResult => {
   const evictedIds: string[] = [];

@@ -12,7 +12,7 @@ import {
 import { Credentials } from "../../types/index.js";
 import { composeAndUploadMonster } from "../images/composeMonster.js";
 import { createEmptyVisitorData } from "../getVisitor.js";
-import { User } from "../topiaInit.js";
+import { User, World } from "../topiaInit.js";
 import { composeMonsterName } from "./composeMonsterName.js";
 import { dropMonsterAsset } from "./dropMonsterAsset.js";
 import { evictFinishedIfCapped } from "./evictFinishedIfCapped.js";
@@ -280,6 +280,31 @@ export const finalizeMonster = async ({
     };
     const eviction = evictFinishedIfCapped(nextRoster);
     const rosterAfterCap = eviction.changed ? eviction.monsters : nextRoster;
+
+    // Remove the evicted monsters' world drops in one batch call. Non-fatal:
+    // if the asset is already gone (admin manually deleted, concurrent
+    // cleanup, Topia-side 404), we just continue — the roster has already
+    // dropped them so there's nothing left for the server to recover.
+    if (eviction.evictedIds.length > 0) {
+      const evictedAssetIds = eviction.evictedIds
+        .map((id) => dataObject.monsters?.[id]?.monsterAssetId)
+        .filter((aid): aid is string => !!aid);
+      if (evictedAssetIds.length > 0) {
+        try {
+          await World.deleteDroppedAssets(
+            credentials.urlSlug,
+            evictedAssetIds,
+            process.env.INTERACTIVE_SECRET || "",
+            credentials,
+          );
+        } catch (error) {
+          console.warn(
+            `finalizeMonster: non-fatal failure deleting ${evictedAssetIds.length} evicted world asset(s)`,
+            error,
+          );
+        }
+      }
+    }
 
     const keyAssetPatch: Record<string, unknown> = {
       monsters: rosterAfterCap,

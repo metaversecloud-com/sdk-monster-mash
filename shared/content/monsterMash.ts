@@ -300,7 +300,7 @@ export const STORED_WINNERS_MAX = 200;
  * View still show for the lifetime of the `storedWinners` entry — the
  * cooldown only gates re-entry into voting.
  */
-export const WINNER_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const WINNER_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 30 days
 // Dev convenience: set `MIN_POOL_SIZE` in your environment to lower the
 // vote threshold for local testing (e.g. `MIN_POOL_SIZE=4`). Production
 // leaves it unset → the default 10 applies. Server-only — the client never
