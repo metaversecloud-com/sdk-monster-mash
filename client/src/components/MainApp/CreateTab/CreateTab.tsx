@@ -213,7 +213,7 @@ export const CreateTab = () => {
         {/* Create-New tile - always first. */}
         <button
           type="button"
-          className="mm-section p-6 flex flex-col items-center justify-center gap-5 min-h-[220px] border-dashed border-2 mm-border-card hover:border-white/60"
+          className="mm-section mm-section-success p-6 flex flex-col items-center justify-center gap-5 min-h-[220px] mm-border-2 mm-border-success cursor-pointer"
           onClick={startNew}
           disabled={isBusy}
         >
@@ -226,7 +226,11 @@ export const CreateTab = () => {
           <span className="grid gap-2">
             <h3 className="mm-text-white">Create New Monster</h3>
             <p className="text-xs mm-text-muted text-center mt-1">you'll be given a section to build</p>
-            <div className={`btn mm-btn-primary mm-btn-lg text-lg mt-3 ${isBusy && "opacity-50"}`}>Create</div>
+            <div
+              className={`max-w-[220px] mx-auto btn mm-btn-primary mm-btn-lg text-lg mt-3 ${isBusy && "opacity-50"}`}
+            >
+              Create
+            </div>
           </span>
         </button>
 
@@ -235,16 +239,27 @@ export const CreateTab = () => {
         {activeDraft && !sortedRoster.some((m) => m.monsterId === activeDraft.monsterId) && (
           <button
             type="button"
-            className="mm-section p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] border-2 mm-border-amber"
+            className="mm-section mm-section-amber p-6 flex flex-col items-center justify-center gap-2 min-h-[220px] mm-border-2 mm-border-amber cursor-pointer"
             onClick={resumeDraft}
             disabled={isBusy}
           >
-            <span aria-hidden="true" className="text-5xl">
+            <span
+              aria-hidden="true"
+              className="text-6xl mm-text-accent-lt p-2 w-20 h-20 flex items-center justify-center"
+            >
               🎨
             </span>
-            <span className="h4 mm-text-white">Resume {activeDraft.section}</span>
-            <span className="p2 mm-text-muted text-center">
-              Locked at {new Date(activeDraft.lockedAt).toLocaleString()}. Auto-releases after 30 min of idle.
+            <span className="grid gap-2">
+              <h3 className="mm-text-white">Resume {activeDraft.section}</h3>
+              <p className="text-xs mm-text-muted text-center mt-1">
+                {" "}
+                Locked at {new Date(activeDraft.lockedAt).toLocaleString()}. Auto-releases after 30 min of idle.
+              </p>
+              <div
+                className={`max-w-[220px] mx-auto btn mm-btn-amber mm-btn-lg text-lg mt-2 ${isBusy && "opacity-50"}`}
+              >
+                Resume
+              </div>
             </span>
           </button>
         )}
