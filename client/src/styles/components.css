@@ -251,6 +251,12 @@
   border-radius: 1rem;
   border: 1px solid var(--mm-accent);
 }
+.mm-section-success {
+  border: 1px solid var(--mm-success);
+}
+.mm-section-amber {
+  border: 1px solid var(--mm-amber);
+}
 
 /*
  * In-progress monster card on the Create tab — light background against
