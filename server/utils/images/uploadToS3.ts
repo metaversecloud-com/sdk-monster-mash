@@ -22,7 +22,7 @@ const client = new S3Client({ region: "us-east-1" });
  * The key is passed by the caller as e.g. `monster-mash/monsters/{id}.png`.
  */
 export const uploadPngToS3 = async (buffer: Buffer, key: string): Promise<string> => {
-  const bucket = process.env.S3_BUCKET;
+  const bucket = process.env.S3_BUCKET || "sdk-monster-mash";
   if (!bucket) throw new Error("S3_BUCKET env is not set — cannot upload composed image");
   await client.send(
     new PutObjectCommand({

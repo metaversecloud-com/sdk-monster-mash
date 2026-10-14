@@ -31,6 +31,12 @@ interface FinalizeMonsterInput {
   /** Caller's name token for their section. */
   callerNameToken: string;
   clickableLinkBase: string;
+  /**
+   * The request's hostname. Threaded through to `composeAndUploadMonster`
+   * so the composed PNG lands in the right per-ecosystem S3 subfolder.
+   * Unknown hosts bucket into `userUploads/other/`.
+   */
+  requestHost: string | undefined;
 }
 
 export interface FinalizeMonsterResult {
@@ -84,6 +90,7 @@ export const finalizeMonster = async ({
   callerPicks,
   callerNameToken,
   clickableLinkBase,
+  requestHost,
 }: FinalizeMonsterInput): Promise<FinalizeMonsterResult> => {
   try {
     // 1. Collect peer picks from each peer's visitor dataObject.
@@ -165,7 +172,7 @@ export const finalizeMonster = async ({
     // and the caller's controller still marks state=complete.
     let imageUrl: string | null = null;
     try {
-      imageUrl = await composeAndUploadMonster(monsterId, picksBySection);
+      imageUrl = await composeAndUploadMonster(monsterId, picksBySection, requestHost);
     } catch (error) {
       console.error(
         `finalizeMonster: compose/upload failed for ${monsterId} — completion continues without imageUrl`,
