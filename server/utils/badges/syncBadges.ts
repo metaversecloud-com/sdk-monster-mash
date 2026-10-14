@@ -43,19 +43,35 @@ export const syncBadges = async ({
     const toGrant = evaluateBadges(catalog, buildBadgeCounters(visitorData), ownedBadgeNames);
     if (toGrant.length === 0) return [];
 
-    const granted: string[] = [];
+    const granted: typeof toGrant = [];
     for (const badge of toGrant) {
       try {
         await visitor.grantInventoryItem(badge.inventoryItem, 1);
-        granted.push(badge.name);
+        granted.push(badge);
         ownedBadgeNames.add(badge.name);
       } catch (error) {
         console.warn(`syncBadges: failed to grant "${badge.name}"`, error);
       }
     }
 
+    // Fire a platform toast per newly-granted badge so the user actually
+    // sees that they just earned something. `grantInventoryItem` is silent
+    // on its own — matches the sdk-badges reference pattern. Fire-and-
+    // forget: a failed toast must not block the badge grant that already
+    // succeeded.
+    for (const badge of granted) {
+      visitor
+        .fireToast({
+          groupId: `mm-badge-${badge.name}`,
+          title: `You unlocked the ${badge.displayName || badge.name} badge!`,
+          text: badge.description || "",
+        })
+        .catch((error) => console.warn(`syncBadges: badge toast failed for "${badge.name}"`, error));
+    }
+
+    const grantedNames = granted.map((b) => b.name);
     if (granted.length > 0) {
-      console.log(`syncBadges: granted ${granted.length} badge(s) to ${profileId}: ${granted.join(", ")}`);
+      console.log(`syncBadges: granted ${granted.length} badge(s) to ${profileId}: ${grantedNames.join(", ")}`);
       // One `badge_earned` analytic per newly-granted badge, batched into a
       // single no-op visitor write so we don't fan out one request per
       // grant. Dedup per (profile, badge name) — grants are already gated
@@ -65,7 +81,7 @@ export const syncBadges = async ({
         await visitor.updateDataObject(
           {},
           {
-            analytics: granted.map((name) => ({
+            analytics: grantedNames.map(() => ({
               analyticName: "badge_earned",
               profileId,
               urlSlug,
@@ -77,7 +93,7 @@ export const syncBadges = async ({
         console.warn("syncBadges: badge_earned analytic write failed", error);
       }
     }
-    return granted;
+    return grantedNames;
   } catch (error) {
     console.warn("syncBadges: unexpected error", error);
     return [];
