@@ -13,8 +13,23 @@ interface DropMonsterInput {
   monsterAssetData: MonsterAssetDataObject;
 }
 
-const OFFSET_X = 80;
-const OFFSET_Y = 0;
+/**
+ * Monsters are dropped on a ring around the visitor so they never land on
+ * top of them AND repeat drops from the same spot don't stack. Each drop
+ * picks a random angle (0..2π) and a radius between
+ * `MIN_RADIUS` and `MIN_RADIUS + RADIUS_RANGE`.
+ */
+const MIN_RADIUS = 80;
+const RADIUS_RANGE = 100;
+
+const randomOffset = (): { x: number; y: number } => {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = MIN_RADIUS + Math.random() * RADIUS_RANGE;
+  return {
+    x: Math.round(Math.cos(angle) * radius),
+    y: Math.round(Math.sin(angle) * radius),
+  };
+};
 
 /**
  * Drop the finished monster into the world as a new dropped asset.
@@ -36,9 +51,10 @@ export const dropMonsterAsset = async ({
 
     const clickableLink = `${clickableLinkBase.replace(/\/$/, "")}/?screen=single-monster&monsterId=${monsterId}`;
 
+    const offset = randomOffset();
     const position = {
-      x: (visitor?.moveTo?.x ?? 0) + OFFSET_X,
-      y: (visitor?.moveTo?.y ?? 0) + OFFSET_Y,
+      x: (visitor?.moveTo?.x ?? 0) + offset.x,
+      y: (visitor?.moveTo?.y ?? 0) + offset.y,
     };
 
     const droppedAsset = await DroppedAsset.drop(asset, {
