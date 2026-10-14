@@ -86,6 +86,9 @@ const makeVisitor = () => {
         analyticsFired.push({ analyticName: a.analyticName, uniqueKey: a.uniqueKey });
       }
     }),
+    // syncBadges fires one platform toast per grant (fire-and-forget).
+    // The mock just resolves — tests don't currently assert on toast calls.
+    fireToast: jest.fn().mockResolvedValue({ success: true }),
   } as any;
 };
 
