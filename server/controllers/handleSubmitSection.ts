@@ -117,7 +117,6 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
           callerPicks: validation.normalizedPicks,
           callerNameToken: nameToken,
           clickableLinkBase: getBaseUrl(req.hostname),
-          requestHost: req.hostname,
         });
         composedName = finalized.composedName;
         finalizeResult = { imageUrl: finalized.imageUrl, monsterAssetId: finalized.monsterAssetId };
