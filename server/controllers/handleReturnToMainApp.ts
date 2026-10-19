@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { errorHandler, getCredentials, getVisitor, transitionToMainApp } from "@utils/index.js";
+import { Visitor, errorHandler, getCredentials, transitionToMainApp } from "@utils/index.js";
 
 /**
  * POST /api/main-app/return
@@ -16,7 +16,8 @@ export const handleReturnToMainApp = async (req: Request, res: Response) => {
   try {
     const source = req.body && req.body.interactiveNonce ? req.body : req.query;
     const credentials = getCredentials(source);
-    const { visitor } = await getVisitor(credentials);
+    const { urlSlug, visitorId } = credentials;
+    const visitor = await Visitor.create(visitorId, urlSlug, { credentials });
 
     await transitionToMainApp({
       visitor,

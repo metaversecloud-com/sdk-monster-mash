@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
+import { VisitorInterface } from "@rtsdk/topia";
 import { KeyAssetDataObject } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor, transitionToDrawer } from "@utils/index.js";
+import { Visitor, errorHandler, getCredentials, getKeyAsset, getVisitor, transitionToDrawer } from "@utils/index.js";
 
 /**
  * POST /api/monsters/:id/open
@@ -21,13 +22,23 @@ export const handleOpenMonsterDrawer = async (req: Request, res: Response) => {
     if (!monsterId) return res.status(400).json({ success: false, message: "monsterId required" });
 
     const keyAsset = await getKeyAsset(credentials);
-    const { visitor, visitorData } = await getVisitor(credentials);
     const dataObject = keyAsset.dataObject as KeyAssetDataObject;
 
+    // Monster is on the roster
     const onRoster = !!dataObject.monsters?.[monsterId];
-    const inHistory = !!visitorData.contributedMonsters?.[monsterId];
-    if (!onRoster && !inHistory) {
-      return res.status(404).json({ success: false, message: "Monster not found." });
+    let visitor: VisitorInterface;
+    if (onRoster) {
+      visitor = await Visitor.create(credentials.visitorId, credentials.urlSlug, { credentials });
+    } else {
+      // Monster has been evicted. We need visitorData to confirm
+      // the caller has it in their own contributedMonsters history before
+      // handing them a drawer for a record that isn't on the roster.
+      const { visitor: v, visitorData } = await getVisitor(credentials);
+      const inHistory = !!visitorData.contributedMonsters?.[monsterId];
+      if (!inHistory) {
+        return res.status(404).json({ success: false, message: "Monster not found." });
+      }
+      visitor = v;
     }
 
     await transitionToDrawer({

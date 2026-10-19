@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { errorHandler, getCredentials, getVisitor } from "@utils/index.js";
+import { Visitor, errorHandler, getCredentials } from "@utils/index.js";
 
 const ALLOWED_TABS = new Set(["create", "gallery", "vote"] as const);
 type AllowedTab = "create" | "gallery" | "vote";
@@ -19,13 +19,13 @@ export const handleTabView = async (req: Request, res: Response) => {
   try {
     const source = req.body && req.body.interactiveNonce ? req.body : req.query;
     const credentials = getCredentials(source);
-    const { profileId, urlSlug } = credentials;
+    const { profileId, urlSlug, visitorId } = credentials;
     const tab = String(req.body?.tab ?? "") as AllowedTab;
     if (!ALLOWED_TABS.has(tab)) {
       return res.status(400).json({ success: false, message: "valid tab required" });
     }
 
-    const { visitor } = await getVisitor(credentials);
+    const visitor = await Visitor.create(visitorId, urlSlug, { credentials });
     const today = new Date().toISOString().slice(0, 10);
     await visitor
       .updateDataObject(
