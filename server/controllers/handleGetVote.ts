@@ -117,7 +117,16 @@ const buildMatchup = (
   cycle: NonNullable<KeyAssetDataObject["currentVoteCycle"]>,
   dataObject: KeyAssetDataObject,
 ): VoteMatchupPayload | null => {
-  const raw = pickMatchup(cycle);
+  // Prune stale ids from the pool before picking. `evictFinishedIfCapped`
+  // removes monsters from `dataObject.monsters` when the roster hits
+  // FINISHED_CAP, but does NOT prune `currentVoteCycle.poolMonsterIds`.
+  // Without this filter, `pickMatchup` can land on an id whose roster
+  // entry has been evicted — the subsequent `monsterToGallery` returns
+  // null and we silently serve an empty Vote tab.
+  const roster = dataObject.monsters ?? {};
+  const livePool = (cycle.poolMonsterIds ?? []).filter((id) => !!roster[id]);
+  if (livePool.length < 2) return null;
+  const raw = pickMatchup({ ...cycle, poolMonsterIds: livePool });
   if (!raw) return null;
   const [aId, bId] = raw.pair;
   const a = monsterToGallery(dataObject, aId);
