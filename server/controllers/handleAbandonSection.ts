@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { KeyAssetDataObject, MonsterMashVisitorData } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, invalidateKeyAssetCache } from "@utils/index.js";
 
 /**
  * POST /api/monsters/:id/abandon
@@ -51,6 +51,7 @@ export const handleAbandonSection = async (req: Request, res: Response) => {
           },
         },
       );
+      invalidateKeyAssetCache(urlSlug);
     }
 
     // Always clear the visitor's activeDraft if it points here.

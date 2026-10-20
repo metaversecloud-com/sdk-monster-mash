@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { UserInterface } from "@rtsdk/topia";
 import { KeyAssetDataObject, MonsterMashVisitorData, VisitorDataObjectType } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor, User, World } from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, invalidateKeyAssetCache, User, World } from "@utils/index.js";
 
 /**
  * DELETE /api/monsters/:id
@@ -92,6 +92,7 @@ export const handleDeleteMonster = async (req: Request, res: Response) => {
         },
       ],
     });
+    invalidateKeyAssetCache(urlSlug);
 
     // 2. If completed, remove the dropped asset from the world (best-effort).
     if (isComplete && monsterAssetId) {

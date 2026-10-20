@@ -60,51 +60,56 @@ export const enqueueWinBannersByProfile = async (
   bannersByProfileId: Map<string, WinBannerEntry[]>,
   callerVisitor: VisitorInterface | null,
 ) => {
-  for (const [profileId, banners] of bannersByProfileId) {
-    if (banners.length === 0) continue;
-    try {
-      const isCaller = profileId === credentials.profileId && !!callerVisitor;
-      const target = isCaller
-        ? (callerVisitor as VisitorInterface)
-        : await User.create({ profileId, credentials: { ...credentials, profileId } });
-      // One `award_won` analytic per contributor per winning monster
-      const analytics = banners.map((b) => ({
-        analyticName: "award_won",
-        profileId,
-        urlSlug: credentials.urlSlug,
-        uniqueKey: profileId,
-      }));
-      await patchQueues(
-        target,
-        credentials,
-        (scoped) => {
-          const nextContributed = { ...(scoped.contributedMonsters ?? {}) };
-          for (const b of banners) {
-            const existing = nextContributed[b.monsterId];
-            if (!existing) continue; // profile didn't contribute to this monster — nothing to stamp.
-            const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
-            // De-dupe: skip if the same award (same monster + category + place)
-            // is already present. advanceWeeklyCycle normally only fires once
-            // per monster, but a second main-app open mid-fanout could re-enter.
-            const alreadyAwarded = (existing.awards ?? []).some(
-              (a) => a.category === award.category && a.place === award.place,
-            );
-            nextContributed[b.monsterId] = alreadyAwarded
-              ? existing
-              : { ...existing, awards: [...(existing.awards ?? []), award] };
-          }
-          return {
-            ...scoped,
-            contributedMonsters: nextContributed,
-            pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
-          };
-        },
-        analytics,
-      );
-    } catch (error) {
-      console.warn(`enqueueWinBannersByProfile: could not enqueue for ${profileId}`, error);
-    }
-  }
+  // Fan out in parallel — fires inside the main-app GET exactly when a
+  // cycle just closed, i.e. the moment of peak concurrent load. Serial
+  // per-peer was adding O(peers) × round-trip latency to that one request.
+  await Promise.all(
+    [...bannersByProfileId].map(async ([profileId, banners]) => {
+      if (banners.length === 0) return;
+      try {
+        const isCaller = profileId === credentials.profileId && !!callerVisitor;
+        const target = isCaller
+          ? (callerVisitor as VisitorInterface)
+          : await User.create({ profileId, credentials: { ...credentials, profileId } });
+        // One `award_won` analytic per contributor per winning monster
+        const analytics = banners.map(() => ({
+          analyticName: "award_won",
+          profileId,
+          urlSlug: credentials.urlSlug,
+          uniqueKey: profileId,
+        }));
+        await patchQueues(
+          target,
+          credentials,
+          (scoped) => {
+            const nextContributed = { ...(scoped.contributedMonsters ?? {}) };
+            for (const b of banners) {
+              const existing = nextContributed[b.monsterId];
+              if (!existing) continue; // profile didn't contribute to this monster — nothing to stamp.
+              const award = { category: b.category, place: b.place, awardedAt: b.awardedAt };
+              // De-dupe: skip if the same award (same monster + category + place)
+              // is already present. advanceWeeklyCycle normally only fires once
+              // per monster, but a second main-app open mid-fanout could re-enter.
+              const alreadyAwarded = (existing.awards ?? []).some(
+                (a) => a.category === award.category && a.place === award.place,
+              );
+              nextContributed[b.monsterId] = alreadyAwarded
+                ? existing
+                : { ...existing, awards: [...(existing.awards ?? []), award] };
+            }
+            return {
+              ...scoped,
+              contributedMonsters: nextContributed,
+              pendingWinBanners: [...(scoped.pendingWinBanners ?? []), ...banners],
+            };
+          },
+          analytics,
+        );
+      } catch (error) {
+        console.warn(`enqueueWinBannersByProfile: could not enqueue for ${profileId}`, error);
+      }
+    }),
+  );
 };
 
 export const enqueueCompletionBannersForProfiles = async (
@@ -113,18 +118,21 @@ export const enqueueCompletionBannersForProfiles = async (
   entry: CompletionBannerEntry,
   callerVisitor: VisitorInterface | null,
 ) => {
-  for (const profileId of profileIds) {
-    try {
-      const isCaller = profileId === credentials.profileId && !!callerVisitor;
-      const target = isCaller
-        ? (callerVisitor as VisitorInterface)
-        : await User.create({ profileId, credentials: { ...credentials, profileId } });
-      await patchQueues(target, credentials, (scoped) => ({
-        ...scoped,
-        pendingCompletionBanners: [...(scoped.pendingCompletionBanners ?? []), entry],
-      }));
-    } catch (error) {
-      console.warn(`enqueueCompletionBannersForProfiles: could not enqueue for ${profileId}`, error);
-    }
-  }
+  // Parallel fan-out — same rationale as win-banner enqueue above.
+  await Promise.all(
+    profileIds.map(async (profileId) => {
+      try {
+        const isCaller = profileId === credentials.profileId && !!callerVisitor;
+        const target = isCaller
+          ? (callerVisitor as VisitorInterface)
+          : await User.create({ profileId, credentials: { ...credentials, profileId } });
+        await patchQueues(target, credentials, (scoped) => ({
+          ...scoped,
+          pendingCompletionBanners: [...(scoped.pendingCompletionBanners ?? []), entry],
+        }));
+      } catch (error) {
+        console.warn(`enqueueCompletionBannersForProfiles: could not enqueue for ${profileId}`, error);
+      }
+    }),
+  );
 };

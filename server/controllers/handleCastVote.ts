@@ -16,6 +16,7 @@ import {
   getKeyAsset,
   getRibbonFromStoredWinners,
   getVisitor,
+  invalidateKeyAssetCache,
   pickMatchup,
 } from "@utils/index.js";
 
@@ -66,13 +67,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
       });
     }
 
-    await keyAsset.fetchDataObject();
-    const freshCycle = (keyAsset.dataObject as KeyAssetDataObject).currentVoteCycle;
-    if (!freshCycle || freshCycle.cycleId !== cycle.cycleId) {
-      return res.status(409).json({ success: false, message: "The cycle just closed." });
-    }
-
-    const tallies = { ...(freshCycle.tallies ?? {}) };
+    const tallies = { ...(cycle.tallies ?? {}) };
     const winnerRow = { ...(tallies[winnerMonsterId] ?? { shown: 0, wins: 0 }) };
     winnerRow.wins += 1;
     winnerRow.shown += 1;
@@ -85,12 +80,12 @@ export const handleCastVote = async (req: Request, res: Response) => {
     // `timesShown`. Tallies get wiped when a cycle closes, so without this
     // mirror we'd lose the "how often has this monster been seen" signal
     // that `advanceWeeklyCycle`'s short-pool backfill ranks on.
-    const freshMonsters = (keyAsset.dataObject as KeyAssetDataObject).monsters ?? {};
-    const winnerTimesShown = (freshMonsters[winnerMonsterId]?.timesShown ?? 0) + 1;
-    const loserTimesShown = (freshMonsters[loserMonsterId]?.timesShown ?? 0) + 1;
+    const rosterMonsters = dataObject.monsters ?? {};
+    const winnerTimesShown = (rosterMonsters[winnerMonsterId]?.timesShown ?? 0) + 1;
+    const loserTimesShown = (rosterMonsters[loserMonsterId]?.timesShown ?? 0) + 1;
 
     const nextCycle = {
-      ...freshCycle,
+      ...cycle,
       tallies,
     };
 
@@ -116,6 +111,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
         ],
       },
     );
+    invalidateKeyAssetCache(urlSlug);
 
     // Visitor tally. `votesCastToday` reseeds on a new ET date / new cycle.
     // `votesCastThisWeek` + `votesByWeek` still track per-cycle counts even

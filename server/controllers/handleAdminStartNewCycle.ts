@@ -8,6 +8,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
 } from "@utils/index.js";
 
 /**
@@ -87,6 +88,7 @@ export const handleAdminStartNewCycle = async (req: Request, res: Response) => {
         },
       ],
     });
+    invalidateKeyAssetCache(urlSlug);
 
     // Win-banner fanout — bucket by profileId so each peer takes a single
     // write even when they contributed to multiple winners. Caller's own

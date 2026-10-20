@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, invalidateKeyAssetCache } from "@utils/index.js";
 
 /**
  * POST /api/leaderboard/reset
@@ -29,6 +29,7 @@ export const handleResetLeaderboard = async (req: Request, res: Response) => {
         ],
       },
     );
+    invalidateKeyAssetCache(urlSlug);
     return res.json({ success: true, data: { leaderboard: [] } });
   } catch (error) {
     return errorHandler({

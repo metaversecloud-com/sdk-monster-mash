@@ -1,6 +1,7 @@
 import { VisitorInterface } from "@rtsdk/topia";
 import { MonsterMashVisitorData } from "@shared/types/index.js";
 import { Credentials } from "../../types/index.js";
+import { invalidateVisitorInventory } from "../visitorInventoryCache.js";
 import { buildBadgeCounters } from "./buildBadgeCounters.js";
 import { evaluateBadges } from "./evaluateBadges.js";
 import { getBadgeCatalog } from "./getBadgeCatalog.js";
@@ -53,6 +54,10 @@ export const syncBadges = async ({
         console.warn(`syncBadges: failed to grant "${badge.name}"`, error);
       }
     }
+
+    // Drop the per-profile inventory cache so the next read-path request
+    // on this pod sees the just-granted badges instead of waiting for TTL.
+    if (granted.length > 0) invalidateVisitorInventory(profileId);
 
     // Fire a platform toast per newly-granted badge so the user actually
     // sees that they just earned something. `grantInventoryItem` is silent

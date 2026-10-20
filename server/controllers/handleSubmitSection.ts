@@ -7,6 +7,8 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
+  invalidatePeerDrafts,
   validatePicks,
 } from "@utils/index.js";
 
@@ -162,6 +164,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         },
       ],
     });
+    invalidateKeyAssetCache(urlSlug);
 
     // Single visitor write. Combines four things in one patch:
     //   1. Drop activeDraft (the lock is spent)
@@ -213,6 +216,11 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
 
     const visitorKey = `${urlSlug}-${sceneDropId}`;
     await visitor.updateDataObject({ [visitorKey]: nextVisitorData }, {});
+
+    // Drop this profile from the peer-drafts cache so a teammate opening
+    // `/main-app` sees the just-submitted section's picks right away
+    // instead of up to the TTL (~30s) later.
+    invalidatePeerDrafts(profileId);
 
     return res.json({
       success: true,

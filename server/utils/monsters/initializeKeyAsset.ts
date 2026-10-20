@@ -15,7 +15,6 @@ import { standardizeError } from "../standardizeError.js";
  */
 export const initializeKeyAsset = async (keyAsset: DroppedAssetInterface) => {
   try {
-    await keyAsset.fetchDataObject();
     const existing = (keyAsset.dataObject || {}) as Partial<KeyAssetDataObject>;
 
     if (existing.schemaVersion === 1) return;
@@ -36,7 +35,11 @@ export const initializeKeyAsset = async (keyAsset: DroppedAssetInterface) => {
       .setDataObject(defaults, { lock: { lockId, releaseLock: true } })
       .catch(() => console.warn("initializeKeyAsset: lock contention, another process initialized first"));
 
-    await keyAsset.fetchDataObject();
+    // Mirror the write into the in-memory instance so the caller sees the
+    // defaults without a round-trip. On lock contention we don't know what
+    // the winning writer wrote, but defaults are the only possible shape
+    // at first-init so this is safe.
+    (keyAsset as { dataObject: KeyAssetDataObject }).dataObject = defaults;
   } catch (error) {
     throw standardizeError(error);
   }

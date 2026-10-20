@@ -8,5 +8,6 @@ export * from "./expireStaleLocks.js";
 export * from "./finalizeMonster.js";
 export * from "./getKeyAsset.js";
 export * from "./initializeKeyAsset.js";
+export * from "./keyAssetCache.js";
 export * from "./pickRandomSection.js";
 export * from "./validatePicks.js";
