@@ -136,12 +136,22 @@ export const handleCastVote = async (req: Request, res: Response) => {
     const hitCap = hitDailyCap;
     let next: VoteMatchupPayload | null = null;
     if (!hitCap) {
-      const raw = pickMatchup(nextCycle);
-      if (raw) {
-        const [aId, bId] = raw.pair;
-        const a = monsterToGallery(dataObject, aId);
-        const b = monsterToGallery(dataObject, bId);
-        if (a && b) next = { matchupId: raw.matchupId, pair: [a, b] };
+      // Prune stale ids from the pool before picking — see note in
+      // handleGetVote.buildMatchup. `evictFinishedIfCapped` removes
+      // monsters from `dataObject.monsters` when the roster hits
+      // FINISHED_CAP but doesn't prune `currentVoteCycle.poolMonsterIds`,
+      // so `pickMatchup` can land on an evicted id and `monsterToGallery`
+      // silently returns null.
+      const roster = dataObject.monsters ?? {};
+      const livePool = (nextCycle.poolMonsterIds ?? []).filter((id) => !!roster[id]);
+      if (livePool.length >= 2) {
+        const raw = pickMatchup({ ...nextCycle, poolMonsterIds: livePool });
+        if (raw) {
+          const [aId, bId] = raw.pair;
+          const a = monsterToGallery(dataObject, aId);
+          const b = monsterToGallery(dataObject, bId);
+          if (a && b) next = { matchupId: raw.matchupId, pair: [a, b] };
+        }
       }
     }
 

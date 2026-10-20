@@ -17,10 +17,12 @@ import {
   errorHandler,
   evictOrphanInProgressMonsters,
   expireStaleLocks,
+  findBrokenMonsterId,
   getCachedPeerDrafts,
   getCredentials,
   getKeyAsset,
   getVisitor,
+  healBrokenMonster,
   invalidateKeyAssetCache,
   refreshContent,
   setCachedPeerDrafts,
@@ -144,6 +146,21 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
           functionName: "handleGetMainApp",
           message: "Non-fatal: win-banner fanout failed",
         }),
+      );
+    }
+
+    // Opportunistic heal — ONE monster per request, fire-and-forget. During
+    // the day-one CloudFront incident some monsters finalized with empty
+    // picks for peers whose `User.fetchDataObject` 403'd, giving us
+    // roster entries with `name === ""` and partially-rendered images.
+    // Each `/main-app` open heals the next broken monster it finds (dedup'd
+    // per monsterId on this pod to avoid redundant work). Costs 0 SDK calls
+    // when the roster is clean; otherwise the heal runs in the background
+    // and doesn't delay the response.
+    const brokenMonsterId = findBrokenMonsterId(monsters);
+    if (brokenMonsterId) {
+      healBrokenMonster({ credentials, keyAsset, monsterId: brokenMonsterId }).catch((error) =>
+        console.warn(`handleGetMainApp: heal fire-and-forget crashed for ${brokenMonsterId}`, error),
       );
     }
 

@@ -7,6 +7,7 @@ export * from "./evictOrphanInProgress.js";
 export * from "./expireStaleLocks.js";
 export * from "./finalizeMonster.js";
 export * from "./getKeyAsset.js";
+export * from "./healBrokenMonster.js";
 export * from "./initializeKeyAsset.js";
 export * from "./keyAssetCache.js";
 export * from "./pickRandomSection.js";
