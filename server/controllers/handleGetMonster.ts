@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
-import { GalleryMonster, KeyAssetDataObject, SingleMonsterResponseData } from "@shared/types/index.js";
+import {
+  GalleryMonster,
+  KeyAssetDataObject,
+  MonsterAssetDataObject,
+  SingleMonsterResponseData,
+} from "@shared/types/index.js";
 import {
   contributorDisplayNamesFromEntry,
   errorHandler,
@@ -7,6 +12,7 @@ import {
   getKeyAsset,
   getRibbonFromStoredWinners,
   getVisitor,
+  World,
 } from "@utils/index.js";
 
 /**
@@ -14,7 +20,11 @@ import {
  *
  * Payload for the Single Monster View drawer. Sources monster data from the
  * roster; when the monster has been evicted, falls back to the caller's
- * `visitorData.contributedMonsters` history. Admins see `canDelete: true`.
+ * `visitorData.contributedMonsters` history. If both miss but the dropped
+ * monster asset is still in the world (orphan from a pre-this-PR eviction
+ * where `World.deleteDroppedAssets` silently failed), serves from the
+ * asset's own dataObject so a click never shows "Monster not found" when
+ * the art is still right there. Admins see `canDelete: true`.
  */
 export const handleGetMonster = async (req: Request, res: Response) => {
   try {
@@ -31,6 +41,57 @@ export const handleGetMonster = async (req: Request, res: Response) => {
     const contribEntry = visitorData.contributedMonsters?.[monsterId];
 
     if (!entry && !contribEntry) {
+      // Last-resort: this monster was evicted from the roster (or
+      // `deleteBrokenMonster` scrubbed it) but its dropped-monster asset
+      // is still in the world — pull the monster details from
+      // the asset's own dataObject.
+      try {
+        const world = World.create(urlSlug, { credentials });
+        const matches = await world.fetchDroppedAssetsWithUniqueName({
+          uniqueName: `MonsterMash-monster-${monsterId}`,
+        });
+        const monsterAsset = matches?.[0];
+        if (monsterAsset) {
+          await monsterAsset.fetchDataObject();
+          const assetData = (monsterAsset.dataObject || {}) as Partial<MonsterAssetDataObject>;
+          if (assetData.name && assetData.imageUrl) {
+            const contributorProfileIds: string[] = assetData.contributorProfileIds ?? [];
+            const contributorDisplayNames: string[] = assetData.contributorDisplayNames ?? [];
+            const callerContributed = contributorProfileIds.includes(profileId);
+            const monster: GalleryMonster = {
+              monsterId,
+              monsterAssetId: monsterAsset.id as string,
+              name: assetData.name,
+              birthdate: assetData.birthdate ?? 0,
+              imageUrl: assetData.imageUrl,
+              contributorProfileIds,
+              contributorDisplayNames,
+              latestAward: undefined,
+              callerContributed,
+              fromCallerHistory: false,
+            };
+            await visitor
+              .updateDataObject(
+                {},
+                {
+                  analytics: [
+                    {
+                      analyticName: callerContributed ? "monster_viewed_own" : "monster_viewed_other",
+                      profileId,
+                      urlSlug,
+                      uniqueKey: profileId,
+                    },
+                  ],
+                },
+              )
+              .catch(() => {});
+            const payload: SingleMonsterResponseData = { monster, canDelete: !!isAdmin };
+            return res.json({ success: true, data: payload });
+          }
+        }
+      } catch (error) {
+        console.warn(`handleGetMonster: orphan-asset fallback failed for ${monsterId}`, error);
+      }
       return res.status(404).json({ success: false, message: "Monster not found." });
     }
 
