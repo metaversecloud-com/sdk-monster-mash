@@ -16,6 +16,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
   pickRandomSection,
   transitionToDrawer,
 } from "@utils/index.js";
@@ -102,6 +103,7 @@ export const handleStartMonster = async (req: Request, res: Response) => {
           analytics: [{ analyticName: "section_claimed_1", profileId, urlSlug, uniqueKey: profileId }],
         },
       );
+      invalidateKeyAssetCache(urlSlug);
     } catch (error) {
       return res.status(409).json({
         success: false,

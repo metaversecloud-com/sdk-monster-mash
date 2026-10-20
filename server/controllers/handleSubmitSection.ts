@@ -7,6 +7,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
   invalidatePeerDrafts,
   validatePicks,
 } from "@utils/index.js";
@@ -163,6 +164,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         },
       ],
     });
+    invalidateKeyAssetCache(urlSlug);
 
     // Single visitor write. Combines four things in one patch:
     //   1. Drop activeDraft (the lock is spent)

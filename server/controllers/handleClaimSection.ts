@@ -6,6 +6,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
   transitionToDrawer,
 } from "@utils/index.js";
 
@@ -89,6 +90,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
           },
         },
       );
+      invalidateKeyAssetCache(urlSlug);
 
       // Refresh caller lastActivityAt in the same visitor write.
       const visitorKey = `${urlSlug}-${sceneDropId}`;
@@ -159,6 +161,7 @@ export const handleClaimSection = async (req: Request, res: Response) => {
           releaseLock: true,
         },
       });
+      invalidateKeyAssetCache(urlSlug);
     } catch {
       return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
     }

@@ -16,6 +16,7 @@ import {
   getKeyAsset,
   getRibbonFromStoredWinners,
   getVisitor,
+  invalidateKeyAssetCache,
   pickMatchup,
 } from "@utils/index.js";
 
@@ -110,6 +111,7 @@ export const handleCastVote = async (req: Request, res: Response) => {
         ],
       },
     );
+    invalidateKeyAssetCache(urlSlug);
 
     // Visitor tally. `votesCastToday` reseeds on a new ET date / new cycle.
     // `votesCastThisWeek` + `votesByWeek` still track per-cycle counts even

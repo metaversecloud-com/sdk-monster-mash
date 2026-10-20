@@ -1,7 +1,9 @@
 import { DroppedAssetInterface } from "@rtsdk/topia";
+import { KeyAssetDataObject } from "@shared/types/index.js";
 import { Credentials } from "../../types/index.js";
 import { DroppedAsset, World } from "../topiaInit.js";
 import { initializeKeyAsset } from "./initializeKeyAsset.js";
+import { getCachedKeyAssetData, setCachedKeyAssetData } from "./keyAssetCache.js";
 import { standardizeError } from "../standardizeError.js";
 
 /**
@@ -32,13 +34,30 @@ export const getKeyAsset = async (credentials: Credentials): Promise<DroppedAsse
   try {
     const { assetId, urlSlug } = credentials;
 
-    // Step 1 — fast path: the caller clicked the key asset itself.
+    // Fast path: short-TTL cache. If a prior request in the last few seconds
+    // already resolved the key asset + fetched its dataObject, build a fresh
+    // controller against the cached id (SYNC — `DroppedAsset.create` doesn't
+    // hit the network) and seed `.dataObject` from the cache. Zero SDK calls
+    // on cache hit. Every keyAsset write path invalidates (see
+    // `invalidateKeyAssetCache` call sites) so cross-request writes are
+    // visible on the next read.
+    const cached = getCachedKeyAssetData(urlSlug);
+    if (cached) {
+      const keyAsset = DroppedAsset.create(cached.keyAssetId, urlSlug, {
+        credentials: { ...credentials, assetId: cached.keyAssetId },
+      }) as DroppedAssetInterface;
+      (keyAsset as { dataObject: KeyAssetDataObject }).dataObject = cached.dataObject;
+      return keyAsset;
+    }
+
+    // Step 1 — resolve to the key asset: the caller clicked the key asset itself.
     const clickedAsset = await DroppedAsset.get(assetId, urlSlug, { credentials });
     if (!clickedAsset) throw new Error("Monster Mash: asset not found");
     const clickedUniqueName = (clickedAsset as unknown as { uniqueName?: string }).uniqueName ?? "";
     if (clickedUniqueName === KEY_ASSET_UNIQUE_NAME) {
       await clickedAsset.fetchDataObject();
       await initializeKeyAsset(clickedAsset);
+      setCachedKeyAssetData(urlSlug, clickedAsset.id as string, clickedAsset.dataObject as KeyAssetDataObject);
       return clickedAsset;
     }
 
@@ -55,6 +74,7 @@ export const getKeyAsset = async (credentials: Credentials): Promise<DroppedAsse
     const keyAsset = matches[0];
     await keyAsset.fetchDataObject();
     await initializeKeyAsset(keyAsset);
+    setCachedKeyAssetData(urlSlug, keyAsset.id as string, keyAsset.dataObject as KeyAssetDataObject);
     return keyAsset;
   } catch (error) {
     throw standardizeError(error);

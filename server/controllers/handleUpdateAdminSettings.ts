@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { KeyAssetDataObject } from "@shared/types/index.js";
-import { errorHandler, getCredentials, getKeyAsset, getVisitor } from "@utils/index.js";
+import { errorHandler, getCredentials, getKeyAsset, getVisitor, invalidateKeyAssetCache } from "@utils/index.js";
 
 /**
  * PUT /api/admin/settings
@@ -60,6 +60,7 @@ export const handleUpdateAdminSettings = async (req: Request, res: Response) => 
         },
       ],
     });
+    invalidateKeyAssetCache(urlSlug);
 
     return res.json({ success: true, data: { weeklyVotingEnabled, endedVote } });
   } catch (error) {

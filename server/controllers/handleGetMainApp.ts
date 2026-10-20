@@ -21,6 +21,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidateKeyAssetCache,
   refreshContent,
   setCachedPeerDrafts,
   syncBadges,
@@ -107,6 +108,7 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
           message: "Non-fatal: could not persist opportunistic mutations",
         }),
       );
+      invalidateKeyAssetCache(urlSlug);
     }
 
     // Win-banner fanout - bucket banners by profileId first so each peer
