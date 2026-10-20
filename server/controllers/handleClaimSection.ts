@@ -66,24 +66,25 @@ export const handleClaimSection = async (req: Request, res: Response) => {
         return res.status(409).json({ success: false, message: "Section was taken by someone else." });
       }
 
-      // Rewrite the slot as locked-to-us (idempotent if already correct).
-      const updatedSections = {
-        ...entry.sections,
-        [section]: {
-          status: "locked" as const,
-          contributorProfileId: profileId,
-          contributorDisplayName: displayName,
-          lockedAt: currentSlot?.status === "locked" ? currentSlot.lockedAt ?? now : now,
-        },
+      // Rewrite JUST this section as locked-to-us (dot-path write — the
+      // other two sections aren't touched, so two users claiming different
+      // sections of the same monster can't clobber each other).
+      const nextSlot = {
+        status: "locked" as const,
+        contributorProfileId: profileId,
+        contributorDisplayName: displayName,
+        lockedAt: currentSlot?.status === "locked" ? currentSlot.lockedAt ?? now : now,
       };
       await keyAsset.updateDataObject(
         {
-          [`monsters.${monsterId}.sections`]: updatedSections,
+          [`monsters.${monsterId}.sections.${section}`]: nextSlot,
           [`monsters.${monsterId}.lastEditedAt`]: now,
         },
         {
+          // Lock on `monsterId` only — concurrent claims on the SAME monster
+          // (any section) serialize at the SDK layer; the loser gets 409.
           lock: {
-            lockId: `${keyAsset.id}-claim-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
+            lockId: `${keyAsset.id}-claim-${monsterId}-${Math.round(Date.now() / 5000) * 5000}`,
             releaseLock: true,
           },
         },
@@ -135,33 +136,32 @@ export const handleClaimSection = async (req: Request, res: Response) => {
       });
     }
 
-    // Re-verify section is available
-    await keyAsset.fetchDataObject();
-    const freshEntry = (keyAsset.dataObject as KeyAssetDataObject).monsters?.[monsterId];
-    if (!freshEntry || freshEntry.sections?.[section]?.status !== "available") {
-      return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
-    }
-
-    const updatedSections = {
-      ...freshEntry.sections,
-      [section]: {
-        status: "locked" as const,
-        contributorProfileId: profileId,
-        contributorDisplayName: displayName,
-        lockedAt: now,
-      },
+    // Dot-path write JUST this one section — two users claiming different
+    // sections of the same monster no longer clobber each other, and the
+    // per-monster lockId makes same-section races serialize cleanly
+    // (loser gets 409 from the SDK's "data object busy" and the client
+    // treats it as the already-shown race condition).
+    const nextSlot = {
+      status: "locked" as const,
+      contributorProfileId: profileId,
+      contributorDisplayName: displayName,
+      lockedAt: now,
     };
     const patch = {
-      [`monsters.${monsterId}.sections`]: updatedSections,
+      [`monsters.${monsterId}.sections.${section}`]: nextSlot,
       [`monsters.${monsterId}.lastEditedAt`]: now,
     };
 
-    await keyAsset.updateDataObject(patch, {
-      lock: {
-        lockId: `${keyAsset.id}-claim-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
-        releaseLock: true,
-      },
-    });
+    try {
+      await keyAsset.updateDataObject(patch, {
+        lock: {
+          lockId: `${keyAsset.id}-claim-${monsterId}-${Math.round(Date.now() / 5000) * 5000}`,
+          releaseLock: true,
+        },
+      });
+    } catch {
+      return res.status(409).json({ success: false, message: "That section was just claimed by someone else." });
+    }
 
     const nextVisitorData: MonsterMashVisitorData = {
       ...visitorData,
@@ -179,15 +179,18 @@ export const handleClaimSection = async (req: Request, res: Response) => {
     };
     const visitorKey = `${urlSlug}-${sceneDropId}`;
     // Count how many sections are now on-board for THIS monster (locked +
-    // done). The claim we just wrote is included, so the count becomes the
-    // 1/2/3 ordinal: 1 = this is the first section anyone's holding (rare
-    // — only after an abandon chain), 2 = joined a monster that already had
-    // one section in play, 3 = the final section landing. Clamp defensively
-    // so a roster shape mismatch can't send a stray `section_claimed_0`.
-    const sectionsOnBoard = Object.values(updatedSections).filter(
-      (s) => s.status === "locked" || s.status === "done",
+    // done). The claim we just wrote adds exactly 1 to the pre-claim count
+    // of the other two sections — pre-claim, our section was `available`
+    // (verified at line 128) so it didn't contribute to `previousOnBoard`.
+    // The 1/2/3 ordinal: 1 = this is the first section anyone's holding
+    // (rare — only after an abandon chain), 2 = joined a monster that
+    // already had one section in play, 3 = the final section landing.
+    // Clamp defensively so a roster shape mismatch can't send a stray
+    // `section_claimed_0`.
+    const previousOnBoard = Object.values(entry.sections ?? {}).filter(
+      (s) => s?.status === "locked" || s?.status === "done",
     ).length;
-    const claimOrder = Math.min(3, Math.max(1, sectionsOnBoard));
+    const claimOrder = Math.min(3, Math.max(1, previousOnBoard + 1));
     await visitor.updateDataObject(
       { [visitorKey]: nextVisitorData },
       {

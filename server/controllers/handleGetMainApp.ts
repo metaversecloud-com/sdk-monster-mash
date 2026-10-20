@@ -17,10 +17,12 @@ import {
   errorHandler,
   evictOrphanInProgressMonsters,
   expireStaleLocks,
+  getCachedPeerDrafts,
   getCredentials,
   getKeyAsset,
   getVisitor,
   refreshContent,
+  setCachedPeerDrafts,
   syncBadges,
   User,
 } from "@utils/index.js";
@@ -390,10 +392,10 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
  * exactly like before.
  *
  * Cost: one `User.create + fetchDataObject` per UNIQUE peer we need picks
- * from, fired in parallel. A peer who contributed to multiple in-progress
- * monsters (same person on two of the caller's monsters) is still fetched
- * exactly once — we collect every peerId needed up front, dedupe via a
- * `Set`, and `Promise.all` the fetches before the merge pass.
+ * from AND whose entry isn't fresh in the per-process TTL cache. A peer who
+ * contributed to multiple in-progress monsters (same person on two of the
+ * caller's monsters) is fetched at most once per cache miss. Misses are
+ * fired in parallel; hits cost zero SDK calls.
  */
 const enrichDraftsWithPeerPicks = async ({
   callerDrafts,
@@ -431,29 +433,47 @@ const enrichDraftsWithPeerPicks = async ({
   }
   if (uniquePeerIds.size === 0) return drafts;
 
-  // Pass 2 — fetch every unique peer in PARALLEL (one SDK round trip per
-  // peer, all in flight at once instead of serialized).
-  const peerFetches = await Promise.all(
-    [...uniquePeerIds].map(async (peerProfileId) => {
-      try {
-        const peerUser = User.create({
-          profileId: peerProfileId,
-          credentials: { ...credentials, profileId: peerProfileId },
-        });
-        const raw = ((await peerUser.fetchDataObject()) || {}) as VisitorDataObjectType;
-        const scoped = (raw[scopedKey] as MonsterMashVisitorData | undefined) ?? null;
-        return [peerProfileId, scoped] as const;
-      } catch (error) {
-        console.warn(`enrichDraftsWithPeerPicks: could not fetch peer ${peerProfileId}`, error);
-        return [peerProfileId, null] as const;
-      }
-    }),
-  );
-  const peerCache = new Map(peerFetches);
+  // Pass 2 — serve from the per-process peer-drafts cache where fresh,
+  // then fetch any remaining peers in PARALLEL. A peer who hit multiple
+  // callers in the last 30s is served from memory with zero SDK calls.
+  const peerDraftsByProfile = new Map<string, MonsterMashVisitorData["contributedDrafts"] | null>();
+  const missingPeerIds: string[] = [];
+  for (const peerProfileId of uniquePeerIds) {
+    const cached = getCachedPeerDrafts(peerProfileId, scopedKey);
+    if (cached !== undefined) {
+      peerDraftsByProfile.set(peerProfileId, cached);
+    } else {
+      missingPeerIds.push(peerProfileId);
+    }
+  }
+  if (missingPeerIds.length > 0) {
+    const peerFetches = await Promise.all(
+      missingPeerIds.map(async (peerProfileId) => {
+        try {
+          const peerUser = User.create({
+            profileId: peerProfileId,
+            credentials: { ...credentials, profileId: peerProfileId },
+          });
+          const raw = ((await peerUser.fetchDataObject()) || {}) as VisitorDataObjectType;
+          const scoped = (raw[scopedKey] as MonsterMashVisitorData | undefined) ?? null;
+          const peerDrafts = scoped?.contributedDrafts ?? null;
+          setCachedPeerDrafts(peerProfileId, scopedKey, peerDrafts);
+          return [peerProfileId, peerDrafts] as const;
+        } catch (error) {
+          console.warn(`enrichDraftsWithPeerPicks: could not fetch peer ${peerProfileId}`, error);
+          // Don't cache a soft-failure — next request can retry.
+          return [peerProfileId, null] as const;
+        }
+      }),
+    );
+    for (const [peerProfileId, peerDrafts] of peerFetches) {
+      peerDraftsByProfile.set(peerProfileId, peerDrafts);
+    }
+  }
 
   // Pass 3 — merge each needed tuple's picks into the caller's drafts.
   for (const { monsterId, section, peerProfileId } of needed) {
-    const peerDraft = peerCache.get(peerProfileId)?.contributedDrafts?.[monsterId]?.[section];
+    const peerDraft = peerDraftsByProfile.get(peerProfileId)?.[monsterId]?.[section];
     if (!peerDraft?.picks) continue;
     drafts[monsterId] = {
       ...(drafts[monsterId] ?? {}),

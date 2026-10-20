@@ -7,6 +7,7 @@ import {
   getCredentials,
   getKeyAsset,
   getVisitor,
+  invalidatePeerDrafts,
   validatePicks,
 } from "@utils/index.js";
 
@@ -213,6 +214,11 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
 
     const visitorKey = `${urlSlug}-${sceneDropId}`;
     await visitor.updateDataObject({ [visitorKey]: nextVisitorData }, {});
+
+    // Drop this profile from the peer-drafts cache so a teammate opening
+    // `/main-app` sees the just-submitted section's picks right away
+    // instead of up to the TTL (~30s) later.
+    invalidatePeerDrafts(profileId);
 
     return res.json({
       success: true,

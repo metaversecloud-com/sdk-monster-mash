@@ -3,6 +3,7 @@ import { MonsterMashVisitorData, VisitorDataObjectType } from "@shared/types/ind
 import { Credentials } from "../types/index.js";
 import { Visitor } from "./topiaInit.js";
 import { standardizeError } from "./standardizeError.js";
+import { getCachedVisitorInventory } from "./visitorInventoryCache.js";
 
 interface GetVisitorOptions {
   /** Fetch full details (includes `isAdmin`, current position, etc.). Defaults to false — most controllers just need to write. */
@@ -81,20 +82,17 @@ export const getVisitor = async (
       visitorData = scoped;
     }
 
+    // Inventory read goes through a per-profile 60s cache so repeat
+    // `/main-app` and `/trophy` opens from the same student don't each
+    // fire an SDK round-trip. `syncBadges` invalidates on grant, so a
+    // just-earned badge is visible on the very next read-path call.
     let visitorInventory: GetVisitorResult["visitorInventory"] = {};
     if (includeInventory) {
-      // forceRefreshInventory: pass through to the SDK's cache-buster.
-      // The SDK accepts a boolean arg; guard with a runtime check so older
-      // signatures (no arg) still work.
-      const fetchInventoryFn = visitor.fetchInventoryItems as unknown as (force?: boolean) => Promise<unknown>;
-      await fetchInventoryFn.call(visitor, forceRefreshInventory);
-      for (const visitorItem of visitor.inventoryItems ?? []) {
-        const { id, status, item } = visitorItem;
-        const { name, type, image_url = "" } = item || {};
-        if (status === "ACTIVE" && type === "BADGE") {
-          visitorInventory[name] = { id, icon: image_url, name };
-        }
-      }
+      visitorInventory = await getCachedVisitorInventory({
+        visitor,
+        profileId: credentials.profileId,
+        forceRefresh: forceRefreshInventory,
+      });
     }
 
     return {
