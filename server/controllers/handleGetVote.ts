@@ -157,7 +157,13 @@ const collectLastWinners = (dataObject: KeyAssetDataObject): StoredWinnerPayload
   // Snapshots (name / imageUrl / contributors) are NOT in storedWinners any
   // more: we read them live off the roster. If the monster has been admin-
   // deleted or evicted, we flag `deleted: true` and leave name/image empty.
-  const sorted = Object.entries(dataObject.storedWinners ?? {}).sort((a, b) => b[1].awardedAt - a[1].awardedAt);
+  //
+  // Defensive filter on null entries: a prior buggy delete-via-dot-path
+  // (now fixed in `deleteBrokenMonster`) could leave `null` values in the
+  // storedWinners map. Readers would crash reaching for `.awardedAt`.
+  const sorted = Object.entries(dataObject.storedWinners ?? {})
+    .filter((pair): pair is [string, NonNullable<(typeof pair)[1]>] => !!pair[1])
+    .sort((a, b) => b[1].awardedAt - a[1].awardedAt);
   return sorted.slice(0, 3).map(([monsterId, w]) => {
     const entry = dataObject.monsters?.[monsterId];
     const deleted = !entry;

@@ -76,7 +76,6 @@ export const syncBadges = async ({
 
     const grantedNames = granted.map((b) => b.name);
     if (granted.length > 0) {
-      console.log(`syncBadges: granted ${granted.length} badge(s) to ${profileId}: ${grantedNames.join(", ")}`);
       // One `badge_earned` analytic per newly-granted badge, batched into a
       // single no-op visitor write so we don't fan out one request per
       // grant. Dedup per (profile, badge name) — grants are already gated

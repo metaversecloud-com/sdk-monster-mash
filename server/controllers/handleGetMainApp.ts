@@ -18,6 +18,8 @@ import {
   evictOrphanInProgressMonsters,
   expireStaleLocks,
   findBrokenMonsterId,
+  findStuckFinalizeId,
+  getBaseUrl,
   getCachedPeerDrafts,
   getCredentials,
   getKeyAsset,
@@ -25,6 +27,8 @@ import {
   healBrokenMonster,
   invalidateKeyAssetCache,
   refreshContent,
+  rescueVotePool,
+  retryStuckFinalize,
   setCachedPeerDrafts,
   syncBadges,
   User,
@@ -102,6 +106,22 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
       });
     }
 
+    // Opportunistic vote-pool rescue. If `evictFinishedIfCapped` has left
+    // the pool shrunken below MIN_POOL_SIZE_FOR_VOTE after live-filtering,
+    // backfill with the newest complete roster monsters so the Vote tab
+    // keeps serving matchups.  Uses the post-advance cycle shape so a
+    // Sunday rollover and a rescue don't fight on the same write.
+    const projectedForRescue = {
+      ...dataObject,
+      monsters,
+      currentVoteCycle: advance.changed ? advance.next.currentVoteCycle : dataObject.currentVoteCycle,
+      storedWinners: advance.changed ? advance.next.storedWinners : dataObject.storedWinners,
+    };
+    const rescue = rescueVotePool(projectedForRescue, now);
+    if (rescue.changed) {
+      nextPatch.currentVoteCycle = rescue.nextCycle;
+    }
+
     if (Object.keys(nextPatch).length > 0) {
       await keyAsset.updateDataObject(nextPatch, {}).catch((error) =>
         errorHandler({
@@ -157,11 +177,37 @@ export const handleGetMainApp = async (req: Request, res: Response) => {
     // per monsterId on this pod to avoid redundant work). Costs 0 SDK calls
     // when the roster is clean; otherwise the heal runs in the background
     // and doesn't delay the response.
+    // Fire AT MOST ONE roster-recovery sweep per request so two
+    // fire-and-forget writes don't race on the same `monsters`
+    // full-object replacement. Prefer heal (broken-complete) over
+    // retry (stuck-in-progress); the one left behind gets picked up
+    // on the next `/main-app` open.
     const brokenMonsterId = findBrokenMonsterId(monsters);
     if (brokenMonsterId) {
       healBrokenMonster({ credentials, keyAsset, monsterId: brokenMonsterId }).catch((error) =>
         console.warn(`handleGetMainApp: heal fire-and-forget crashed for ${brokenMonsterId}`, error),
       );
+    } else {
+      // Stuck-finalize retry — when the third-section submit's
+      // `finalizeMonster` throws (incomplete peer picks, S3 hiccup, …)
+      // we leave the monster in-progress with every section `done` and
+      // a `finalizeAttempts` counter. This sweep retries the
+      // compose+drop+write pass by reading each contributor's picks
+      // from their visitor `contributedDrafts`. After
+      // `MAX_FINALIZE_ATTEMPTS` failures the sweep auto-deletes the
+      // monster so the gallery never shows a stuck zombie.
+      const stuckFinalizeId = findStuckFinalizeId(monsters);
+      if (stuckFinalizeId) {
+        retryStuckFinalize({
+          credentials,
+          keyAsset,
+          monsterId: stuckFinalizeId,
+          clickableLinkBase: getBaseUrl(req.hostname),
+          callerVisitor: null,
+        }).catch((error) =>
+          console.warn(`handleGetMainApp: retry fire-and-forget crashed for ${stuckFinalizeId}`, error),
+        );
+      }
     }
 
     // For the response, project the local `dataObject` with the same

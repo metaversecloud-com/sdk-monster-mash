@@ -1,5 +1,6 @@
 export * from "./composeMonsterName.js";
 export * from "./contributorDisplayNames.js";
+export * from "./deleteBrokenMonster.js";
 export * from "./dropMonsterAsset.js";
 export * from "./evictFinishedIfCapped.js";
 export * from "./evictInProgressIfCapped.js";
@@ -11,4 +12,5 @@ export * from "./healBrokenMonster.js";
 export * from "./initializeKeyAsset.js";
 export * from "./keyAssetCache.js";
 export * from "./pickRandomSection.js";
+export * from "./retryStuckFinalize.js";
 export * from "./validatePicks.js";

@@ -55,6 +55,19 @@ export const handleGetGallery = async (req: Request, res: Response) => {
       const rosterEntry = rosterById.get(id);
       const contribEntry = callerContrib[id];
 
+      // Skip stub entries from the caller's visitor history. These show up
+      // when a caller submitted a section but finalize failed under the
+      // pre-this-PR behavior — their visitor got a minimal `{section,
+      // submittedAt, …}` record with no name / imageUrl / contributor
+      // info, and the gallery used to render it as a blank card. New
+      // monsters never produce this shape because finalize-fail no longer
+      // writes an enrichment-less `contributedMonsters` entry; this skip
+      // is purely for cleaning up legacy visitor data.
+      if (!rosterEntry) {
+        const hasAnyIdentity = !!contribEntry?.name || !!contribEntry?.imageUrl || !!contribEntry?.monsterAssetId;
+        if (!hasAnyIdentity) continue;
+      }
+
       // Prefer roster metadata; fall back to visitor.contributedMonsters for
       // evicted monsters. The ribbon is derived from `storedWinners[id]` on
       // the roster path (one source of truth for current awards); the
