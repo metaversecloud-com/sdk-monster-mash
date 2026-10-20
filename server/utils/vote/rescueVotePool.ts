@@ -1,12 +1,14 @@
-import { MIN_POOL_SIZE_FOR_VOTE, WINNER_COOLDOWN_MS } from "@shared/content/monsterMash.js";
+import { FINISHED_CAP, MIN_POOL_SIZE_FOR_VOTE, WINNER_COOLDOWN_MS } from "@shared/content/monsterMash.js";
 import { KeyAssetDataObject, MonsterIndexEntry, VoteCycle } from "@shared/types/index.js";
 
 /**
  * Hard cap on how many live roster monsters we'll backfill into the pool
- * in a single rescue pass. Keeps the write small and prevents a huge
- * cycle-pool from accumulating when the roster is also huge.
+ * in a single rescue pass. Matches `FINISHED_CAP` so a rescued pool can
+ * grow back to the roster's full capacity — the daily vote cap is
+ * `poolSize × 1`, so capping backfill lower was silently throttling how
+ * many votes a kid could cast per day after an eviction cascade.
  */
-const RESCUE_BACKFILL_CAP = 50;
+const RESCUE_BACKFILL_CAP = FINISHED_CAP;
 
 export interface RescueResult {
   changed: boolean;
