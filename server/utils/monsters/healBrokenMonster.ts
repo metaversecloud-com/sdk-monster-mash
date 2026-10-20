@@ -11,6 +11,7 @@ import { Credentials } from "../../types/index.js";
 import { composeAndUploadMonster } from "../images/composeMonster.js";
 import { User, World } from "../topiaInit.js";
 import { composeMonsterName } from "./composeMonsterName.js";
+import { deleteBrokenMonster } from "./deleteBrokenMonster.js";
 import { invalidateKeyAssetCache } from "./keyAssetCache.js";
 
 /**
@@ -86,13 +87,15 @@ export const healBrokenMonster = async ({ credentials, keyAsset, monsterId }: He
     const { urlSlug, sceneDropId, interactivePublicKey } = credentials;
 
     // 1. Resolve the dropped-monster asset. If it's gone entirely, we can't
-    // heal from here — the caller's picks only live on this asset. Leave
-    // the roster entry alone (admin can delete manually).
+    // heal from here — the caller's picks only live on this asset. Scrub
+    // the monster from the roster + vote state so it doesn't keep showing
+    // up as "Unnamed Monster" in the gallery and taking up a pool slot.
     const world = World.create(urlSlug, { credentials });
     const matches = await world.fetchDroppedAssetsWithUniqueName({ uniqueName: `MonsterMash-monster-${monsterId}` });
     const monsterAsset = matches?.[0];
     if (!monsterAsset) {
-      console.warn(`healBrokenMonster: dropped asset missing for ${monsterId} — can't heal from here`);
+      console.warn(`healBrokenMonster: dropped asset missing for ${monsterId} — unrecoverable, deleting`);
+      await deleteBrokenMonster({ credentials, keyAsset, monsterId });
       return;
     }
     await monsterAsset.fetchDataObject();
@@ -109,7 +112,8 @@ export const healBrokenMonster = async ({ credentials, keyAsset, monsterId }: He
     for (const s of SECTIONS) {
       const sec = existingSections[s];
       if (!sec?.contributorProfileId) {
-        console.warn(`healBrokenMonster: no contributor on section ${s} for ${monsterId} — unhealable`);
+        console.warn(`healBrokenMonster: no contributor on section ${s} for ${monsterId} — unrecoverable, deleting`);
+        await deleteBrokenMonster({ credentials, keyAsset, monsterId, monsterAssetId: monsterAsset.id as string });
         return;
       }
       const assetHasPicks = sec.parts && Object.keys(sec.parts).length > 0;
@@ -135,7 +139,8 @@ export const healBrokenMonster = async ({ credentials, keyAsset, monsterId }: He
       }
 
       if (!picks || Object.keys(picks).length === 0 || !nameToken) {
-        console.warn(`healBrokenMonster: ${monsterId}/${s} unrecoverable — leaving as-is for admin`);
+        console.warn(`healBrokenMonster: ${monsterId}/${s} unrecoverable — deleting from roster`);
+        await deleteBrokenMonster({ credentials, keyAsset, monsterId, monsterAssetId: monsterAsset.id as string });
         return;
       }
 
@@ -148,7 +153,8 @@ export const healBrokenMonster = async ({ credentials, keyAsset, monsterId }: He
     // but we've already guarded on that above.
     const composedName = composeMonsterName(nameTokensBySection);
     if (!composedName) {
-      console.warn(`healBrokenMonster: composed name empty for ${monsterId} after recovery — unhealable`);
+      console.warn(`healBrokenMonster: composed name empty for ${monsterId} after recovery — unrecoverable, deleting`);
+      await deleteBrokenMonster({ credentials, keyAsset, monsterId, monsterAssetId: monsterAsset.id as string });
       return;
     }
 

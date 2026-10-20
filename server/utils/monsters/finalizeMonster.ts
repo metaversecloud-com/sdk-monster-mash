@@ -130,10 +130,6 @@ export const finalizeMonster = async ({
         source = "none";
       }
 
-      console.log(
-        `finalizeMonster: peer ${slot.contributorProfileId} for ${monsterId}/${s} → source=${source} · pickKeys=${Object.keys(picks).length} · nameToken="${nameToken}"`,
-      );
-
       peers.push({
         section: s,
         picks,
@@ -157,21 +153,31 @@ export const finalizeMonster = async ({
       picksBySection[p.section] = p.picks;
       nameTokensBySection[p.section] = p.nameToken;
     }
+
+    // Validate completeness BEFORE compose. If any peer section ended up
+    // with no picks or no nameToken (visitor fetch failed, visitor data
+    // missing, race on their contributedDrafts write), DON'T finalize a
+    // half-rendered monster into the gallery. The caller's controller
+    // catches this throw and leaves the monster in-progress for a retry
+    // sweep in `handleGetMainApp` to pick up.
+    for (const p of peers) {
+      if (!p.picks || Object.keys(p.picks).length === 0 || !p.nameToken) {
+        throw new Error(
+          `finalizeMonster: incomplete data for ${monsterId}/${p.section} (contributor=${p.contributorProfileId}, source=${p.picks && Object.keys(p.picks).length ? "nameToken" : "picks"}) — won't finalize a broken monster`,
+        );
+      }
+    }
+
     const composedName = composeMonsterName(nameTokensBySection);
+    if (!composedName) {
+      throw new Error(`finalizeMonster: composed name empty for ${monsterId} — won't finalize a broken monster`);
+    }
     const birthdate = Date.now();
 
-    // 3. Compose + upload (S3). Best-effort so a missing-cred dev environment
-    // doesn't strand the monster in a half-done state — imageUrl stays null
-    // and the caller's controller still marks state=complete.
-    let imageUrl: string | null = null;
-    try {
-      imageUrl = await composeAndUploadMonster(monsterId, picksBySection, credentials.interactivePublicKey);
-    } catch (error) {
-      console.error(
-        `finalizeMonster: compose/upload failed for ${monsterId} — completion continues without imageUrl`,
-        error,
-      );
-    }
+    // 3. Compose + upload (S3). Any failure throws so the controller's
+    // catch leaves the monster in-progress (NOT marked complete) and the
+    // retry sweep in `handleGetMainApp` picks it up.
+    const imageUrl: string = await composeAndUploadMonster(monsterId, picksBySection, credentials.interactivePublicKey);
 
     // 4. Build the SectionRecord map + contributor arrays (used both for the
     // dropped-asset dataObject and for downstream reads).
@@ -306,10 +312,31 @@ export const finalizeMonster = async ({
       }
     }
 
+    // Prune evicted ids from the vote-state structures so the next cycle
+    // doesn't inherit stale pool entries. Without this, `pickMatchup` can
+    // keep picking monsters that are no longer on the roster — the Vote
+    // tab silently renders empty when the live-filtered pool shrinks
+    // below the min size.
+    const evictSet = new Set(eviction.evictedIds);
+    const prunedEligible = Array.from(eligibleIds).filter((id) => !evictSet.has(id));
+
+    const nextCycle = dataObject.currentVoteCycle
+      ? {
+          ...dataObject.currentVoteCycle,
+          poolMonsterIds: (dataObject.currentVoteCycle.poolMonsterIds ?? []).filter((id) => !evictSet.has(id)),
+          tallies: Object.fromEntries(
+            Object.entries(dataObject.currentVoteCycle.tallies ?? {}).filter(([id]) => !evictSet.has(id)),
+          ),
+        }
+      : dataObject.currentVoteCycle;
+
     const keyAssetPatch: Record<string, unknown> = {
       monsters: rosterAfterCap,
-      currentSubmissionWindow: { ...window, eligibleMonsterIds: Array.from(eligibleIds) },
+      currentSubmissionWindow: { ...window, eligibleMonsterIds: prunedEligible },
     };
+    if (eviction.evictedIds.length > 0 && dataObject.currentVoteCycle) {
+      keyAssetPatch.currentVoteCycle = nextCycle;
+    }
 
     // 7. Fan out per-peer visitor writes. One write per peer combining:
     //     · contributedMonsters[monsterId] enrichment

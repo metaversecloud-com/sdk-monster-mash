@@ -102,6 +102,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     let composedName: string | undefined;
     let finalizeResult: { imageUrl: string | null; monsterAssetId: string | null } | undefined;
     let finalizeCallerContribution: Partial<MonsterMashVisitorData["contributedMonsters"][string]> | undefined;
+    let finalizeSucceeded = false;
     if (nowDone) {
       try {
         const finalized = await finalizeMonster({
@@ -123,6 +124,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         composedName = finalized.composedName;
         finalizeResult = { imageUrl: finalized.imageUrl, monsterAssetId: finalized.monsterAssetId };
         finalizeCallerContribution = finalized.callerContribution;
+        finalizeSucceeded = true;
         // Merge finalize's roster + window patch into our upcoming write.
         // `monsters` from finalize supersedes the dot-path monster edits above
         // (they were section-scoped; finalize now owns the whole roster shape).
@@ -134,13 +136,10 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         errorHandler({
           error,
           functionName: "handleSubmitSection",
-          message: "Non-fatal: monster finalize failed — admin can retry",
+          message: "Non-fatal: monster finalize failed — opportunistic sweep will retry",
         });
-        // Finalize failed but sections are all done. Mark complete anyway so
-        // the UI + roster reflect reality; imageUrl / monsterAssetId stay
-        // undefined and clients render the "world drop queued" placeholder.
-        patch[`monsters.${monsterId}.state`] = "complete";
-        patch[`monsters.${monsterId}.birthdate`] = now;
+        patch[`monsters.${monsterId}.finalizeAttempts`] = (entry.finalizeAttempts ?? 0) + 1;
+        patch[`monsters.${monsterId}.lastFinalizeAttemptAt`] = now;
       }
     }
 
@@ -203,10 +202,15 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     }
 
     const nextDrafts = { ...(visitorData.contributedDrafts ?? {}) };
-    if (nowDone) {
+    if (nowDone && finalizeSucceeded) {
       // Monster finalized — no need to keep the caller's picks around.
       delete nextDrafts[monsterId];
     } else {
+      // Finalize failed OR this isn't the last section — preserve the
+      // caller's picks on their visitor data. For the finalize-failed
+      // case, this is what lets the retry sweep in `handleGetMainApp`
+      // rebuild the monster from every contributor's drafts (otherwise
+      // the third submitter's picks are lost forever).
       nextDrafts[monsterId] = {
         ...(nextDrafts[monsterId] ?? {}),
         [section]: { picks: validation.normalizedPicks, nameToken },

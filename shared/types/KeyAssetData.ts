@@ -32,6 +32,17 @@ export interface MonsterIndexEntry {
   sections?: Record<Section, SectionRosterEntry>;
 
   /**
+   * Finalize retry bookkeeping. Set by `handleSubmitSection` when the
+   * third-section finalize throws, so an opportunistic sweep in
+   * `handleGetMainApp` can retry (fetching all three contributors' picks
+   * from their visitor `contributedDrafts`) without ever letting the
+   * monster fake-complete with an empty name. After N failed attempts the
+   * sweep auto-deletes the monster so a stuck entry doesn't linger.
+   */
+  finalizeAttempts?: number;
+  lastFinalizeAttemptAt?: number;
+
+  /**
    * Complete-only fields. Populated at finalize.
    *
    *   - `contributorNames` is a pipe-separated string in [head, torso, legs]
