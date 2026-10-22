@@ -150,7 +150,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     // 2 = second, 3 = final (replaces the old `monster_completed` signal —
     // _3 is the one that corresponds to a completed monster).
     const sectionsDone = Object.values(updatedSections).filter((s) => s.status === "done").length;
-    const submitOrder = Math.min(3, Math.max(1, sectionsDone));.
+    const submitOrder = Math.min(3, Math.max(1, sectionsDone));
     const analytics = [
       {
         analyticName: `section_submitted_${submitOrder}`,
