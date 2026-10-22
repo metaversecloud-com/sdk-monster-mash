@@ -88,6 +88,13 @@ export const deleteBrokenMonster = async ({
         lockId: `delete-broken-${monsterId}-${Math.round(Date.now() / 60000) * 60000}`,
         releaseLock: true,
       },
+      analytics: [
+        {
+          analyticName: "monster_deleted_broken",
+          profileId: credentials.profileId,
+          urlSlug: credentials.urlSlug,
+        },
+      ],
     });
     invalidateKeyAssetCache(credentials.urlSlug);
 
@@ -106,7 +113,12 @@ export const deleteBrokenMonster = async ({
       }
     }
 
-    console.log(`deleteBrokenMonster: scrubbed ${monsterId} from roster + vote state`);
+    const winnerContext = dataObject.storedWinners?.[monsterId]
+      ? ` (was winner: ${dataObject.storedWinners[monsterId].category} place ${dataObject.storedWinners[monsterId].place})`
+      : "";
+    console.log(
+      `deleteBrokenMonster: scrubbed ${monsterId} from roster + vote state${winnerContext} (triggered by profileId=${credentials.profileId})`,
+    );
   } catch (error) {
     console.warn(`deleteBrokenMonster: unexpected failure for ${monsterId}`, error);
   }
