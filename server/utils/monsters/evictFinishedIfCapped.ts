@@ -72,11 +72,5 @@ export const evictFinishedIfCapped = (
     next[id] = entry;
   }
 
-  // Structured per-eviction log so attribution questions ("why is this
-  // monster showing as deleted?") can be answered by grepping prod logs.
-  for (const id of evictedIds) {
-    console.log(`evictFinishedIfCapped: evicted ${id} (non-winner cap=${FINISHED_CAP})`);
-  }
-
   return { monsters: next, changed: evictedIds.length > 0, evictedIds };
 };
