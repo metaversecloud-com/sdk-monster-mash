@@ -103,6 +103,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     let finalizeResult: { imageUrl: string | null; monsterAssetId: string | null } | undefined;
     let finalizeCallerContribution: Partial<MonsterMashVisitorData["contributedMonsters"][string]> | undefined;
     let finalizeSucceeded = false;
+    let evictedByFinalize: string[] = [];
     if (nowDone) {
       try {
         const finalized = await finalizeMonster({
@@ -124,6 +125,7 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
         composedName = finalized.composedName;
         finalizeResult = { imageUrl: finalized.imageUrl, monsterAssetId: finalized.monsterAssetId };
         finalizeCallerContribution = finalized.callerContribution;
+        evictedByFinalize = finalized.evictedIds ?? [];
         finalizeSucceeded = true;
         // Merge finalize's roster + window patch into our upcoming write.
         // `monsters` from finalize supersedes the dot-path monster edits above
@@ -148,20 +150,26 @@ export const handleSubmitSection = async (req: Request, res: Response) => {
     // 2 = second, 3 = final (replaces the old `monster_completed` signal —
     // _3 is the one that corresponds to a completed monster).
     const sectionsDone = Object.values(updatedSections).filter((s) => s.status === "done").length;
-    const submitOrder = Math.min(3, Math.max(1, sectionsDone));
+    const submitOrder = Math.min(3, Math.max(1, sectionsDone));.
+    const analytics = [
+      {
+        analyticName: `section_submitted_${submitOrder}`,
+        profileId,
+        urlSlug,
+        uniqueKey: profileId,
+      },
+      ...evictedByFinalize.map(() => ({
+        analyticName: "monster_evicted",
+        profileId,
+        urlSlug,
+      })),
+    ];
     await keyAsset.updateDataObject(patch, {
       lock: {
         lockId: `${keyAsset.id}-submit-${monsterId}-${section}-${Math.round(Date.now() / 5000) * 5000}`,
         releaseLock: true,
       },
-      analytics: [
-        {
-          analyticName: `section_submitted_${submitOrder}`,
-          profileId,
-          urlSlug,
-          uniqueKey: profileId,
-        },
-      ],
+      analytics,
     });
     invalidateKeyAssetCache(urlSlug);
 

@@ -47,6 +47,11 @@ export interface FinalizeMonsterResult {
    * caller entirely and only writes peer visitors.
    */
   callerContribution: Partial<MonsterMashVisitorData["contributedMonsters"][string]>;
+  /**
+   * Monsters evicted from the roster because `FINISHED_CAP` filled up
+   * on this finalize.
+   */
+  evictedIds: string[];
 }
 
 interface PeerDraft {
@@ -284,7 +289,13 @@ export const finalizeMonster = async ({
       ...(monsterAssetId ? { monsterAssetId } : {}),
       ...(imageUrl ? { imageUrl } : {}),
     };
-    const eviction = evictFinishedIfCapped(nextRoster);
+    // Pass `storedWinners` so winners are permanently excluded from
+    // eviction — crowned monsters stay in the gallery forever, even if
+    // that leaves the roster slightly above FINISHED_CAP. See the note
+    // in evictFinishedIfCapped.
+    const eviction = evictFinishedIfCapped(nextRoster, {
+      storedWinners: dataObject.storedWinners,
+    });
     const rosterAfterCap = eviction.changed ? eviction.monsters : nextRoster;
 
     // Remove the evicted monsters' world drops in one batch call. Non-fatal:
@@ -388,6 +399,7 @@ export const finalizeMonster = async ({
       composedName,
       keyAssetPatch,
       callerContribution,
+      evictedIds: eviction.evictedIds,
     };
   } catch (error) {
     throw standardizeError(error);
