@@ -1,4 +1,5 @@
-FROM node:20.10-alpine3.19
+ARG NODE_VERSION=24
+FROM node:${NODE_VERSION}-alpine
 WORKDIR /app
 ADD server ./server
 ADD client ./client
