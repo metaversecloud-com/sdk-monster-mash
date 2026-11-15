@@ -1,7 +1,7 @@
 // Monster Builder drawer: picking parts, auto-saving the draft, submitting a section, server-side pick
 // validation, and finalizing a monster when its third section lands (compose, S3 upload, world drop).
 import type { Page } from "@playwright/test";
-import { MOCK_TOPIA_URL, S3_BUCKET } from "../../constants";
+import { FAKE_S3_BUCKET, MOCK_TOPIA_URL } from "../../constants";
 import { expect, test, type TopiaWorld } from "../../fixtures";
 import {
   NAME_TOKENS,
@@ -137,7 +137,7 @@ test("the server rejects picks the builder would never send", async ({ request, 
 });
 
 test("only the player holding a section can submit it, and only once", async ({ request, world }) => {
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   await seedHolding(world, "head", { torso: { status: "locked", by: p1 } });
   const submit = (section: Section) =>
     request.post(world.api("/monsters/m1/section"), { data: { section, picks: PICKS[section], nameToken: NAME_TOKENS[section] } });
@@ -155,8 +155,8 @@ test("only the player holding a section can submit it, and only once", async ({ 
 test("the third section brings the monster to life: image on S3, dropped in the world, teammates told", async ({ page, world }) => {
   // The S3 bucket is shared by all tests, so this monster's id is unique to the test.
   const id = `m-${world.urlSlug}`;
-  const p1 = world.player(1, { data: playerData({ contributedMonsters: { [id]: { section: "head", submittedAt: 1 } }, contributedDrafts: submittedDraft(id, "head") }) });
-  const p2 = world.player(2, { data: playerData({ contributedMonsters: { [id]: { section: "torso", submittedAt: 2 } }, contributedDrafts: submittedDraft(id, "torso") }) });
+  const p1 = world.otherPlayer(1, { data: playerData({ contributedMonsters: { [id]: { section: "head", submittedAt: 1 } }, contributedDrafts: submittedDraft(id, "head") }) });
+  const p2 = world.otherPlayer(2, { data: playerData({ contributedMonsters: { [id]: { section: "torso", submittedAt: 2 } }, contributedDrafts: submittedDraft(id, "torso") }) });
   await seedHolding(world, "legs", { head: { status: "done", by: p1 }, torso: { status: "done", by: p2 } }, { players: [p1, p2] }, id);
   await openBuilder(page, world, "legs", id);
 
@@ -174,7 +174,7 @@ test("the third section brings the monster to life: image on S3, dropped in the 
   const object = (await s3Objects(page)).find((o) => o.key === key);
   expect(object).toMatchObject({ contentType: "image/png" });
   expect(object!.size).toBeGreaterThan(1000);
-  const imageUrl = `https://${S3_BUCKET}.s3.amazonaws.com/${key}`;
+  const imageUrl = `https://${FAKE_S3_BUCKET}.s3.amazonaws.com/${key}`;
 
   // The monster is dropped into the world as a clickable web image that opens its own drawer.
   const { assets } = await world.state();
@@ -221,9 +221,9 @@ test("the third section brings the monster to life: image on S3, dropped in the 
 });
 
 test("a third section whose teammate's picks are missing doesn't finalize a broken monster", async ({ request, world }) => {
-  const p1 = world.player(1, { data: playerData({ contributedDrafts: submittedDraft("m1", "head") }) });
+  const p1 = world.otherPlayer(1, { data: playerData({ contributedDrafts: submittedDraft("m1", "head") }) });
   // Player 2's picks never reached their data object.
-  const p2 = world.player(2, { data: playerData() });
+  const p2 = world.otherPlayer(2, { data: playerData() });
   await seedHolding(world, "legs", { head: { status: "done", by: p1 }, torso: { status: "done", by: p2 } }, { players: [p1, p2] });
 
   const response = await request.post(world.api("/monsters/m1/section"), {

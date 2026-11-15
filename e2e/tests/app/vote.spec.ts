@@ -83,8 +83,8 @@ test("the Vote tab says how many more monsters a vote needs", async ({ page, wor
 
 test("the Sunday rollover crowns last week's winners and opens the next vote", async ({ page, world }) => {
   const me = { profileId: world.profileId, displayName: world.displayName };
-  const p1 = world.player(1);
-  const winner = complete("w0", { name: "Harold McFishy the Brave", contributors: [p1, world.player(2), me] });
+  const p1 = world.otherPlayer(1);
+  const winner = complete("w0", { name: "Harold McFishy the Brave", contributors: [p1, world.otherPlayer(2), me] });
   const voted = [winner, complete("w1"), complete("w2"), complete("w3")];
   const fresh = Array.from({ length: 10 }, (_, i) => complete(`n${i}`));
   const tallies = {

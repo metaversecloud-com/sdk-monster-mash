@@ -78,8 +78,8 @@ test("a player with a section in progress can't start a second monster", async (
 });
 
 test("Join claims the open section of a teammate's monster", async ({ page, world }) => {
-  const p1 = world.player(1);
-  const p2 = world.player(2);
+  const p1 = world.otherPlayer(1);
+  const p2 = world.otherPlayer(2);
   const monster = inProgress("m1", { head: { status: "done", by: p1 }, torso: { status: "locked", by: p2 } });
   await world.seed({ assetData: keyAsset({ monsters: roster(monster) }), visitorData: { [world.scopedKey]: playerData() }, players: [p1, p2] });
   await page.goto(world.url());
@@ -103,9 +103,9 @@ test("Join claims the open section of a teammate's monster", async ({ page, worl
 });
 
 test("joining a section someone else just took shows the race message", async ({ page, request, world }) => {
-  const p1 = world.player(1);
-  const p2 = world.player(2);
-  const monster = inProgress("m1", { head: { status: "done", by: p1 }, torso: { status: "done", by: world.player(3) } });
+  const p1 = world.otherPlayer(1);
+  const p2 = world.otherPlayer(2);
+  const monster = inProgress("m1", { head: { status: "done", by: p1 }, torso: { status: "done", by: world.otherPlayer(3) } });
   await world.seed({ assetData: keyAsset({ monsters: roster(monster) }), visitorData: { [world.scopedKey]: playerData() }, players: [p1, p2] });
   await page.goto(world.url());
   await expect(page.getByRole("button", { name: "Join" })).toBeVisible();
@@ -148,7 +148,7 @@ test("Resume reopens the builder for the section the player holds", async ({ pag
 
 test("releasing a claim frees the section and clears the player's draft", async ({ request, world }) => {
   const me = { profileId: world.profileId, displayName: world.displayName };
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   const monster = inProgress("m1", { head: { status: "done", by: p1 }, legs: { status: "locked", by: me } });
   await world.seed({
     assetData: keyAsset({ monsters: roster(monster) }),
@@ -166,8 +166,8 @@ test("releasing a claim frees the section and clears the player's draft", async 
 });
 
 test("opening the app frees locks idle for more than 30 minutes", async ({ page, world }) => {
-  const p1 = world.player(1);
-  const p2 = world.player(2);
+  const p1 = world.otherPlayer(1);
+  const p2 = world.otherPlayer(2);
   const stale = inProgress("m1", { head: { status: "done", by: p1 }, torso: { status: "locked", by: p2 } }, 31 * 60_000);
   const fresh = inProgress("m2", { torso: { status: "locked", by: p2 } }, 5 * 60_000);
   await world.seed({ assetData: keyAsset({ monsters: roster(stale, fresh) }), visitorData: { [world.scopedKey]: playerData() } });
@@ -179,7 +179,7 @@ test("opening the app frees locks idle for more than 30 minutes", async ({ page,
 });
 
 test("an admin deletes a monster in progress from the Create tab", async ({ page, world }) => {
-  const p1 = world.player(1, { data: playerData({ contributedMonsters: { m1: { section: "head", submittedAt: 1 } } }) });
+  const p1 = world.otherPlayer(1, { data: playerData({ contributedMonsters: { m1: { section: "head", submittedAt: 1 } } }) });
   const monster = inProgress("m1", { head: { status: "done", by: p1 } });
   await world.seed({
     isAdmin: true,
@@ -198,7 +198,7 @@ test("an admin deletes a monster in progress from the Create tab", async ({ page
 });
 
 test("a player who isn't an admin can't delete a monster", async ({ page, request, world }) => {
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   const monster = inProgress("m1", { head: { status: "done", by: p1 } });
   await world.seed({ assetData: keyAsset({ monsters: roster(monster) }), visitorData: { [world.scopedKey]: playerData() } });
   await page.goto(world.url());

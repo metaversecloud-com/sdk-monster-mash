@@ -20,8 +20,8 @@ const KEY_ASSET_WRITE = "/assets/key-asset/update-data-object";
 test("two teammates submitting their sections at the same moment both count", async ({ request, world }) => {
   test.fail(true, "EXP-455: concurrent submits overwrite each other's section");
   const me = { profileId: world.profileId, displayName: world.displayName };
-  const p1 = world.player(1);
-  const p2 = world.player(2, { data: playerData({ activeDraft: draft("m1", "legs") }) });
+  const p1 = world.otherPlayer(1);
+  const p2 = world.otherPlayer(2, { data: playerData({ activeDraft: draft("m1", "legs") }) });
   await world.seed({
     assetData: keyAsset({
       monsters: roster(inProgress("m1", { head: { status: "done", by: p1 }, torso: { status: "locked", by: me }, legs: { status: "locked", by: p2 } })),
@@ -48,7 +48,7 @@ test("two teammates submitting their sections at the same moment both count", as
 
 test("votes cast at the same moment are all counted", async ({ request, world }) => {
   test.fail(true, "EXP-455: concurrent votes overwrite each other's tally");
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   await world.seed({
     assetData: keyAsset({ monsters: roster(complete("ma"), complete("mb"), complete("mc")), currentVoteCycle: voteCycle(["ma", "mb", "mc"]) }),
     players: [p1],
@@ -89,9 +89,9 @@ test("a vote must be for the matchup the player was shown", async ({ request, wo
 test("a display name with a pipe can't push teammates' names off a monster", async ({ request, world }) => {
   test.fail(true, "EXP-455: contributorNames is pipe-joined without escaping");
   const id = `m-${world.urlSlug}`;
-  const p1 = world.player(1, { displayName: "Mallory|Mallory", data: playerData({ contributedDrafts: submittedDraft(id, "head") }) });
-  const p2 = world.player(2, { displayName: "Carol", data: playerData({ contributedDrafts: submittedDraft(id, "torso") }) });
-  const viewer = world.player(3);
+  const p1 = world.otherPlayer(1, { displayName: "Mallory|Mallory", data: playerData({ contributedDrafts: submittedDraft(id, "head") }) });
+  const p2 = world.otherPlayer(2, { displayName: "Carol", data: playerData({ contributedDrafts: submittedDraft(id, "torso") }) });
+  const viewer = world.otherPlayer(3);
   const me = { profileId: world.profileId, displayName: world.displayName };
   await world.seed({
     assetData: keyAsset({
@@ -113,9 +113,9 @@ test("a display name with a pipe can't push teammates' names off a monster", asy
 
 test("two players opening the app as the week rolls over crown the winners once", async ({ request, world }) => {
   test.fail(true, "EXP-455: concurrent rollovers each crown the winners again");
-  const p1 = world.player(1, { data: playerData({ contributedMonsters: { w0: { section: "head", submittedAt: 1 } } }) });
-  const p3 = world.player(3);
-  const winner = complete("w0", { contributors: [p1, world.player(2), world.player(4)] });
+  const p1 = world.otherPlayer(1, { data: playerData({ contributedMonsters: { w0: { section: "head", submittedAt: 1 } } }) });
+  const p3 = world.otherPlayer(3);
+  const winner = complete("w0", { contributors: [p1, world.otherPlayer(2), world.otherPlayer(4)] });
   await world.seed({
     assetData: keyAsset({
       monsters: roster(winner, complete("w1"), complete("w2"), complete("w3")),
@@ -138,7 +138,7 @@ test("two players opening the app as the week rolls over crown the winners once"
 });
 
 test("admin-only actions check the admin flag on the server", async ({ request, world }) => {
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   await world.seed({
     assetData: keyAsset({ monsters: roster(complete("m1", { contributors: [p1] })), leaderboard: { [p1.profileId]: "Player 1|1|1" } }),
     visitorData: { [world.scopedKey]: playerData() },
@@ -162,7 +162,7 @@ test("admin-only actions check the admin flag on the server", async ({ request, 
 });
 
 test("a player can't release or submit a section someone else holds", async ({ request, world }) => {
-  const p1 = world.player(1);
+  const p1 = world.otherPlayer(1);
   await world.seed({
     assetData: keyAsset({ monsters: roster(inProgress("m1", { head: { status: "locked", by: p1 } })) }),
     visitorData: { [world.scopedKey]: playerData() },
