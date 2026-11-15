@@ -1,0 +1,97 @@
+[
+  {
+    "id": "badge-mad-scientist",
+    "name": "Mad Scientist",
+    "type": "BADGE",
+    "status": "ACTIVE",
+    "description": "Mad Scientist badge",
+    "image_path": "https://example.invalid/badges/badge-mad-scientist.png",
+    "metadata": {
+      "group": "building",
+      "sortOrder": 1,
+      "thresholdKind": "monstersStarted",
+      "threshold": 1
+    }
+  },
+  {
+    "id": "badge-brainstormer",
+    "name": "Brainstormer",
+    "type": "BADGE",
+    "status": "ACTIVE",
+    "description": "Brainstormer badge",
+    "image_path": "https://example.invalid/badges/badge-brainstormer.png",
+    "metadata": {
+      "group": "building",
+      "sortOrder": 2,
+      "thresholdKind": "submitSection",
+      "threshold": 1,
+      "sectionId": "head"
+    }
+  },
+  {
+    "id": "badge-i-voted",
+    "name": "I Voted",
+    "type": "BADGE",
+    "status": "ACTIVE",
+    "description": "I Voted badge",
+    "image_path": "https://example.invalid/badges/badge-i-voted.png",
+    "metadata": {
+      "group": "voting",
+      "displayName": "I Voted!",
+      "sortOrder": 1,
+      "thresholdKind": "vote",
+      "threshold": 1
+    }
+  },
+  {
+    "id": "badge-elite-masher",
+    "name": "Elite Masher",
+    "type": "BADGE",
+    "status": "ACTIVE",
+    "description": "Elite Masher badge",
+    "image_path": "https://example.invalid/badges/badge-elite-masher.png",
+    "metadata": {
+      "group": "visiting",
+      "sortOrder": 1,
+      "thresholdKind": "visitAppOpens",
+      "threshold": 5
+    }
+  },
+  {
+    "id": "badge-winner-silliest",
+    "name": "Winner: Silliest",
+    "type": "BADGE",
+    "status": "ACTIVE",
+    "description": "Winner: Silliest badge",
+    "image_path": "https://example.invalid/badges/badge-winner-silliest.png",
+    "metadata": {
+      "group": "winning",
+      "sortOrder": 1,
+      "thresholdKind": "winCategory",
+      "threshold": 1,
+      "categoryId": "silliest"
+    }
+  },
+  {
+    "id": "badge-retired",
+    "name": "Retired Badge",
+    "type": "BADGE",
+    "status": "INACTIVE",
+    "description": "Retired Badge badge",
+    "image_path": "https://example.invalid/badges/badge-retired.png",
+    "metadata": {
+      "group": "building",
+      "thresholdKind": "monstersStarted",
+      "threshold": 1
+    }
+  },
+  {
+    "id": "item-hat",
+    "name": "Party Hat",
+    "type": "ACCESSORY",
+    "status": "ACTIVE",
+    "description": "Not a badge",
+    "image_path": "",
+    "metadata": {}
+  }
+]

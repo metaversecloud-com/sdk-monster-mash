@@ -5,7 +5,7 @@ import { complete, keyAsset, playerData, roster } from "../../helpers/monsterMas
 test("the gallery shows finished monsters newest first, plus the player's own evicted ones", async ({ page, world }) => {
   const me = { profileId: world.profileId, displayName: world.displayName };
   const old = complete("m-old", { name: "Beatrix Gloopers the Bold", birthdate: Date.now() - 3 * 86_400_000 });
-  const mine = complete("m-mine", { name: "Kitty Hemlock the Jolly", birthdate: Date.now() - 86_400_000, contributors: [world.player(1), world.player(2), me] });
+  const mine = complete("m-mine", { name: "Kitty Hemlock the Jolly", birthdate: Date.now() - 86_400_000, contributors: [world.otherPlayer(1), world.otherPlayer(2), me] });
   const evicted = {
     section: "head",
     submittedAt: 1,
@@ -32,7 +32,7 @@ test("the gallery shows finished monsters newest first, plus the player's own ev
 });
 
 test("a monster clicked in the world opens its own drawer with its makers", async ({ page, world }) => {
-  const monster = complete("m1", { name: "Harold McFishy the Brave", contributors: [world.player(1), world.player(2), world.player(3)] });
+  const monster = complete("m1", { name: "Harold McFishy the Brave", contributors: [world.otherPlayer(1), world.otherPlayer(2), world.otherPlayer(3)] });
   await world.seed({ assetData: keyAsset({ monsters: roster(monster) }), visitorData: { [world.scopedKey]: playerData() } });
 
   await page.goto(world.url("/", { screen: "single-monster", monsterId: "m1" }));
@@ -44,13 +44,13 @@ test("a monster clicked in the world opens its own drawer with its makers", asyn
 });
 
 test("an admin deletes a finished monster: off the roster, out of the vote, gone from the world", async ({ page, world }) => {
-  const p1 = world.player(1, {
+  const p1 = world.otherPlayer(1, {
     data: playerData({
       contributedMonsters: { m1: { section: "head", submittedAt: 1, name: "Harold" } },
       pendingCompletionBanners: [{ monsterId: "m1", monsterName: "Harold", completedAt: 1 }],
     }),
   });
-  const monster = complete("m1", { name: "Harold McFishy the Brave", contributors: [p1, world.player(2), world.player(3)] });
+  const monster = complete("m1", { name: "Harold McFishy the Brave", contributors: [p1, world.otherPlayer(2), world.otherPlayer(3)] });
   await world.seed({
     isAdmin: true,
     assetData: keyAsset({
