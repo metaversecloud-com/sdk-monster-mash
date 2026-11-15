@@ -54,6 +54,14 @@ Every test gets its own world, so the suite runs fully in parallel. Each test al
 calls a public-API endpoint the mock doesn't implement, so an `@rtsdk/topia` upgrade that starts using
 new endpoints can't pass silently. A full app example lives in sdk-quiz (`e2e/tests`).
 
+## Monster Mash specifics
+
+- `helpers/monsterMash.ts` builds the stored state (key asset roster, vote cycle, player data) so a test can seed any phase of the game. `fixtures.ts` adds other players (`players`, `world.player(n)`, `world.as(player)`) and `world.playerData(profileId)`.
+- The key asset is seeded with the uniqueName `MonsterMash_keyAsset`, which every controller resolves.
+- A visitor's data object is its user's data object (same record per profile, like the public API), so finalize reading teammates through `User` sees what they wrote through `Visitor`.
+- Finished monsters are composed from `client/public/parts` and uploaded to the mock's fake S3 (`AWS_ENDPOINT_URL_S3`, dummy credentials); `GET /__mock/s3` lists the uploads.
+- The ecosystem inventory holds the badge catalog (BADGE items with `metadata.group` and grant rules), plus an inactive badge and a non-badge item.
+
 ## What the mock mirrors
 
 - `GET /world/:slug/assets/:id` returns the asset with its `dataObject`, like the real API (`DroppedAsset.get` fills `droppedAsset.dataObject` from it).

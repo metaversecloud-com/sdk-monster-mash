@@ -50,8 +50,8 @@ const bugs: KnownBugs = { unnamedCredentialError: GET_CREDENTIALS_DOESNT_THROW }
 // request with no or foreign credentials still answers success.
 const swallowsCredentialErrors: KnownBugs = {
   ...bugs,
-  acceptsMissingCredentials: "EXP-MM: answers success without credentials",
-  acceptsForeignCredentials: "EXP-MM: answers success with foreign credentials",
+  acceptsMissingCredentials: "EXP-455: answers success without credentials",
+  acceptsForeignCredentials: "EXP-455: answers success with foreign credentials",
 };
 
 export const CREDENTIALED_ROUTES: RouteSpec[] = [

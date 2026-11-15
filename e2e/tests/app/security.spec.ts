@@ -18,7 +18,7 @@ import {
 const KEY_ASSET_WRITE = "/assets/key-asset/update-data-object";
 
 test("two teammates submitting their sections at the same moment both count", async ({ request, world }) => {
-  test.fail(true, "EXP-MM: concurrent submits overwrite each other's section");
+  test.fail(true, "EXP-455: concurrent submits overwrite each other's section");
   const me = { profileId: world.profileId, displayName: world.displayName };
   const p1 = world.player(1);
   const p2 = world.player(2, { data: playerData({ activeDraft: draft("m1", "legs") }) });
@@ -47,7 +47,7 @@ test("two teammates submitting their sections at the same moment both count", as
 });
 
 test("votes cast at the same moment are all counted", async ({ request, world }) => {
-  test.fail(true, "EXP-MM: concurrent votes overwrite each other's tally");
+  test.fail(true, "EXP-455: concurrent votes overwrite each other's tally");
   const p1 = world.player(1);
   await world.seed({
     assetData: keyAsset({ monsters: roster(complete("ma"), complete("mb"), complete("mc")), currentVoteCycle: voteCycle(["ma", "mb", "mc"]) }),
@@ -65,7 +65,7 @@ test("votes cast at the same moment are all counted", async ({ request, world })
 });
 
 test("a vote must be for the matchup the player was shown", async ({ request, world }) => {
-  test.fail(true, "EXP-MM: /vote/cast accepts any pair from the pool");
+  test.fail(true, "EXP-455: /vote/cast accepts any pair from the pool");
   await world.seed({
     assetData: keyAsset({
       monsters: roster(complete("ma"), complete("mb"), complete("mc"), complete("md")),
@@ -87,7 +87,7 @@ test("a vote must be for the matchup the player was shown", async ({ request, wo
 });
 
 test("a display name with a pipe can't push teammates' names off a monster", async ({ request, world }) => {
-  test.fail(true, "EXP-MM: contributorNames is pipe-joined without escaping");
+  test.fail(true, "EXP-455: contributorNames is pipe-joined without escaping");
   const id = `m-${world.urlSlug}`;
   const p1 = world.player(1, { displayName: "Mallory|Mallory", data: playerData({ contributedDrafts: submittedDraft(id, "head") }) });
   const p2 = world.player(2, { displayName: "Carol", data: playerData({ contributedDrafts: submittedDraft(id, "torso") }) });
@@ -112,7 +112,7 @@ test("a display name with a pipe can't push teammates' names off a monster", asy
 });
 
 test("two players opening the app as the week rolls over crown the winners once", async ({ request, world }) => {
-  test.fail(true, "EXP-MM: concurrent rollovers each crown the winners again");
+  test.fail(true, "EXP-455: concurrent rollovers each crown the winners again");
   const p1 = world.player(1, { data: playerData({ contributedMonsters: { w0: { section: "head", submittedAt: 1 } } }) });
   const p3 = world.player(3);
   const winner = complete("w0", { contributors: [p1, world.player(2), world.player(4)] });
