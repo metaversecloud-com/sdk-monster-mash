@@ -65,10 +65,6 @@ export type RouteSpec = {
   knownBugs?: KnownBugs;
 };
 
-// getCredentials (protected file) returns { error } instead of throwing, so every route that
-// uses it has this bug until it's fixed there.
-const GET_CREDENTIALS_DOESNT_THROW = "EXP-428 #6: getCredentials doesn't throw";
-
 /**
  * API routes that read the session credentials (getCredentials). Each one must reject missing or
  * foreign credentials and must never send the interactive secret to the browser. List them all.
@@ -77,37 +73,28 @@ const GET_CREDENTIALS_DOESNT_THROW = "EXP-428 #6: getCredentials doesn't throw";
  * the platform tests can't read its body and time out. Cover an SSE route's credential checks in
  * tests/app instead (open it with page.request or fetch + AbortController and check the status).
  */
-const bugs: KnownBugs = { unnamedCredentialError: GET_CREDENTIALS_DOESNT_THROW };
-// These two only make best-effort Topia calls (iframe swap, analytics) and swallow their errors, so a
-// request with no or foreign credentials still answers success.
-const swallowsCredentialErrors: KnownBugs = {
-  ...bugs,
-  acceptsMissingCredentials: "EXP-455: answers success without credentials",
-  acceptsForeignCredentials: "EXP-455: answers success with foreign credentials",
-};
-
 export const CREDENTIALED_ROUTES: RouteSpec[] = [
-  { method: "get", path: "/main-app", knownBugs: bugs },
-  { method: "post", path: "/main-app/return", knownBugs: swallowsCredentialErrors },
-  { method: "post", path: "/monsters/start", knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/claim", data: { section: "head" }, knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/section", data: { section: "head", picks: {}, nameToken: "Harold" }, knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/draft", data: { section: "head", picks: {} }, knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/abandon", knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/resume", data: { section: "head" }, knownBugs: bugs },
-  { method: "delete", path: "/monsters/m1", knownBugs: bugs },
-  { method: "get", path: "/gallery", knownBugs: bugs },
-  { method: "get", path: "/monsters/m1", knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/open", knownBugs: bugs },
-  { method: "post", path: "/monsters/m1/download", knownBugs: bugs },
-  { method: "post", path: "/tab-view", data: { tab: "create" }, knownBugs: swallowsCredentialErrors },
-  { method: "get", path: "/vote", knownBugs: bugs },
-  { method: "post", path: "/vote/cast", data: { winnerMonsterId: "m1", loserMonsterId: "m2" }, knownBugs: bugs },
-  { method: "post", path: "/admin/vote/start-new-cycle", knownBugs: bugs },
-  { method: "post", path: "/banners/acknowledge", knownBugs: bugs },
-  { method: "get", path: "/trophy", knownBugs: bugs },
-  { method: "post", path: "/leaderboard/reset", knownBugs: bugs },
-  { method: "put", path: "/admin/settings", data: { weeklyVotingEnabled: false }, knownBugs: bugs },
+  { method: "get", path: "/main-app" },
+  { method: "post", path: "/main-app/return" },
+  { method: "post", path: "/monsters/start" },
+  { method: "post", path: "/monsters/m1/claim", data: { section: "head" } },
+  { method: "post", path: "/monsters/m1/section", data: { section: "head", picks: {}, nameToken: "Harold" } },
+  { method: "post", path: "/monsters/m1/draft", data: { section: "head", picks: {} } },
+  { method: "post", path: "/monsters/m1/abandon" },
+  { method: "post", path: "/monsters/m1/resume", data: { section: "head" } },
+  { method: "delete", path: "/monsters/m1" },
+  { method: "get", path: "/gallery" },
+  { method: "get", path: "/monsters/m1" },
+  { method: "post", path: "/monsters/m1/open" },
+  { method: "post", path: "/monsters/m1/download" },
+  { method: "post", path: "/tab-view", data: { tab: "create" } },
+  { method: "get", path: "/vote" },
+  { method: "post", path: "/vote/cast", data: { winnerMonsterId: "m1", loserMonsterId: "m2" } },
+  { method: "post", path: "/admin/vote/start-new-cycle" },
+  { method: "post", path: "/banners/acknowledge" },
+  { method: "get", path: "/trophy" },
+  { method: "post", path: "/leaderboard/reset" },
+  { method: "put", path: "/admin/settings", data: { weeklyVotingEnabled: false } },
 ];
 
 /**
@@ -164,10 +151,7 @@ export const HEALTH_KNOWN_BUGS: { incompleteContract?: string } = {};
  * registers its own logging handler. Fix: process.removeAllListeners("unhandledRejection") before
  * registering the app's handler.
  */
-export const PROCESS_KNOWN_BUGS: { exitsOnUnhandledRejection?: string } = {
-  exitsOnUnhandledRejection:
-    "EXP-472: @rtsdk/topia's unhandledRejection hook calls process.exit(1); server/index.ts's handler doesn't stop it",
-};
+export const PROCESS_KNOWN_BUGS: { exitsOnUnhandledRejection?: string } = {};
 
 /**
  * The request system.spec sends a malformed JSON body to. Default: the first POST/PUT route in
@@ -183,9 +167,7 @@ export const MALFORMED_JSON_REQUEST: { method: "post" | "put"; path: string } | 
  * middleware after express.json()). Fix: an error middleware that answers body-parser errors
  * (err.type === "entity.parse.failed") with res.status(400).json({ success: false, error: "Invalid JSON" }).
  */
-export const ERROR_KNOWN_BUGS: { malformedJson?: string } = {
-  malformedJson: "EXP-473: no error middleware: Express' default error page shows the stack trace (NODE_ENV isn't production)",
-};
+export const ERROR_KNOWN_BUGS: { malformedJson?: string } = {};
 
 /**
  * true starts mock-redis/server.mjs (an in-memory Redis) next to mock-topia and points REDIS_URL at it

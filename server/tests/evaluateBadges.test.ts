@@ -32,6 +32,7 @@ describe("parseBadgeDef", () => {
     ).toEqual({
       name: "Master Builder",
       displayName: "Master Builder",
+      description: "Master Builder",
       group: "building",
       sortOrder: 37,
       thresholdKind: "completeAsThird",
